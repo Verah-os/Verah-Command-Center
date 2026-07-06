@@ -34,10 +34,9 @@ N8N_DISPATCHER_WEBHOOK_URL=
 - `app`: routes and route states
 - `components`: shared shell and UI
 - `modules`: product modules
-- `services`: external integrations
 - `hooks`: client hooks
 - `types`: shared types
-- `lib`: utilities and configuration
+- `lib`: utilities, configuration and external integration clients
 
 ## Vercel Deploy
 
@@ -61,4 +60,4 @@ GITHUB_OWNER=Verah-os
 N8N_DISPATCHER_WEBHOOK_URL=
 ```
 
-The `services` directory contains integration clients only. Supabase browser/server clients live under `lib/supabase` so Vercel treats the project as one Next.js app, not multiple services.
+All external integration clients live under `lib/` so Vercel treats the repository as one Next.js app.
