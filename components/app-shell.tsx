@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Route } from "next";
 import { modules } from "@/modules/registry";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -13,7 +14,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {modules.map((module) => (
             <Link
               key={module.slug}
-              href={`/${module.slug}`}
+              href={`/${module.slug}` as Route}
               className="block rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
             >
               {module.title}
