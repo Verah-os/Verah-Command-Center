@@ -1,4 +1,4 @@
-import { signInWithEmail } from "@/services/auth/actions";
+import { signInWithEmail } from "@/lib/auth/actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
