@@ -1,9 +1,15 @@
 import { LoginForm } from "@/components/auth/login-form";
 
-export default function LoginPage({ searchParams }: { searchParams: { error?: string } }) {
+export default async function LoginPage({
+  searchParams
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const { error } = await searchParams;
+
   return (
     <main className="flex min-h-screen items-center justify-center p-5">
-      <LoginForm error={searchParams.error} />
+      <LoginForm error={error} />
     </main>
   );
 }
