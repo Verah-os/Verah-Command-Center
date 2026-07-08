@@ -22,6 +22,13 @@ export async function githubRequest<T>({ path, init }: GitHubRequestOptions): Pr
   });
 
   if (!response.ok) {
+    const message = await response.text();
+    console.error("GitHub API request failed", {
+      endpoint: path,
+      status: response.status,
+      message
+    });
+
     throw new Error(`GitHub API failed with ${response.status}`);
   }
 
