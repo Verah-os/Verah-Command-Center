@@ -40,7 +40,7 @@ begin
     selected_work_order.description
   ));
 
-  if work_order_text ~ '(engineering|code|frontend|backend|bug|\mpr\M)' then
+  if work_order_text ~ '(engineering|code|frontend|backend|bug|(^|[^a-z0-9])pr([^a-z0-9]|$))' then
     rule_name := 'engineering';
     rule_reason := 'Categoria, titulo ou descricao indica engenharia, codigo, frontend, backend, bug ou PR.';
     preferred_agents := array['codex', 'ethan'];
@@ -87,7 +87,7 @@ begin
     limit 1;
   end if;
 
-  if not found then
+  if selected_agent.id is null then
     select agent.*, coalesce(load.running_jobs, 0) into selected_agent, selected_load
     from public.ai_agents agent
     left join lateral (
@@ -105,12 +105,12 @@ begin
     for update of agent skip locked
     limit 1;
 
-    if found and rule_name <> 'fallback' then
+    if selected_agent.id is not null and rule_name <> 'fallback' then
       rule_reason := rule_reason || ' Agente preferencial indisponivel; fallback por menor carga usado.';
     end if;
   end if;
 
-  if not found then
+  if selected_agent.id is null then
     update public.dispatcher_jobs
     set logs = coalesce(logs, '[]'::jsonb) || public.dispatcher_engine_log_entry('Nenhum agente disponivel')
     where id = selected_job.id;
