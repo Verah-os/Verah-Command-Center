@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { env } from "@/lib/env";
 import { githubRequest } from "@/services/github/client";
+import { getAiTeamStats } from "@/services/ai-team";
 import { getDispatcherStats } from "@/services/dispatcher";
 import { getWorkOrderStats } from "@/services/work-orders";
 
@@ -107,6 +108,7 @@ export default async function DashboardPage() {
   const github = await getGitHubCardState();
   const workOrderStats = await getWorkOrderStats();
   const dispatcherStats = await getDispatcherStats();
+  const aiTeamStats = await getAiTeamStats();
 
   return (
     <div className="space-y-5">
@@ -173,10 +175,15 @@ export default async function DashboardPage() {
 
         <Card>
           <CardHeader>
-            <h2 className="text-sm font-medium text-muted-foreground">Atlas</h2>
+            <h2 className="text-sm font-medium text-muted-foreground">AI Team</h2>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-semibold">Ready</p>
+            <div className="space-y-2 text-sm">
+              <p className="text-2xl font-semibold">{aiTeamStats.total}</p>
+              <p>Online: {aiTeamStats.online}</p>
+              <p>Running: {aiTeamStats.running}</p>
+              <p>Error: {aiTeamStats.error}</p>
+            </div>
           </CardContent>
         </Card>
       </section>
