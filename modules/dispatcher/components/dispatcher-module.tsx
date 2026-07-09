@@ -3,7 +3,12 @@ import { DispatcherJobList } from "@/modules/dispatcher/components/dispatcher-jo
 import { runDispatcherEngineAction } from "@/services/dispatcher/actions";
 import type { DispatcherJob } from "@/types/dispatcher-job";
 
-export function DispatcherModule({ jobs }: { jobs: DispatcherJob[] }) {
+type DispatcherFeedback = {
+  status?: "success" | "error";
+  message?: string;
+};
+
+export function DispatcherModule({ feedback, jobs }: { feedback?: DispatcherFeedback; jobs: DispatcherJob[] }) {
   return (
     <div className="space-y-6">
       <section className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
@@ -15,12 +20,25 @@ export function DispatcherModule({ jobs }: { jobs: DispatcherJob[] }) {
           </p>
         </div>
         <form action={runDispatcherEngineAction}>
-          <Button type="submit">Run Engine</Button>
+          <Button type="submit">Run next queued job</Button>
         </form>
       </section>
 
+      {feedback?.status && feedback.message ? (
+        <div
+          className={
+            feedback.status === "success"
+              ? "rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800"
+              : "rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800"
+          }
+        >
+          {feedback.message}
+        </div>
+      ) : null}
+
       <DispatcherJobList jobs={jobs} status="queued" />
       <DispatcherJobList jobs={jobs} status="running" />
+      <DispatcherJobList jobs={jobs} status="failed" />
       <DispatcherJobList jobs={jobs} status="completed" />
     </div>
   );
