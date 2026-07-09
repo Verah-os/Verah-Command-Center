@@ -18,7 +18,7 @@ function revalidateDispatcher(jobId?: string) {
   }
 }
 
-function redirectWithFeedback(status: "success" | "error", message: string) {
+function redirectWithFeedback(status: "success" | "error", message: string): never {
   redirect(`/dispatcher?status=${status}&message=${encodeURIComponent(message)}`);
 }
 
