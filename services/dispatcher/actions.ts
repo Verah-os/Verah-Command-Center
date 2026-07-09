@@ -44,7 +44,7 @@ export async function retryFailedDispatcherJobAction(formData: FormData) {
     redirectWithFeedback("success", "Job reenfileirado com sucesso.");
   }
 
-  redirectWithFeedback("error", result.message);
+  redirectWithFeedback("error", "Nao foi possivel reenfileirar o job.");
 }
 
 export async function markDispatcherJobCompletedAction(formData: FormData) {
@@ -57,7 +57,7 @@ export async function markDispatcherJobCompletedAction(formData: FormData) {
     redirectWithFeedback("success", "Job marcado como concluido.");
   }
 
-  redirectWithFeedback("error", result.message);
+  redirectWithFeedback("error", "Nao foi possivel concluir o job.");
 }
 
 export async function markDispatcherJobFailedAction(formData: FormData) {
@@ -70,5 +70,5 @@ export async function markDispatcherJobFailedAction(formData: FormData) {
     redirectWithFeedback("success", "Job marcado como falho.");
   }
 
-  redirectWithFeedback("error", result.message);
+  redirectWithFeedback("error", "Nao foi possivel marcar o job como falho.");
 }
