@@ -22,6 +22,11 @@ type FinishEngineResponse = {
   agentId?: string;
 };
 
+type ManualControlResponse = {
+  status: "queued" | "completed" | "failed" | "not_found";
+  jobId?: string;
+};
+
 export type DispatcherEngineResult =
   | {
       status: "completed";
@@ -33,6 +38,16 @@ export type DispatcherEngineResult =
       message: string;
     };
 
+export type DispatcherControlResult =
+  | {
+      status: "queued" | "completed" | "failed";
+      jobId: string;
+    }
+  | {
+      status: "not_configured" | "not_found" | "error";
+      message: string;
+    };
+
 function isSupabaseConfigured() {
   return Boolean(env.supabaseUrl && env.supabaseAnonKey);
 }
@@ -41,6 +56,52 @@ function wait(ms: number) {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
   });
+}
+
+async function callManualControlRpc(rpcName: string, jobId: string): Promise<DispatcherControlResult> {
+  if (!isSupabaseConfigured()) {
+    return {
+      status: "not_configured",
+      message: "Supabase nao configurado."
+    };
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc(rpcName, { job_id: jobId });
+
+  if (error) {
+    console.error(`Failed to run dispatcher control ${rpcName}`, error.message);
+    return {
+      status: "error",
+      message: "Nao foi possivel executar a acao."
+    };
+  }
+
+  const result = data as ManualControlResponse;
+
+  if (result.status === "not_found") {
+    return {
+      status: "not_found",
+      message: "Job nao encontrado para esta acao."
+    };
+  }
+
+  return {
+    status: result.status,
+    jobId: result.jobId ?? jobId
+  };
+}
+
+export async function retryFailedDispatcherJob(jobId: string) {
+  return callManualControlRpc("dispatcher_engine_retry_failed_job", jobId);
+}
+
+export async function markDispatcherJobCompleted(jobId: string) {
+  return callManualControlRpc("dispatcher_engine_mark_job_completed", jobId);
+}
+
+export async function markDispatcherJobFailed(jobId: string) {
+  return callManualControlRpc("dispatcher_engine_mark_job_failed", jobId);
 }
 
 export async function runNextDispatcherJob(): Promise<DispatcherEngineResult> {
