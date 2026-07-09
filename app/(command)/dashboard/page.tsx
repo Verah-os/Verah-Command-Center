@@ -3,6 +3,7 @@ import { env } from "@/lib/env";
 import { githubRequest } from "@/services/github/client";
 import { getAiTeamStats } from "@/services/ai-team";
 import { getDispatcherStats } from "@/services/dispatcher";
+import { getPlatformSettingsSummary } from "@/services/settings";
 import { getWorkOrderStats } from "@/services/work-orders";
 
 export const dynamic = "force-dynamic";
@@ -109,6 +110,7 @@ export default async function DashboardPage() {
   const workOrderStats = await getWorkOrderStats();
   const dispatcherStats = await getDispatcherStats();
   const aiTeamStats = await getAiTeamStats();
+  const platformSettings = await getPlatformSettingsSummary();
 
   return (
     <div className="space-y-5">
@@ -116,7 +118,7 @@ export default async function DashboardPage() {
         <h1 className="text-2xl font-semibold">VERAH Command Center</h1>
       </header>
 
-      <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
         <Card>
           <CardHeader>
             <h2 className="text-sm font-medium text-muted-foreground">Work Orders</h2>
@@ -183,6 +185,19 @@ export default async function DashboardPage() {
               <p>Online: {aiTeamStats.online}</p>
               <p>Running: {aiTeamStats.running}</p>
               <p>Error: {aiTeamStats.error}</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <h2 className="text-sm font-medium text-muted-foreground">Platform</h2>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2 text-sm">
+              <p>Version: {platformSettings.version}</p>
+              <p>Environment: {platformSettings.environment}</p>
+              <p>Timezone: {platformSettings.timezone}</p>
             </div>
           </CardContent>
         </Card>
