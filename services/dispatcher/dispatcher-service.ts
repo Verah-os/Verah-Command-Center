@@ -16,10 +16,12 @@ type DispatcherJobRow = {
   payload: Record<string, unknown>;
   started_at: string | null;
   finished_at: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
 const dispatcherJobColumns =
-  "id,work_order_id,target_agent,status,payload,started_at,finished_at";
+  "id,work_order_id,target_agent,status,payload,started_at,finished_at,created_at,updated_at";
 
 function isSupabaseConfigured() {
   return Boolean(env.supabaseUrl && env.supabaseAnonKey);
@@ -33,7 +35,9 @@ function toDispatcherJob(row: DispatcherJobRow): DispatcherJob {
     status: row.status,
     payload: row.payload,
     startedAt: row.started_at,
-    finishedAt: row.finished_at
+    finishedAt: row.finished_at,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
   };
 }
 
@@ -46,7 +50,7 @@ export async function listDispatcherJobs(): Promise<DispatcherJob[]> {
   const { data, error } = await supabase
     .from("dispatcher_jobs")
     .select(dispatcherJobColumns)
-    .order("started_at", { ascending: false, nullsFirst: false });
+    .order("updated_at", { ascending: false });
 
   if (error) {
     console.error("Failed to load dispatcher jobs", error.message);
