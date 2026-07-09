@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { env } from "@/lib/env";
 import { githubRequest } from "@/services/github/client";
+import { getDispatcherStats } from "@/services/dispatcher";
 import { getWorkOrderStats } from "@/services/work-orders";
 
 export const dynamic = "force-dynamic";
@@ -105,6 +106,7 @@ function formatLastUpdated(value: string | null) {
 export default async function DashboardPage() {
   const github = await getGitHubCardState();
   const workOrderStats = await getWorkOrderStats();
+  const dispatcherStats = await getDispatcherStats();
 
   return (
     <div className="space-y-5">
@@ -158,10 +160,14 @@ export default async function DashboardPage() {
 
         <Card>
           <CardHeader>
-            <h2 className="text-sm font-medium text-muted-foreground">Runtime</h2>
+            <h2 className="text-sm font-medium text-muted-foreground">Dispatcher</h2>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-semibold">Ready</p>
+            <div className="space-y-2 text-sm">
+              <p>Queued: {dispatcherStats.queued}</p>
+              <p>Running: {dispatcherStats.running}</p>
+              <p>Completed: {dispatcherStats.completed}</p>
+            </div>
           </CardContent>
         </Card>
 
