@@ -1,5 +1,8 @@
 import { WorkOrdersModule } from "@/modules/work-orders/components/work-orders-module";
+import { listWorkOrders } from "@/services/work-orders";
 
-export default function WorkOrdersPage() {
-  return <WorkOrdersModule />;
+export default async function WorkOrdersPage() {
+  const workOrders = await listWorkOrders();
+
+  return <WorkOrdersModule workOrders={workOrders} />;
 }
