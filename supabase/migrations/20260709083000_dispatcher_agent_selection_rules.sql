@@ -63,19 +63,18 @@ begin
   end if;
 
   if array_length(preferred_agents, 1) is not null then
-    select agent.*, coalesce(load.running_jobs, 0) into selected_agent, selected_load
+    select agent.* into selected_agent
     from public.ai_agents agent
-    left join lateral (
-      select count(*)::integer as running_jobs
-      from public.dispatcher_jobs running_job
-      where running_job.status = 'running'
-        and running_job.assigned_agent = agent.id
-    ) load on true
     where agent.status in ('online', 'idle')
       and agent.id = any(preferred_agents)
     order by
       case when agent.status = 'idle' then 0 else 1 end,
-      coalesce(load.running_jobs, 0) asc,
+      (
+        select count(*)
+        from public.dispatcher_jobs running_job
+        where running_job.status = 'running'
+          and running_job.assigned_agent = agent.id
+      ) asc,
       case agent.id
         when 'codex' then 0
         when 'ethan' then 1
@@ -88,17 +87,16 @@ begin
   end if;
 
   if selected_agent.id is null then
-    select agent.*, coalesce(load.running_jobs, 0) into selected_agent, selected_load
+    select agent.* into selected_agent
     from public.ai_agents agent
-    left join lateral (
-      select count(*)::integer as running_jobs
-      from public.dispatcher_jobs running_job
-      where running_job.status = 'running'
-        and running_job.assigned_agent = agent.id
-    ) load on true
     where agent.status in ('online', 'idle')
     order by
-      coalesce(load.running_jobs, 0) asc,
+      (
+        select count(*)
+        from public.dispatcher_jobs running_job
+        where running_job.status = 'running'
+          and running_job.assigned_agent = agent.id
+      ) asc,
       case when agent.status = 'idle' then 0 else 1 end,
       agent.last_seen_at asc nulls first,
       agent.name asc
@@ -117,6 +115,11 @@ begin
 
     return jsonb_build_object('status', 'no_agent', 'jobId', selected_job.id);
   end if;
+
+  select count(*)::integer into selected_load
+  from public.dispatcher_jobs running_job
+  where running_job.status = 'running'
+    and running_job.assigned_agent = selected_agent.id;
 
   if selected_agent.capabilities is not null then
     rule_reason := rule_reason || ' Capabilities consideradas: ' || selected_agent.capabilities::text || '.';
