@@ -1,14 +1,26 @@
 import Link from "next/link";
 import type { Route } from "next";
+import { EmptyState } from "@/components/state/empty-state";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { WorkOrderPriorityText, WorkOrderStatusText } from "@/modules/work-orders/components/work-order-status";
 import type { WorkOrder } from "@/types/work-order";
 
 function formatDate(value: string) {
-  return new Intl.DateTimeFormat("pt-BR").format(new Date(`${value}T00:00:00`));
+  const date = value.includes("T") ? new Date(value) : new Date(`${value}T00:00:00`);
+
+  return new Intl.DateTimeFormat("pt-BR").format(date);
 }
 
 export function WorkOrderList({ workOrders }: { workOrders: WorkOrder[] }) {
+  if (workOrders.length === 0) {
+    return (
+      <EmptyState
+        title="Work Orders sem dados"
+        description="Nenhuma Work Order encontrada no Supabase. Execute o seed inicial para carregar os dados base."
+      />
+    );
+  }
+
   return (
     <section className="grid gap-3">
       {workOrders.map((workOrder) => (
