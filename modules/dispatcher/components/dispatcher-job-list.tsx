@@ -26,25 +26,29 @@ function DispatcherJobCard({ job }: { job: DispatcherJob }) {
       <CardHeader>
         <div className="flex flex-col gap-1 md:flex-row md:items-start md:justify-between">
           <div>
-            <p className="text-sm font-semibold text-primary">{job.workOrderId}</p>
-            <h3 className="text-base font-semibold">{job.targetAgent}</h3>
+            <p className="text-sm font-semibold text-primary">{job.id}</p>
+            <h3 className="text-base font-semibold">{job.workOrderId}</h3>
           </div>
           <p className="text-sm text-muted-foreground">{job.status}</p>
         </div>
       </CardHeader>
       <CardContent>
-        <div className="grid gap-3 text-sm md:grid-cols-3">
+        <div className="grid gap-3 text-sm md:grid-cols-4">
           <div>
-            <p className="text-muted-foreground">Job</p>
-            <p className="font-medium">{job.id}</p>
+            <p className="text-muted-foreground">Work Order</p>
+            <p className="font-medium">{job.workOrderId}</p>
           </div>
           <div>
-            <p className="text-muted-foreground">Started</p>
-            <p className="font-medium">{formatDate(job.startedAt)}</p>
+            <p className="text-muted-foreground">Status</p>
+            <p className="font-medium">{job.status}</p>
           </div>
           <div>
-            <p className="text-muted-foreground">Finished</p>
-            <p className="font-medium">{formatDate(job.finishedAt)}</p>
+            <p className="text-muted-foreground">Created At</p>
+            <p className="font-medium">{formatDate(job.createdAt)}</p>
+          </div>
+          <div>
+            <p className="text-muted-foreground">Updated At</p>
+            <p className="font-medium">{formatDate(job.updatedAt)}</p>
           </div>
         </div>
       </CardContent>
