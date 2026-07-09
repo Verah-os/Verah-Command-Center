@@ -3,7 +3,9 @@ import { WorkOrderPriorityText, WorkOrderStatusText } from "@/modules/work-order
 import type { WorkOrder } from "@/types/work-order";
 
 function formatDate(value: string) {
-  return new Intl.DateTimeFormat("pt-BR").format(new Date(`${value}T00:00:00`));
+  const date = value.includes("T") ? new Date(value) : new Date(`${value}T00:00:00`);
+
+  return new Intl.DateTimeFormat("pt-BR").format(date);
 }
 
 export function WorkOrderDetail({ workOrder }: { workOrder: WorkOrder }) {
