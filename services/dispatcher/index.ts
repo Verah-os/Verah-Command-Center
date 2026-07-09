@@ -1,4 +1,5 @@
 export {
+  getDispatcherJobById,
   getDispatcherStats,
   listDispatcherJobs,
   type DispatcherStats
@@ -10,3 +11,4 @@ export {
   isDispatcherPipelineStatus,
   type DispatcherJobInput
 } from "@/services/dispatcher/pipeline-service";
+export { runNextDispatcherJob, type DispatcherEngineResult } from "@/services/dispatcher/engine";
