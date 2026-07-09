@@ -8,4 +8,6 @@ export type DispatcherJob = {
   payload: Record<string, unknown>;
   startedAt: string | null;
   finishedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
 };
