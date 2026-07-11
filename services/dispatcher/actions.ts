@@ -6,6 +6,7 @@ import {
   markDispatcherJobCompleted,
   markDispatcherJobFailed,
   retryFailedDispatcherJob,
+  runDispatcherJobWithAiRuntime,
   runNextDispatcherJob
 } from "@/services/dispatcher/engine";
 
@@ -71,4 +72,21 @@ export async function markDispatcherJobFailedAction(formData: FormData) {
   }
 
   redirectWithFeedback("error", "Nao foi possivel marcar o job como falho.");
+}
+
+export async function runDispatcherJobWithAiRuntimeAction(formData: FormData) {
+  const jobId = String(formData.get("jobId") ?? "");
+  const result = await runDispatcherJobWithAiRuntime(jobId);
+
+  revalidateDispatcher(jobId);
+
+  if (result.status === "completed") {
+    redirectWithFeedback("success", `AI Runtime concluido. executionId=${result.executionId}`);
+  }
+
+  if (result.status === "failed") {
+    redirectWithFeedback("error", `AI Runtime falhou. executionId=${result.executionId}`);
+  }
+
+  redirectWithFeedback("error", "message" in result ? result.message : "AI Runtime nao concluiu a execucao.");
 }
