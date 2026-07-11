@@ -106,6 +106,19 @@ export const modules: CommandModule[] = [
     ]
   },
   {
+    slug: "ai-runtime",
+    title: "AI Runtime",
+    description: "Operational view of Runtime agents and executions.",
+    owner: "Dispatcher",
+    status: "ready",
+    primaryAction: "Inspect Runtime",
+    metrics: [
+      { label: "Mode", value: "Monitor" },
+      { label: "Adapter", value: "Mock" },
+      { label: "Access", value: "Read only" }
+    ]
+  },
+  {
     slug: "automation",
     title: "Automation",
     description: "n8n workflows, webhooks and production controls.",
