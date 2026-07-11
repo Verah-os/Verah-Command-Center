@@ -1,5 +1,8 @@
 import { env } from "@/lib/env";
+import { AgentRegistry, AgentRuntime, MockAgent, type AgentJob } from "@/services/ai-runtime";
+import { getDispatcherJobById } from "@/services/dispatcher/dispatcher-service";
 import { createSupabaseServerClient } from "@/services/supabase/server";
+import { getWorkOrderById } from "@/services/work-orders";
 
 type StartEngineResponse =
   | {
@@ -45,6 +48,17 @@ export type DispatcherControlResult =
     }
   | {
       status: "not_configured" | "not_found" | "error";
+      message: string;
+    };
+
+export type AiRuntimeDispatcherResult =
+  | {
+      status: "completed" | "failed";
+      jobId: string;
+      executionId: string;
+    }
+  | {
+      status: "not_configured" | "not_found" | "incompatible" | "persistence_error";
       message: string;
     };
 
@@ -102,6 +116,72 @@ export async function markDispatcherJobCompleted(jobId: string) {
 
 export async function markDispatcherJobFailed(jobId: string) {
   return callManualControlRpc("dispatcher_engine_mark_job_failed", jobId);
+}
+
+export async function runDispatcherJobWithAiRuntime(jobId: string): Promise<AiRuntimeDispatcherResult> {
+  if (!isSupabaseConfigured()) {
+    return { status: "not_configured", message: "Supabase nao configurado." };
+  }
+
+  const dispatcherJob = await getDispatcherJobById(jobId);
+
+  if (!dispatcherJob) {
+    return { status: "not_found", message: "Job nao encontrado." };
+  }
+
+  if (dispatcherJob.status !== "queued" && dispatcherJob.status !== "failed") {
+    return { status: "incompatible", message: "O AI Runtime aceita apenas jobs queued ou failed." };
+  }
+
+  const workOrder = await getWorkOrderById(dispatcherJob.workOrderId);
+
+  if (!workOrder) {
+    return { status: "not_found", message: "Work Order relacionada nao encontrada." };
+  }
+
+  const job: AgentJob = {
+    jobId: dispatcherJob.id,
+    workOrderId: workOrder.id,
+    agentId: "mock_agent",
+    payload: {
+      category: workOrder.category,
+      origin: workOrder.origin
+    },
+    createdAt: new Date().toISOString()
+  };
+
+  const registry = new AgentRegistry();
+  registry.register(new MockAgent());
+  const runtime = new AgentRuntime(registry);
+  const response = await runtime.execute(job);
+  const supabase = await createSupabaseServerClient();
+  const outputMessage = typeof response.output?.message === "string" ? response.output.message : null;
+  const { data, error } = await supabase.rpc("dispatcher_complete_ai_runtime_job", {
+    job_id: dispatcherJob.id,
+    execution_id: response.executionId,
+    succeeded: response.status === "success",
+    duration_ms: response.durationMs,
+    result_message: outputMessage,
+    error_code: response.error?.code ?? null,
+    error_message: response.error?.message ?? null
+  });
+
+  if (error) {
+    console.error("Failed to persist AI Runtime result", error.message);
+    return { status: "persistence_error", message: "Nao foi possivel salvar o resultado do AI Runtime." };
+  }
+
+  const persisted = data as { status: "completed" | "failed" | "not_found" };
+
+  if (persisted.status === "not_found") {
+    return { status: "not_found", message: "O job mudou de estado antes da conclusao." };
+  }
+
+  return {
+    status: persisted.status,
+    jobId: dispatcherJob.id,
+    executionId: response.executionId
+  };
 }
 
 export async function runNextDispatcherJob(): Promise<DispatcherEngineResult> {

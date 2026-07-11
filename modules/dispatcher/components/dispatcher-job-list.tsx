@@ -5,7 +5,8 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
   markDispatcherJobCompletedAction,
   markDispatcherJobFailedAction,
-  retryFailedDispatcherJobAction
+  retryFailedDispatcherJobAction,
+  runDispatcherJobWithAiRuntimeAction
 } from "@/services/dispatcher/actions";
 import type { DispatcherJob, DispatcherJobStatus } from "@/types/dispatcher-job";
 
@@ -41,6 +42,12 @@ function JobActionForm({ action, children, jobId }: { action: (formData: FormDat
 function DispatcherJobActions({ job }: { job: DispatcherJob }) {
   return (
     <div className="flex flex-wrap gap-2 pt-4">
+      {job.status === "queued" || job.status === "failed" ? (
+        <JobActionForm action={runDispatcherJobWithAiRuntimeAction} jobId={job.id}>
+          Run with AI Runtime
+        </JobActionForm>
+      ) : null}
+
       {job.status === "failed" ? (
         <JobActionForm action={retryFailedDispatcherJobAction} jobId={job.id}>
           Retry failed job
