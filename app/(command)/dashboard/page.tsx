@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { env } from "@/lib/env";
 import { githubRequest } from "@/services/github/client";
 import { getAiTeamStats } from "@/services/ai-team";
+import { getRuntimeSummary } from "@/services/ai-runtime";
 import { getDispatcherStats } from "@/services/dispatcher";
 import { getPlatformSettingsSummary } from "@/services/settings";
 import { getWorkOrderStats } from "@/services/work-orders";
@@ -110,6 +111,7 @@ export default async function DashboardPage() {
   const workOrderStats = await getWorkOrderStats();
   const dispatcherStats = await getDispatcherStats();
   const aiTeamStats = await getAiTeamStats();
+  const runtimeSummary = await getRuntimeSummary();
   const platformSettings = await getPlatformSettingsSummary();
 
   return (
@@ -198,6 +200,25 @@ export default async function DashboardPage() {
               <p>Version: {platformSettings.version}</p>
               <p>Environment: {platformSettings.environment}</p>
               <p>Timezone: {platformSettings.timezone}</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <h2 className="text-sm font-medium text-muted-foreground">AI Runtime</h2>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2 text-sm">
+              <p>Executions: {runtimeSummary.totalExecutions}</p>
+              <p>Success: {runtimeSummary.completedExecutions}</p>
+              <p>Failed: {runtimeSummary.failedExecutions}</p>
+              <p>
+                Avg Duration:{" "}
+                {runtimeSummary.averageDurationMs === null
+                  ? "Not available"
+                  : `${runtimeSummary.averageDurationMs.toFixed(1)} ms`}
+              </p>
             </div>
           </CardContent>
         </Card>
