@@ -1,0 +1,18 @@
+import { notFound, redirect } from "next/navigation";
+import { Card, CardContent } from "@/components/ui/card";
+import { DemoShell } from "@/components/demo/demo-shell";
+import { getCustomerServiceRequest } from "@/services/service-requests";
+import { createSupabaseServerClient } from "@/services/supabase/server";
+
+const timeline = ["Solicitado", "Concierge aceitou", "Prestador indicado", "Aguardando aprovação", "Em execução", "Concluído"];
+
+export default async function ServiceRequestPage({ params }: { params: Promise<{ id: string }> }) {
+  const supabase = await createSupabaseServerClient(); const { data: { user } } = await supabase.auth.getUser(); if (!user) redirect("/login");
+  const { id } = await params; const request = await getCustomerServiceRequest(id); if (!request) notFound();
+  return <DemoShell><section className="mx-auto max-w-4xl px-5 py-10 sm:py-14"><div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><p className="font-mono text-sm font-semibold text-teal-800">{request.referenceCode}</p><h1 className="mt-2 text-3xl font-semibold">Seu atendimento foi solicitado</h1></div><span className="w-fit rounded-full bg-teal-100 px-4 py-2 text-sm font-semibold capitalize text-teal-900">{request.serviceStage.replaceAll("_", " ")}</span></div>
+    <div className="mt-8 grid gap-5 lg:grid-cols-[1.4fr_0.8fr]"><div className="space-y-5"><Card><CardContent className="space-y-5 p-6"><Info label="Veículo" value={`${request.vehicleBrand} ${request.vehicleModel}${request.vehicleYear ? ` · ${request.vehicleYear}` : ""}`} /><Info label="Cidade" value={request.city} /><Info label="Seu relato" value={request.customerReport} /></CardContent></Card><Card className="border-teal-100"><CardContent className="space-y-5 p-6"><h2 className="text-lg font-semibold">Análise inicial da VERAH</h2><Info label="Resumo" value={request.copilotSummary ?? "Em revisão"} /><Info label="Urgência" value={request.perceivedUrgency} /><Info label="Próximo passo" value={request.copilotRecommendedNextStep ?? "Aguardar revisão humana."} /><Info label="Mensagem da VERAH" value={request.copilotCustomerMessage ?? "Recebemos sua solicitação."} /></CardContent></Card><p className="rounded-xl bg-rose-50 p-5 text-sm leading-6 text-rose-900">Um Concierge da VERAH revisará as informações antes de qualquer encaminhamento.</p></div>
+      <Card><CardContent className="p-6"><h2 className="text-lg font-semibold">Acompanhamento</h2><ol className="mt-6 space-y-0">{timeline.map((item, index) => <li key={item} className="relative flex gap-3 pb-7 last:pb-0"><span className={`relative z-10 mt-0.5 h-5 w-5 rounded-full border-4 ${index === 0 ? "border-teal-200 bg-teal-700" : "border-slate-100 bg-slate-300"}`} />{index < timeline.length - 1 && <span className="absolute left-[9px] top-5 h-full w-px bg-slate-200" />}<div><p className={index === 0 ? "font-semibold text-teal-900" : "font-medium text-slate-500"}>{item}</p><p className="mt-1 text-xs text-slate-500">{index === 0 ? "Concluído" : "Pendente"}</p></div></li>)}</ol></CardContent></Card>
+    </div></section></DemoShell>;
+}
+
+function Info({ label, value }: { label: string; value: string }) { return <div><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p><p className="mt-1 whitespace-pre-wrap capitalize leading-6 text-slate-800">{value}</p></div>; }
