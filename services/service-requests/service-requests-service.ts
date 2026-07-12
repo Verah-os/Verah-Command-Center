@@ -2,7 +2,7 @@ import { env } from "@/lib/env";
 import { createSupabaseServerClient } from "@/services/supabase/server";
 import type { ServiceRequest } from "@/types/service-request";
 
-const columns = "id,reference_code,customer_name,customer_phone,vehicle_brand,vehicle_model,vehicle_year,vehicle_plate,city,customer_report,perceived_urgency,service_stage,probable_category,copilot_summary,copilot_questions,copilot_risk_signals,copilot_recommended_next_step,copilot_customer_message,copilot_concierge_brief,copilot_provider_brief,copilot_confidence,requires_human_review,created_at,created_by,concierge_id,concierge_accepted_at,work_order_id,provider_id,provider_assigned_at,provider_assigned_by";
+const columns = "id,reference_code,customer_name,customer_phone,vehicle_brand,vehicle_model,vehicle_year,vehicle_plate,city,customer_report,perceived_urgency,service_stage,probable_category,copilot_summary,copilot_questions,copilot_risk_signals,copilot_recommended_next_step,copilot_customer_message,copilot_concierge_brief,copilot_provider_brief,copilot_confidence,requires_human_review,created_at,created_by,concierge_id,concierge_accepted_at,work_order_id,provider_id,provider_assigned_at,provider_assigned_by,provider_completed_at,concierge_confirmed_at,completed_at,completion_notes,customer_rating,customer_feedback,customer_rated_at";
 
 function mapRow(row: Record<string, unknown>): ServiceRequest {
   return {
@@ -20,7 +20,10 @@ function mapRow(row: Record<string, unknown>): ServiceRequest {
     requiresHumanReview: row.requires_human_review as boolean, createdAt: row.created_at as string,
     conciergeId: row.concierge_id as string | null, conciergeAcceptedAt: row.concierge_accepted_at as string | null,
     workOrderId: row.work_order_id as string | null, providerId: row.provider_id as string | null,
-    providerAssignedAt: row.provider_assigned_at as string | null, providerAssignedBy: row.provider_assigned_by as string | null
+    providerAssignedAt: row.provider_assigned_at as string | null, providerAssignedBy: row.provider_assigned_by as string | null,
+    providerCompletedAt: row.provider_completed_at as string | null, conciergeConfirmedAt: row.concierge_confirmed_at as string | null,
+    completedAt: row.completed_at as string | null, completionNotes: row.completion_notes as string | null,
+    customerRating: row.customer_rating as number | null, customerFeedback: row.customer_feedback as string | null, customerRatedAt: row.customer_rated_at as string | null
   };
 }
 
@@ -84,6 +87,11 @@ export async function getConciergeStats() {
     requested: requests.filter((request) => request.serviceStage === "solicitado").length,
     inService: requests.filter((request) => request.serviceStage === "concierge_aceitou").length,
     critical: requests.filter((request) => request.perceivedUrgency === "critica").length,
-    awaitingReview: requests.filter((request) => request.requiresHumanReview && request.serviceStage === "solicitado").length
+    awaitingReview: requests.filter((request) => request.requiresHumanReview && request.serviceStage === "solicitado").length,
+    inProgress: requests.filter((request) => !["solicitado", "concluido", "cancelado"].includes(request.serviceStage)).length,
+    completed: requests.filter((request) => request.serviceStage === "concluido").length,
+    ratings: requests.filter((request) => request.customerRating !== null).length,
+    averageRating: (() => { const values=requests.flatMap((request)=>request.customerRating===null?[]:[request.customerRating]); return values.length ? values.reduce((sum,value)=>sum+value,0)/values.length : null; })(),
+    promoters: (() => { const values=requests.flatMap((request)=>request.customerRating===null?[]:[request.customerRating]); return values.length ? values.filter((value)=>value>=4).length/values.length*100 : null; })()
   };
 }
