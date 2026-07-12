@@ -6,6 +6,7 @@ import { getRuntimeSummary } from "@/services/ai-runtime";
 import { getDispatcherStats } from "@/services/dispatcher";
 import { getPlatformSettingsSummary } from "@/services/settings";
 import { getWorkOrderStats } from "@/services/work-orders";
+import { getConciergeStats } from "@/services/service-requests";
 
 export const dynamic = "force-dynamic";
 
@@ -113,6 +114,7 @@ export default async function DashboardPage() {
   const aiTeamStats = await getAiTeamStats();
   const runtimeSummary = await getRuntimeSummary();
   const platformSettings = await getPlatformSettingsSummary();
+  const conciergeStats = await getConciergeStats();
 
   return (
     <div className="space-y-5">
@@ -121,6 +123,10 @@ export default async function DashboardPage() {
       </header>
 
       <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+        <Card>
+          <CardHeader><h2 className="text-sm font-medium text-muted-foreground">Concierge</h2></CardHeader>
+          <CardContent><div className="grid gap-1 text-sm"><p>Solicitados: {conciergeStats.requested}</p><p>Em atendimento: {conciergeStats.inService}</p><p>Críticos: {conciergeStats.critical}</p><p>Aguardando revisão: {conciergeStats.awaitingReview}</p></div></CardContent>
+        </Card>
         <Card>
           <CardHeader>
             <h2 className="text-sm font-medium text-muted-foreground">Work Orders</h2>
