@@ -11,4 +11,5 @@ export type ServiceRequest = {
   copilotConciergeBrief: string | null; copilotProviderBrief: string | null;
   copilotConfidence: number | null; requiresHumanReview: boolean; createdAt: string;
   conciergeId: string | null; conciergeAcceptedAt: string | null; workOrderId: string | null;
+  providerId: string | null; providerAssignedAt: string | null; providerAssignedBy: string | null;
 };
