@@ -4,8 +4,10 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { Route } from "next";
 import { createSupabaseServerClient } from "@/services/supabase/server";
+import { requireRole } from "@/services/auth/profile";
 
 export async function acceptServiceRequest(formData: FormData) {
+  await requireRole(["concierge", "admin"]);
   const id = formData.get("serviceRequestId");
   if (typeof id !== "string" || !/^[0-9a-f-]{36}$/i.test(id)) redirect("/concierge?error=Atendimento%20inválido." as Route);
 

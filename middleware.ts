@@ -1,6 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { env } from "@/lib/env";
+import type { UserRole } from "@/types/user-profile";
+
+const homes: Record<UserRole, string> = { customer: "/demo/cliente", concierge: "/concierge", provider: "/demo/prestador", admin: "/dashboard" };
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -27,11 +30,28 @@ export async function middleware(request: NextRequest) {
     data: { user }
   } = await supabase.auth.getUser();
 
-  if (!user && !request.nextUrl.pathname.startsWith("/login")) {
+  const path = request.nextUrl.pathname;
+  const isLogin = path.startsWith("/login") || path.startsWith("/entrar/");
+  if (!user && !isLogin) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
   }
+
+  if (!user) return response;
+  const { data: profile } = await supabase.from("user_profiles").select("role").eq("user_id", user.id).maybeSingle();
+  if (!profile) {
+    if (isLogin) return response;
+    const url = request.nextUrl.clone(); url.pathname = "/login"; url.search = "?error=profile_missing"; return NextResponse.redirect(url);
+  }
+  const role = profile.role as UserRole;
+  if (isLogin) return NextResponse.redirect(new URL(homes[role], request.url));
+  const allowed = path === "/demo" ||
+    ((role === "customer" || role === "admin") && path.startsWith("/demo/cliente")) ||
+    ((role === "concierge" || role === "admin") && path.startsWith("/concierge")) ||
+    ((role === "provider" || role === "admin") && path.startsWith("/demo/prestador")) ||
+    role === "admin";
+  if (!allowed) return NextResponse.redirect(new URL(homes[role], request.url));
 
   return response;
 }
