@@ -1,0 +1,6 @@
+"use server";
+import type { Route } from "next";
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { createSupabaseServerClient } from "@/services/supabase/server";
+export async function assignProvider(formData: FormData) { const serviceRequestId = formData.get("serviceRequestId"); const providerId = formData.get("providerId"); if (typeof serviceRequestId !== "string" || typeof providerId !== "string") redirect("/concierge" as Route); const supabase = await createSupabaseServerClient(); const { data: { user } } = await supabase.auth.getUser(); if (!user) redirect("/login"); const { error } = await supabase.rpc("assign_provider_to_service_request", { p_service_request_id: serviceRequestId, p_provider_id: providerId }); if (error) { const message = error.message.includes("já possui") ? "Este atendimento já possui um prestador indicado." : "Não foi possível indicar o prestador."; redirect(`/concierge/${serviceRequestId}?error=${encodeURIComponent(message)}` as Route); } revalidatePath("/concierge"); revalidatePath(`/concierge/${serviceRequestId}`); revalidatePath("/dashboard"); revalidatePath("/demo/cliente"); revalidatePath(`/demo/cliente/atendimento/${serviceRequestId}`); revalidatePath("/demo/prestador"); redirect(`/concierge/${serviceRequestId}?providerAssigned=1` as Route); }

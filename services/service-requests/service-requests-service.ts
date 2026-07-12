@@ -2,7 +2,7 @@ import { env } from "@/lib/env";
 import { createSupabaseServerClient } from "@/services/supabase/server";
 import type { ServiceRequest } from "@/types/service-request";
 
-const columns = "id,reference_code,customer_name,customer_phone,vehicle_brand,vehicle_model,vehicle_year,vehicle_plate,city,customer_report,perceived_urgency,service_stage,probable_category,copilot_summary,copilot_questions,copilot_risk_signals,copilot_recommended_next_step,copilot_customer_message,copilot_concierge_brief,copilot_provider_brief,copilot_confidence,requires_human_review,created_at,created_by,concierge_id,concierge_accepted_at,work_order_id";
+const columns = "id,reference_code,customer_name,customer_phone,vehicle_brand,vehicle_model,vehicle_year,vehicle_plate,city,customer_report,perceived_urgency,service_stage,probable_category,copilot_summary,copilot_questions,copilot_risk_signals,copilot_recommended_next_step,copilot_customer_message,copilot_concierge_brief,copilot_provider_brief,copilot_confidence,requires_human_review,created_at,created_by,concierge_id,concierge_accepted_at,work_order_id,provider_id,provider_assigned_at,provider_assigned_by";
 
 function mapRow(row: Record<string, unknown>): ServiceRequest {
   return {
@@ -19,8 +19,24 @@ function mapRow(row: Record<string, unknown>): ServiceRequest {
     copilotConfidence: row.copilot_confidence === null ? null : Number(row.copilot_confidence),
     requiresHumanReview: row.requires_human_review as boolean, createdAt: row.created_at as string,
     conciergeId: row.concierge_id as string | null, conciergeAcceptedAt: row.concierge_accepted_at as string | null,
-    workOrderId: row.work_order_id as string | null
+    workOrderId: row.work_order_id as string | null, providerId: row.provider_id as string | null,
+    providerAssignedAt: row.provider_assigned_at as string | null, providerAssignedBy: row.provider_assigned_by as string | null
   };
+}
+
+export async function listProviderServiceRequests(providerId: string) {
+  if (!env.supabaseUrl || !env.supabaseAnonKey) return [];
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.from("service_requests").select(columns).eq("provider_id", providerId).order("provider_assigned_at", { ascending: false });
+  if (error) return [];
+  return (data ?? []).map((row) => mapRow(row as Record<string, unknown>));
+}
+
+export async function getProviderServiceRequest(id: string, providerId: string) {
+  if (!env.supabaseUrl || !env.supabaseAnonKey) return null;
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.from("service_requests").select(columns).eq("id", id).eq("provider_id", providerId).maybeSingle();
+  return error || !data ? null : mapRow(data as Record<string, unknown>);
 }
 
 export async function listCustomerServiceRequests() {
