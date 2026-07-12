@@ -9,7 +9,7 @@ export default async function LoginPage({
 
   return (
     <main className="flex min-h-screen items-center justify-center p-5">
-      <LoginForm error={error} />
+      <LoginForm error={error} title="Acesso administrativo" description="Entre no Command Center da Verah." />
     </main>
   );
 }
