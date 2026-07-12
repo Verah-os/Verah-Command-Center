@@ -127,6 +127,7 @@ export default async function DashboardPage() {
       </header>
 
       <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+        <Card><CardHeader><h2 className="text-sm font-medium text-muted-foreground">Satisfação</h2></CardHeader><CardContent><div className="grid gap-1 text-sm"><p>Avaliações: {conciergeStats.ratings}</p><p>Média: {conciergeStats.averageRating===null?"—":conciergeStats.averageRating.toFixed(1)}</p><p>Notas 4 ou 5: {conciergeStats.promoters===null?"—":`${conciergeStats.promoters.toFixed(0)}%`}</p><p>Concluídos: {conciergeStats.completed}</p></div></CardContent></Card>
         <Card><CardHeader><h2 className="text-sm font-medium text-muted-foreground">Orçamentos</h2></CardHeader><CardContent><div className="grid gap-1 text-sm"><p>Rascunhos: {quoteStats.drafts}</p><p>Aguardando aprovação: {quoteStats.waiting}</p><p>Aprovados: {quoteStats.approved}</p><p>Valor aprovado: {quoteStats.approvedTotal.toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}</p></div></CardContent></Card>
         <Card>
           <CardHeader><h2 className="text-sm font-medium text-muted-foreground">Concierge</h2></CardHeader>
