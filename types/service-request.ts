@@ -8,5 +8,7 @@ export type ServiceRequest = {
   city: string; customerReport: string; perceivedUrgency: ServiceUrgency; serviceStage: ServiceStage;
   probableCategory: ServiceCategory | null; copilotSummary: string | null; copilotQuestions: string[];
   copilotRiskSignals: string[]; copilotRecommendedNextStep: string | null; copilotCustomerMessage: string | null;
+  copilotConciergeBrief: string | null; copilotProviderBrief: string | null;
   copilotConfidence: number | null; requiresHumanReview: boolean; createdAt: string;
+  conciergeId: string | null; conciergeAcceptedAt: string | null; workOrderId: string | null;
 };

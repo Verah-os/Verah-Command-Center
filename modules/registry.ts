@@ -54,6 +54,19 @@ export const modules: CommandModule[] = [
     ]
   },
   {
+    slug: "concierge",
+    title: "Concierge",
+    description: "Triagem humana e assunção dos atendimentos das clientes.",
+    owner: "VERAH",
+    status: "ready",
+    primaryAction: "Revisar atendimentos",
+    metrics: [
+      { label: "Fila", value: "Ativa" },
+      { label: "Prioridade", value: "Urgência" },
+      { label: "Acesso", value: "Autenticado" }
+    ]
+  },
+  {
     slug: "github",
     title: "GitHub",
     description: "Repository, PR and issue command surface.",
