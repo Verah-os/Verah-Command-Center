@@ -8,6 +8,7 @@ import { getPlatformSettingsSummary } from "@/services/settings";
 import { getWorkOrderStats } from "@/services/work-orders";
 import { getConciergeStats } from "@/services/service-requests";
 import { getProviderStats } from "@/services/service-providers";
+import { getQuoteStats } from "@/services/service-quotes";
 
 export const dynamic = "force-dynamic";
 
@@ -117,6 +118,7 @@ export default async function DashboardPage() {
   const platformSettings = await getPlatformSettingsSummary();
   const conciergeStats = await getConciergeStats();
   const providerStats = await getProviderStats();
+  const quoteStats = await getQuoteStats();
 
   return (
     <div className="space-y-5">
@@ -125,6 +127,7 @@ export default async function DashboardPage() {
       </header>
 
       <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+        <Card><CardHeader><h2 className="text-sm font-medium text-muted-foreground">Orçamentos</h2></CardHeader><CardContent><div className="grid gap-1 text-sm"><p>Rascunhos: {quoteStats.drafts}</p><p>Aguardando aprovação: {quoteStats.waiting}</p><p>Aprovados: {quoteStats.approved}</p><p>Valor aprovado: {quoteStats.approvedTotal.toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}</p></div></CardContent></Card>
         <Card>
           <CardHeader><h2 className="text-sm font-medium text-muted-foreground">Concierge</h2></CardHeader>
           <CardContent><div className="grid gap-1 text-sm"><p>Solicitados: {conciergeStats.requested}</p><p>Em atendimento: {conciergeStats.inService}</p><p>Críticos: {conciergeStats.critical}</p><p>Aguardando revisão: {conciergeStats.awaitingReview}</p><p>Prestadores ativos: {providerStats.active}</p><p>Com prestador indicado: {providerStats.assigned}</p></div></CardContent>
