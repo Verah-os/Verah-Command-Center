@@ -2,9 +2,33 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { signOut } from "@/services/auth/actions";
 
-export function DemoShell({ children }: { children: ReactNode }) {
-  return <main className="min-h-screen bg-[linear-gradient(180deg,#fff8f6_0%,#f8faf9_42%,#f3f8f7_100%)] text-slate-900">
-    <header className="border-b border-rose-100/80 bg-white/80 backdrop-blur"><div className="mx-auto flex max-w-5xl items-center justify-between px-5 py-4"><Link href="/demo" className="text-lg font-semibold tracking-[0.18em] text-teal-800">VERAH</Link><form action={signOut}><button className="text-sm font-medium text-slate-600 hover:text-teal-800">Sair</button></form></div></header>
-    {children}
-  </main>;
+export function DemoShell({
+  children,
+  showLogout = true,
+}: {
+  children: ReactNode;
+  showLogout?: boolean;
+}) {
+  return (
+    <main className="min-h-screen bg-[linear-gradient(180deg,#fff8f6_0%,#f8faf9_42%,#f3f8f7_100%)] text-slate-900">
+      <header className="border-b border-rose-100/80 bg-white/80 backdrop-blur">
+        <div className="mx-auto flex max-w-5xl items-center justify-between px-5 py-4">
+          <Link
+            href="/demo"
+            className="text-lg font-semibold tracking-[0.18em] text-teal-800"
+          >
+            VERAH
+          </Link>
+          {showLogout && (
+            <form action={signOut}>
+              <button className="text-sm font-medium text-slate-600 hover:text-teal-800">
+                Sair
+              </button>
+            </form>
+          )}
+        </div>
+      </header>
+      {children}
+    </main>
+  );
 }
