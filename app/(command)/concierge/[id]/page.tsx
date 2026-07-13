@@ -6,27 +6,400 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { acceptServiceRequest } from "@/services/concierge";
 import { getConciergeServiceRequest } from "@/services/service-requests";
 import { createSupabaseServerClient } from "@/services/supabase/server";
-import { assignProvider, getActiveProvider, listActiveProviders } from "@/services/service-providers";
+import {
+  assignProvider,
+  getActiveProvider,
+  listActiveProviders,
+} from "@/services/service-providers";
 import { getQuoteForRequest } from "@/services/service-quotes";
 import { conciergeConfirm } from "@/services/service-completion";
+import type { ServiceProvider } from "@/types/service-provider";
 
-const formatter = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" });
+const formatter = new Intl.DateTimeFormat("pt-BR", {
+  timeZone: "America/Sao_Paulo",
+  dateStyle: "short",
+  timeStyle: "short",
+});
 
-export default async function ConciergeDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ accepted?: string; providerAssigned?: string; error?: string }> }) {
-  const supabase = await createSupabaseServerClient(); const { data: { user } } = await supabase.auth.getUser(); if (!user) redirect("/login");
-  const { id } = await params; const feedback = await searchParams; const request = await getConciergeServiceRequest(id); if (!request) notFound();
-  const providers = (await listActiveProviders()).sort((a, b) => Number(b.city.toLowerCase() === request.city.toLowerCase()) - Number(a.city.toLowerCase() === request.city.toLowerCase()) || Number(b.specialties.includes(request.probableCategory ?? "")) - Number(a.specialties.includes(request.probableCategory ?? "")) || (b.rating ?? 0) - (a.rating ?? 0));
-  const assignedProvider = request.providerId ? await getActiveProvider(request.providerId) : null;
+export default async function ConciergeDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{
+    accepted?: string;
+    providerAssigned?: string;
+    error?: string;
+  }>;
+}) {
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+  const { id } = await params;
+  const feedback = await searchParams;
+  const request = await getConciergeServiceRequest(id);
+  if (!request) notFound();
+  const providers = (await listActiveProviders()).sort(
+    (a, b) =>
+      Number(b.city.toLowerCase() === request.city.toLowerCase()) -
+        Number(a.city.toLowerCase() === request.city.toLowerCase()) ||
+      Number(b.specialties.includes(request.probableCategory ?? "")) -
+        Number(a.specialties.includes(request.probableCategory ?? "")) ||
+      (b.rating ?? 0) - (a.rating ?? 0),
+  );
+  const assignedProvider = request.providerId
+    ? await getActiveProvider(request.providerId)
+    : null;
   const quote = await getQuoteForRequest(id);
-  return <div className="space-y-5"><header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between"><div><Link href={"/concierge" as Route} className="text-sm text-primary hover:underline">← Voltar ao Concierge</Link><p className="mt-3 font-mono text-sm font-semibold text-primary">{request.referenceCode}</p><h1 className="mt-1 text-2xl font-semibold">{request.customerName} · {request.vehicleBrand} {request.vehicleModel}</h1><p className="mt-1 text-sm text-muted-foreground">Criado em {formatter.format(new Date(request.createdAt))}</p></div><span className="w-fit rounded-full bg-muted px-3 py-1.5 text-sm font-semibold capitalize">{request.serviceStage.replaceAll("_", " ")}</span></header>
-    {(feedback.accepted || feedback.providerAssigned) && <p className="rounded-md border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">{feedback.providerAssigned ? "Prestador indicado com sucesso." : "Atendimento assumido com sucesso. A Work Order foi criada e a trigger encaminhou a criação do Dispatcher Job."}</p>}{feedback.error && <p className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-800">{feedback.error}</p>}
-    <div className="grid gap-5 xl:grid-cols-[1.3fr_0.7fr]"><div className="space-y-5"><Card><CardHeader><h2 className="font-semibold">Cliente e veículo</h2></CardHeader><CardContent className="grid gap-4 md:grid-cols-2"><Info label="Cliente" value={request.customerName} /><Info label="Telefone" value={request.customerPhone ?? "Não informado"} /><Info label="Veículo" value={`${request.vehicleBrand} ${request.vehicleModel}${request.vehicleYear ? ` · ${request.vehicleYear}` : ""}`} /><Info label="Placa" value={request.vehiclePlate ?? "Não informada"} /><Info label="Cidade" value={request.city} /><div className="md:col-span-2"><Info label="Relato original" value={request.customerReport} /></div></CardContent></Card>
-      <Card><CardHeader><h2 className="font-semibold">Análise do Service Copilot</h2></CardHeader><CardContent className="space-y-5"><Info label="Resumo" value={request.copilotSummary ?? "Não informado"} /><Info label="Briefing para Concierge" value={request.copilotConciergeBrief ?? "Não informado"} /></CardContent></Card>{quote&&<Card><CardHeader><h2 className="font-semibold">Orçamento</h2></CardHeader><CardContent className="space-y-3"><Info label="Status" value={quote.status.replaceAll("_"," ")}/>{quote.items.map(i=><p key={i.id} className="text-sm">{i.description}: {i.totalPrice.toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}</p>)}<p className="font-semibold">Total: {quote.totalAmount.toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}</p><Info label="Prazo" value={quote.estimatedDuration??"Não informado"}/><Info label="Garantia" value={quote.warrantyText??"Não informada"}/>{quote.customerDecisionNote&&<Info label="Decisão da cliente" value={quote.customerDecisionNote}/>}</CardContent></Card>}</div>
-      <div className="space-y-5"><Card><CardHeader><h2 className="font-semibold">Assunção</h2></CardHeader><CardContent className="space-y-4">{request.serviceStage === "solicitado" ? <><p className="text-sm text-muted-foreground">Ao assumir, o stage será atualizado e uma única Work Order será criada atomicamente.</p><form action={acceptServiceRequest}><input type="hidden" name="serviceRequestId" value={request.id} /><Button className="h-11 w-full">Assumir atendimento</Button></form></> : <><p className="text-sm text-muted-foreground">Atendimento assumido{request.conciergeAcceptedAt ? ` em ${formatter.format(new Date(request.conciergeAcceptedAt))}` : ""}.</p>{request.workOrderId && <Link href={`/work-orders/${request.workOrderId}`} className="block rounded-md border border-primary/30 bg-primary/5 p-3 text-sm font-semibold text-primary">Abrir Work Order {request.workOrderId} →</Link>}<p className="text-xs text-muted-foreground">O Dispatcher Job nasce automaticamente pela trigger de Work Orders.</p></>}</CardContent></Card>
-      {(request.serviceStage === "concierge_aceitou" || assignedProvider) && <Card><CardHeader><h2 className="font-semibold">Indicar prestador</h2></CardHeader><CardContent>{assignedProvider ? <div className="space-y-2 text-sm"><p className="font-semibold">{assignedProvider.name}</p><p>{assignedProvider.city} · {assignedProvider.specialties.join(", ")}</p><p className="text-muted-foreground">Indicado em {request.providerAssignedAt ? formatter.format(new Date(request.providerAssignedAt)) : "—"}</p></div> : <form action={assignProvider} className="space-y-4"><input type="hidden" name="serviceRequestId" value={request.id} /><select name="providerId" required className="h-11 w-full rounded-md border border-border bg-white px-3 text-sm">{providers.map((provider) => <option key={provider.id} value={provider.id}>{provider.name} · {provider.city} · ★ {provider.rating ?? "—"}</option>)}</select><Button className="h-11 w-full" disabled={!providers.length}>Indicar prestador</Button></form>}</CardContent></Card>}{request.providerCompletedAt&&<Card><CardHeader><h2 className="font-semibold">Conclusão do serviço</h2></CardHeader><CardContent className="space-y-3"><Info label="Finalizado pelo prestador" value={formatter.format(new Date(request.providerCompletedAt))}/><Info label="Observações finais" value={request.completionNotes??"Sem observações"}/>{request.serviceStage==="em_execucao"&&!request.conciergeConfirmedAt?<form action={conciergeConfirm}><input type="hidden" name="requestId" value={request.id}/><Button className="w-full">Confirmar conclusão</Button></form>:<p className="rounded bg-emerald-50 p-3 text-sm text-emerald-900">Conclusão confirmada.</p>}</CardContent></Card>}<Timeline stage={request.serviceStage} /></div>
-    </div></div>;
+  return (
+    <div className="space-y-5">
+      <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div>
+          <Link
+            href={"/concierge" as Route}
+            className="text-sm text-primary hover:underline"
+          >
+            ← Voltar ao Concierge
+          </Link>
+          <p className="mt-3 font-mono text-sm font-semibold text-primary">
+            {request.referenceCode}
+          </p>
+          <h1 className="mt-1 text-2xl font-semibold">
+            {request.customerName} · {request.vehicleBrand}{" "}
+            {request.vehicleModel}
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Criado em {formatter.format(new Date(request.createdAt))}
+          </p>
+        </div>
+        <span className="w-fit rounded-full bg-muted px-3 py-1.5 text-sm font-semibold capitalize">
+          {request.serviceStage.replaceAll("_", " ")}
+        </span>
+      </header>
+      {(feedback.accepted || feedback.providerAssigned) && (
+        <p className="rounded-md border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+          {feedback.providerAssigned
+            ? "Prestador indicado com sucesso."
+            : "Atendimento assumido com sucesso. A Work Order foi criada e a trigger encaminhou a criação do Dispatcher Job."}
+        </p>
+      )}
+      {feedback.error && (
+        <p className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+          {feedback.error}
+        </p>
+      )}
+      <div className="grid gap-5 xl:grid-cols-[1.3fr_0.7fr]">
+        <div className="space-y-5">
+          <Card>
+            <CardHeader>
+              <h2 className="font-semibold">Cliente e veículo</h2>
+            </CardHeader>
+            <CardContent className="grid gap-4 md:grid-cols-2">
+              <Info label="Cliente" value={request.customerName} />
+              <Info
+                label="Telefone"
+                value={request.customerPhone ?? "Não informado"}
+              />
+              <Info
+                label="Veículo"
+                value={`${request.vehicleBrand} ${request.vehicleModel}${request.vehicleYear ? ` · ${request.vehicleYear}` : ""}`}
+              />
+              <Info
+                label="Placa"
+                value={request.vehiclePlate ?? "Não informada"}
+              />
+              <Info label="Cidade" value={request.city} />
+              <div className="md:col-span-2">
+                <Info label="Relato original" value={request.customerReport} />
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <h2 className="font-semibold">Análise do Service Copilot</h2>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <Info label="Urgência" value={request.perceivedUrgency} />
+              <Info
+                label="Resumo"
+                value={request.copilotSummary ?? "Não informado"}
+              />
+              <List
+                label="Sinais de risco"
+                items={request.copilotRiskSignals}
+              />
+              <List
+                label="Perguntas pendentes"
+                items={request.copilotQuestions}
+              />
+              <Info
+                label="Briefing para Concierge"
+                value={request.copilotConciergeBrief ?? "Não informado"}
+              />
+            </CardContent>
+          </Card>
+          {quote && (
+            <Card>
+              <CardHeader>
+                <h2 className="font-semibold">Orçamento</h2>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Info
+                  label="Status"
+                  value={quote.status.replaceAll("_", " ")}
+                />
+                {quote.items.map((i) => (
+                  <p key={i.id} className="text-sm">
+                    {i.description}:{" "}
+                    {i.totalPrice.toLocaleString("pt-BR", {
+                      style: "currency",
+                      currency: "BRL",
+                    })}
+                  </p>
+                ))}
+                <p className="font-semibold">
+                  Total:{" "}
+                  {quote.totalAmount.toLocaleString("pt-BR", {
+                    style: "currency",
+                    currency: "BRL",
+                  })}
+                </p>
+                <Info
+                  label="Prazo"
+                  value={quote.estimatedDuration ?? "Não informado"}
+                />
+                <Info
+                  label="Garantia"
+                  value={quote.warrantyText ?? "Não informada"}
+                />
+                {quote.customerDecisionNote && (
+                  <Info
+                    label="Decisão da cliente"
+                    value={quote.customerDecisionNote}
+                  />
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </div>
+        <div className="space-y-5">
+          <Card>
+            <CardHeader>
+              <h2 className="font-semibold">Assunção</h2>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {request.serviceStage === "solicitado" ? (
+                <>
+                  <p className="text-sm text-muted-foreground">
+                    Ao assumir, o stage será atualizado e uma única Work Order
+                    será criada atomicamente.
+                  </p>
+                  <form action={acceptServiceRequest}>
+                    <input
+                      type="hidden"
+                      name="serviceRequestId"
+                      value={request.id}
+                    />
+                    <Button className="h-11 w-full">Assumir atendimento</Button>
+                  </form>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm text-muted-foreground">
+                    Atendimento assumido
+                    {request.conciergeAcceptedAt
+                      ? ` em ${formatter.format(new Date(request.conciergeAcceptedAt))}`
+                      : ""}
+                    .
+                  </p>
+                </>
+              )}
+            </CardContent>
+          </Card>
+          {(request.serviceStage === "concierge_aceitou" ||
+            assignedProvider) && (
+            <Card>
+              <CardHeader>
+                <h2 className="font-semibold">Indicar prestador</h2>
+              </CardHeader>
+              <CardContent>
+                {assignedProvider ? (
+                  <div className="space-y-2 text-sm">
+                    <p className="font-semibold">{assignedProvider.name}</p>
+                    <p>
+                      {assignedProvider.city} ·{" "}
+                      {assignedProvider.specialties.join(", ")}
+                    </p>
+                    <p className="text-muted-foreground">
+                      Indicado em{" "}
+                      {request.providerAssignedAt
+                        ? formatter.format(new Date(request.providerAssignedAt))
+                        : "—"}
+                    </p>
+                  </div>
+                ) : (
+                  <form action={assignProvider} className="space-y-4">
+                    {providers[0] && (
+                      <div className="rounded-md border border-primary/20 bg-primary/5 p-3">
+                        <p className="text-sm font-semibold">
+                          1º recomendado: {providers[0].name}
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {providerReason(
+                            providers[0],
+                            request.city,
+                            request.probableCategory,
+                          )}
+                        </p>
+                      </div>
+                    )}
+                    <input
+                      type="hidden"
+                      name="serviceRequestId"
+                      value={request.id}
+                    />
+                    <select
+                      name="providerId"
+                      required
+                      className="h-11 w-full rounded-md border border-border bg-white px-3 text-sm"
+                    >
+                      {providers.map((provider) => (
+                        <option key={provider.id} value={provider.id}>
+                          {provider.name} · {provider.city} · ★{" "}
+                          {provider.rating ?? "—"}
+                        </option>
+                      ))}
+                    </select>
+                    <Button
+                      className="h-11 w-full"
+                      disabled={!providers.length}
+                    >
+                      Indicar prestador
+                    </Button>
+                  </form>
+                )}
+              </CardContent>
+            </Card>
+          )}
+          {request.providerCompletedAt && (
+            <Card>
+              <CardHeader>
+                <h2 className="font-semibold">Conclusão do serviço</h2>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Info
+                  label="Finalizado pelo prestador"
+                  value={formatter.format(
+                    new Date(request.providerCompletedAt),
+                  )}
+                />
+                <Info
+                  label="Observações finais"
+                  value={request.completionNotes ?? "Sem observações"}
+                />
+                {request.serviceStage === "em_execucao" &&
+                !request.conciergeConfirmedAt ? (
+                  <form action={conciergeConfirm}>
+                    <input type="hidden" name="requestId" value={request.id} />
+                    <Button className="w-full">Confirmar conclusão</Button>
+                  </form>
+                ) : (
+                  <p className="rounded bg-emerald-50 p-3 text-sm text-emerald-900">
+                    Conclusão confirmada.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          )}
+          <Timeline stage={request.serviceStage} />
+        </div>
+      </div>
+    </div>
+  );
 }
 
-function Info({ label, value }: { label: string; value: string }) { return <div><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</p><p className="mt-1 whitespace-pre-wrap text-sm leading-6">{value}</p></div>; }
-function List({ label, items }: { label: string; items: string[] }) { return <div><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</p><ul className="mt-2 space-y-1 text-sm">{items.length ? items.map((item) => <li key={item}>• {item}</li>) : <li className="text-muted-foreground">Nenhum item identificado.</li>}</ul></div>; }
-function Timeline({ stage }: { stage: string }) { const items = ["solicitado", "concierge_aceitou", "prestador_indicado", "aguardando_aprovacao", "em_execucao", "concluido"]; const current = Math.max(0, items.indexOf(stage)); return <Card><CardHeader><h2 className="font-semibold">Timeline</h2></CardHeader><CardContent><ol className="space-y-3">{items.map((item, index) => <li key={item} className="flex items-center gap-3 text-sm"><span className={`h-3 w-3 rounded-full ${index <= current ? "bg-primary" : "bg-border"}`} /><span className={`capitalize ${index <= current ? "font-medium" : "text-muted-foreground"}`}>{item.replaceAll("_", " ")}</span></li>)}</ol></CardContent></Card>; }
+function Info({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        {label}
+      </p>
+      <p className="mt-1 whitespace-pre-wrap text-sm leading-6">{value}</p>
+    </div>
+  );
+}
+function List({ label, items }: { label: string; items: string[] }) {
+  return (
+    <div>
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        {label}
+      </p>
+      <ul className="mt-2 space-y-1 text-sm">
+        {items.length ? (
+          items.map((item) => <li key={item}>• {item}</li>)
+        ) : (
+          <li className="text-muted-foreground">Nenhum item identificado.</li>
+        )}
+      </ul>
+    </div>
+  );
+}
+function Timeline({ stage }: { stage: string }) {
+  const items = [
+    "solicitado",
+    "concierge_aceitou",
+    "prestador_indicado",
+    "aguardando_aprovacao",
+    "em_execucao",
+    "concluido",
+  ];
+  const current = Math.max(0, items.indexOf(stage));
+  return (
+    <Card>
+      <CardHeader>
+        <h2 className="font-semibold">Timeline</h2>
+      </CardHeader>
+      <CardContent>
+        <ol className="space-y-3">
+          {items.map((item, index) => (
+            <li key={item} className="flex items-center gap-3 text-sm">
+              <span
+                className={`h-3 w-3 rounded-full ${index <= current ? "bg-primary" : "bg-border"}`}
+              />
+              <span
+                className={`capitalize ${index <= current ? "font-medium" : "text-muted-foreground"}`}
+              >
+                {item.replaceAll("_", " ")}
+              </span>
+            </li>
+          ))}
+        </ol>
+      </CardContent>
+    </Card>
+  );
+}
+
+function providerReason(
+  provider: ServiceProvider,
+  city: string,
+  category: string | null,
+) {
+  const sameCity = provider.city.toLowerCase() === city.toLowerCase();
+  const compatible = Boolean(
+    category && provider.specialties.includes(category),
+  );
+  const reasons = [
+    sameCity ? `atender em ${city}` : null,
+    compatible
+      ? `possuir especialidade compatível com ${category?.replaceAll("_", " ")}`
+      : null,
+    provider.rating !== null
+      ? `ter avaliação ${provider.rating.toFixed(1)}`
+      : null,
+  ].filter(Boolean);
+  return reasons.length
+    ? `Recomendado por ${reasons.join(" e ")}.`
+    : "Primeiro prestador ativo na ordem recomendada.";
+}
