@@ -1,0 +1,88 @@
+export const brazilianStates = [
+  ["AC", "Acre"],
+  ["AL", "Alagoas"],
+  ["AP", "Amapá"],
+  ["AM", "Amazonas"],
+  ["BA", "Bahia"],
+  ["CE", "Ceará"],
+  ["DF", "Distrito Federal"],
+  ["ES", "Espírito Santo"],
+  ["GO", "Goiás"],
+  ["MA", "Maranhão"],
+  ["MT", "Mato Grosso"],
+  ["MS", "Mato Grosso do Sul"],
+  ["MG", "Minas Gerais"],
+  ["PA", "Pará"],
+  ["PB", "Paraíba"],
+  ["PR", "Paraná"],
+  ["PE", "Pernambuco"],
+  ["PI", "Piauí"],
+  ["RJ", "Rio de Janeiro"],
+  ["RN", "Rio Grande do Norte"],
+  ["RS", "Rio Grande do Sul"],
+  ["RO", "Rondônia"],
+  ["RR", "Roraima"],
+  ["SC", "Santa Catarina"],
+  ["SP", "São Paulo"],
+  ["SE", "Sergipe"],
+  ["TO", "Tocantins"],
+] as const;
+export const citiesByState: Record<string, readonly string[]> = {
+  AC: ["Rio Branco"],
+  AL: ["Maceió"],
+  AP: ["Macapá"],
+  AM: ["Manaus"],
+  BA: ["Salvador"],
+  CE: ["Fortaleza"],
+  DF: ["Brasília"],
+  ES: ["Vitória", "Vila Velha"],
+  GO: ["Goiânia"],
+  MA: ["São Luís"],
+  MT: ["Cuiabá"],
+  MS: ["Campo Grande"],
+  PA: ["Belém"],
+  PB: ["João Pessoa"],
+  PE: ["Recife"],
+  PI: ["Teresina"],
+  RN: ["Natal"],
+  RO: ["Porto Velho"],
+  RR: ["Boa Vista"],
+  SE: ["Aracaju"],
+  TO: ["Palmas"],
+  SP: [
+    "Franca",
+    "Ribeirão Preto",
+    "Batatais",
+    "Orlândia",
+    "Barretos",
+    "Araraquara",
+    "Campinas",
+    "São Paulo",
+    "Sorocaba",
+    "Santos",
+    "São José dos Campos",
+  ],
+  MG: [
+    "Belo Horizonte",
+    "Uberaba",
+    "Uberlândia",
+    "Poços de Caldas",
+    "Araxá",
+    "Juiz de Fora",
+    "Montes Claros",
+  ],
+  RJ: ["Rio de Janeiro", "Niterói", "Petrópolis"],
+  PR: ["Curitiba", "Londrina", "Maringá"],
+  RS: ["Porto Alegre", "Caxias do Sul"],
+  SC: ["Florianópolis", "Joinville"],
+};
+export const stateCodes = brazilianStates.map(([code]) => code);
+export function isValidState(value: string) {
+  return stateCodes.includes(value as (typeof stateCodes)[number]);
+}
+export function citiesForState(state: string) {
+  return citiesByState[state] ?? [];
+}
+export function isValidLocation(state: string, city: string) {
+  return isValidState(state) && citiesForState(state).includes(city);
+}
