@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { DemoShell } from "@/components/demo/demo-shell";
 import { getCustomerServiceRequest } from "@/services/service-requests";
 import { createSupabaseServerClient } from "@/services/supabase/server";
-import { getActiveProvider } from "@/services/service-providers";
+import { getCustomerProviderProfile } from "@/services/service-providers";
 import { decideQuote, getQuoteForRequest } from "@/services/service-quotes";
 import { submitRating } from "@/services/service-completion";
 import type { ServiceUrgency } from "@/services/service-copilot";
@@ -40,7 +40,7 @@ export default async function ServiceRequestPage({
   ];
   const currentStage = Math.max(0, stages.indexOf(request.serviceStage));
   const provider = request.providerId
-    ? await getActiveProvider(request.providerId)
+    ? await getCustomerProviderProfile(request.providerId)
     : null;
   const quote = await getQuoteForRequest(id);
   const stageDates = [
@@ -104,18 +104,44 @@ export default async function ServiceRequestPage({
             {provider && (
               <Card className="border-teal-200 bg-teal-50">
                 <CardContent className="space-y-3 p-6">
-                  <h2 className="text-lg font-semibold">Prestador indicado</h2>
-                  <Info label="Prestador" value={provider.name} />
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <h2 className="text-lg font-semibold">
+                      Prestador homologado VERAH
+                    </h2>
+                    <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-teal-800">
+                      Rede homologada VERAH
+                    </span>
+                  </div>
                   <Info label="Cidade" value={provider.city} />
+                  <Info
+                    label="Especialidades"
+                    value={
+                      provider.specialties.length
+                        ? provider.specialties.map(naturalLabel).join(", ")
+                        : "Serviços automotivos homologados"
+                    }
+                  />
+                  <Info
+                    label="Avaliação"
+                    value={
+                      provider.rating === null
+                        ? "Ainda sem avaliação"
+                        : `${provider.rating.toFixed(1)} de 5`
+                    }
+                  />
+                  <Info
+                    label="Status"
+                    value={
+                      provider.status === "active"
+                        ? "Disponível na rede VERAH"
+                        : "Indisponível"
+                    }
+                  />
                 </CardContent>
               </Card>
             )}
             {quote && quote.status !== "draft" && (
-              <CustomerQuote
-                quote={quote}
-                requestId={id}
-                providerName={provider?.name ?? "Prestador VERAH"}
-              />
+              <CustomerQuote quote={quote} requestId={id} />
             )}
             {request.serviceStage === "concluido" && (
               <Card className="border-teal-200">
@@ -124,6 +150,9 @@ export default async function ServiceRequestPage({
                     Atendimento concluído
                   </h2>
                   <p>A VERAH acompanhou seu atendimento do início ao fim.</p>
+                  <p className="rounded-lg bg-teal-50 p-3 text-sm font-semibold text-teal-900">
+                    Serviço realizado por Prestador homologado VERAH.
+                  </p>
                   {request.completionNotes && (
                     <Info
                       label="Observações finais"
@@ -247,6 +276,11 @@ function Info({ label, value }: { label: string; value: string }) {
   );
 }
 
+function naturalLabel(value: string) {
+  const label = value.replaceAll("_", " ");
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
 const date = (value: string) =>
   new Intl.DateTimeFormat("pt-BR", {
     timeZone: "America/Sao_Paulo",
@@ -280,19 +314,19 @@ function UrgencyBadge({ urgency }: { urgency: ServiceUrgency }) {
 function CustomerQuote({
   quote,
   requestId,
-  providerName,
 }: {
   quote: NonNullable<Awaited<ReturnType<typeof getQuoteForRequest>>>;
   requestId: string;
-  providerName: string;
 }) {
   const money = (v: number) =>
     v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   return (
     <Card>
       <CardContent className="space-y-4 p-6">
-        <h2 className="text-xl font-semibold">Seu orçamento está pronto</h2>
-        <p>{providerName}</p>
+        <h2 className="text-xl font-semibold">Proposta da rede VERAH</h2>
+        <p className="text-sm text-slate-600">
+          Preparada por um prestador homologado da nossa rede.
+        </p>
         <p>
           {quote.customerSummary ??
             "Serviços recomendados conforme avaliação técnica."}
