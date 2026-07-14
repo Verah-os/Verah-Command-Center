@@ -7,13 +7,13 @@ import { acceptServiceRequest } from "@/services/concierge";
 import { getConciergeServiceRequest } from "@/services/service-requests";
 import { createSupabaseServerClient } from "@/services/supabase/server";
 import {
-  assignProvider,
   getActiveProvider,
-  listActiveProviders,
+  listActiveProvidersWithPortal,
 } from "@/services/service-providers";
 import { getQuoteForRequest } from "@/services/service-quotes";
 import { conciergeConfirm } from "@/services/service-completion";
 import type { ServiceProvider } from "@/types/service-provider";
+import { ProviderAssignmentForm } from "@/components/concierge/provider-assignment-form";
 
 const formatter = new Intl.DateTimeFormat("pt-BR", {
   timeZone: "America/Sao_Paulo",
@@ -29,6 +29,7 @@ export default async function ConciergeDetailPage({
   searchParams: Promise<{
     accepted?: string;
     providerAssigned?: string;
+    providerReassigned?: string;
     error?: string;
   }>;
 }) {
@@ -41,8 +42,9 @@ export default async function ConciergeDetailPage({
   const feedback = await searchParams;
   const request = await getConciergeServiceRequest(id);
   if (!request) notFound();
-  const providers = (await listActiveProviders()).sort(
+  const providers = (await listActiveProvidersWithPortal()).sort(
     (a, b) =>
+      Number(Boolean(b.portalActive)) - Number(Boolean(a.portalActive)) ||
       Number(b.city.toLowerCase() === request.city.toLowerCase()) -
         Number(a.city.toLowerCase() === request.city.toLowerCase()) ||
       Number(b.specialties.includes(request.probableCategory ?? "")) -
@@ -53,6 +55,14 @@ export default async function ConciergeDetailPage({
     ? await getActiveProvider(request.providerId)
     : null;
   const quote = await getQuoteForRequest(id);
+  const canReassign = Boolean(
+    assignedProvider &&
+    ["prestador_indicado", "aguardando_aprovacao"].includes(
+      request.serviceStage,
+    ) &&
+    !quote?.submittedAt &&
+    quote?.status !== "approved",
+  );
   return (
     <div className="space-y-5">
       <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
@@ -78,11 +88,15 @@ export default async function ConciergeDetailPage({
           {request.serviceStage.replaceAll("_", " ")}
         </span>
       </header>
-      {(feedback.accepted || feedback.providerAssigned) && (
+      {(feedback.accepted ||
+        feedback.providerAssigned ||
+        feedback.providerReassigned) && (
         <p className="rounded-md border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
-          {feedback.providerAssigned
-            ? "Prestador indicado com sucesso."
-            : "Atendimento assumido com sucesso. A Work Order foi criada e a trigger encaminhou a criação do Dispatcher Job."}
+          {feedback.providerReassigned
+            ? "Prestador alterado com sucesso."
+            : feedback.providerAssigned
+              ? "Prestador indicado com sucesso."
+              : "Atendimento assumido com sucesso. A Work Order foi criada e a trigger encaminhou a criação do Dispatcher Job."}
         </p>
       )}
       {feedback.error && (
@@ -116,6 +130,63 @@ export default async function ConciergeDetailPage({
               </div>
             </CardContent>
           </Card>
+          {request.copilotQuestions.length > 0 && (
+            <Card>
+              <CardHeader>
+                <h2 className="font-semibold">Respostas da cliente</h2>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <p className="rounded bg-emerald-50 p-3">
+                    <strong>
+                      {
+                        request.copilotQuestions.filter(
+                          (question) => request.copilotAnswers[question],
+                        ).length
+                      }
+                    </strong>{" "}
+                    respondidas
+                  </p>
+                  <p className="rounded bg-amber-50 p-3">
+                    <strong>
+                      {
+                        request.copilotQuestions.filter(
+                          (question) => !request.copilotAnswers[question],
+                        ).length
+                      }
+                    </strong>{" "}
+                    pendentes
+                  </p>
+                </div>
+                {request.customerAnswersSubmittedAt && (
+                  <p className="text-xs text-muted-foreground">
+                    Última resposta em{" "}
+                    {formatter.format(
+                      new Date(request.customerAnswersSubmittedAt),
+                    )}
+                  </p>
+                )}
+                <dl className="space-y-3">
+                  {request.copilotQuestions.map((question) => (
+                    <div key={question} className="rounded-md border p-3">
+                      <dt className="text-sm font-semibold">{question}</dt>
+                      <dd className="mt-2 text-sm text-muted-foreground">
+                        {request.copilotAnswers[question] ||
+                          "Aguardando resposta"}
+                      </dd>
+                      <span
+                        className={`mt-2 inline-flex rounded-full px-2 py-1 text-xs font-semibold ${request.copilotAnswers[question] ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-900"}`}
+                      >
+                        {request.copilotAnswers[question]
+                          ? "Respondida"
+                          : "Aguardando resposta"}
+                      </span>
+                    </div>
+                  ))}
+                </dl>
+              </CardContent>
+            </Card>
+          )}
           <Card>
             <CardHeader>
               <h2 className="font-semibold">Análise do Service Copilot</h2>
@@ -238,9 +309,48 @@ export default async function ConciergeDetailPage({
                         ? formatter.format(new Date(request.providerAssignedAt))
                         : "—"}
                     </p>
+                    <p>
+                      <span
+                        className={`rounded-full px-2 py-1 text-xs font-semibold ${providers.find((provider) => provider.id === assignedProvider.id)?.portalActive ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-900"}`}
+                      >
+                        {providers.find(
+                          (provider) => provider.id === assignedProvider.id,
+                        )?.portalActive
+                          ? "Portal ativo"
+                          : "Sem acesso ao portal"}
+                      </span>
+                    </p>
+                    {request.providerReassignedAt && (
+                      <div className="rounded-md bg-muted p-3">
+                        <p>
+                          Alterado em{" "}
+                          {formatter.format(
+                            new Date(request.providerReassignedAt),
+                          )}
+                        </p>
+                        <p className="mt-1">
+                          Motivo: {request.providerReassignmentReason}
+                        </p>
+                      </div>
+                    )}
+                    {canReassign && (
+                      <details className="pt-3">
+                        <summary className="cursor-pointer font-semibold text-primary">
+                          Alterar prestador
+                        </summary>
+                        <div className="mt-4">
+                          <ProviderAssignmentForm
+                            requestId={request.id}
+                            providers={providers}
+                            currentProviderId={assignedProvider.id}
+                            mode="reassign"
+                          />
+                        </div>
+                      </details>
+                    )}
                   </div>
                 ) : (
-                  <form action={assignProvider} className="space-y-4">
+                  <div className="space-y-4">
                     {providers[0] && (
                       <div className="rounded-md border border-primary/20 bg-primary/5 p-3">
                         <p className="text-sm font-semibold">
@@ -255,30 +365,12 @@ export default async function ConciergeDetailPage({
                         </p>
                       </div>
                     )}
-                    <input
-                      type="hidden"
-                      name="serviceRequestId"
-                      value={request.id}
+                    <ProviderAssignmentForm
+                      requestId={request.id}
+                      providers={providers}
+                      mode="assign"
                     />
-                    <select
-                      name="providerId"
-                      required
-                      className="h-11 w-full rounded-md border border-border bg-white px-3 text-sm"
-                    >
-                      {providers.map((provider) => (
-                        <option key={provider.id} value={provider.id}>
-                          {provider.name} · {provider.city} · ★{" "}
-                          {provider.rating ?? "—"}
-                        </option>
-                      ))}
-                    </select>
-                    <Button
-                      className="h-11 w-full"
-                      disabled={!providers.length}
-                    >
-                      Indicar prestador
-                    </Button>
-                  </form>
+                  </div>
                 )}
               </CardContent>
             </Card>
@@ -391,6 +483,7 @@ function providerReason(
     category && provider.specialties.includes(category),
   );
   const reasons = [
+    provider.portalActive ? "possuir portal ativo" : null,
     sameCity ? `atender em ${city}` : null,
     compatible
       ? `possuir especialidade compatível com ${category?.replaceAll("_", " ")}`

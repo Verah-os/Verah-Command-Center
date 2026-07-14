@@ -1,10 +1,6 @@
-export type ServiceProvider = {
-  id: string;
-  name: string;
-  tradeName: string | null;
+export type CustomerProviderProfile = {
   city: string;
   specialties: string[];
   status: "active" | "inactive" | "suspended";
   rating: number | null;
-  portalActive?: boolean;
 };

@@ -29,6 +29,8 @@ export type ServiceRequest = {
   probableCategory: ServiceCategory | null;
   copilotSummary: string | null;
   copilotQuestions: string[];
+  copilotAnswers: Record<string, string>;
+  customerAnswersSubmittedAt: string | null;
   copilotRiskSignals: string[];
   copilotRecommendedNextStep: string | null;
   copilotCustomerMessage: string | null;
@@ -43,6 +45,9 @@ export type ServiceRequest = {
   providerId: string | null;
   providerAssignedAt: string | null;
   providerAssignedBy: string | null;
+  providerReassignedAt: string | null;
+  providerReassignedBy: string | null;
+  providerReassignmentReason: string | null;
   providerCompletedAt: string | null;
   conciergeConfirmedAt: string | null;
   completedAt: string | null;
