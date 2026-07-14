@@ -22,6 +22,9 @@ type Values = {
   vehicleModel: string;
   vehicleYear: string;
   vehiclePlate: string;
+  hasInsurance: "yes" | "no" | "unknown";
+  insurerName: string;
+  hasRoadsideAssistance: "yes" | "no" | "unknown";
   state: string;
   city: string;
   customerReport: string;
@@ -34,6 +37,9 @@ const initial: Values = {
   vehicleModel: "",
   vehicleYear: "",
   vehiclePlate: "",
+  hasInsurance: "unknown",
+  insurerName: "",
+  hasRoadsideAssistance: "unknown",
   state: "",
   city: "",
   customerReport: "",
@@ -169,7 +175,67 @@ export function ServiceRequestForm({ serverError }: { serverError?: string }) {
                 />
               </div>
             </Section>
-            <Section title="Onde você está" eyebrow="C">
+            <Section title="Seguro e assistência" eyebrow="C">
+              <div className="grid gap-5 sm:grid-cols-2">
+                <label
+                  htmlFor="has-insurance"
+                  className="text-sm font-semibold text-slate-700"
+                >
+                  Possui seguro?
+                  <select
+                    id="has-insurance"
+                    className={fieldClass}
+                    value={values.hasInsurance}
+                    onChange={(event) =>
+                      update(
+                        "hasInsurance",
+                        event.target.value as Values["hasInsurance"],
+                      )
+                    }
+                  >
+                    <option value="yes">Sim</option>
+                    <option value="no">Não</option>
+                    <option value="unknown">Não sei</option>
+                  </select>
+                </label>
+                {values.hasInsurance === "yes" && (
+                  <Field
+                    id="insurer-name"
+                    label="Seguradora (opcional)"
+                    name="insurerName"
+                    value={values.insurerName}
+                    update={update}
+                    placeholder="Nome da seguradora"
+                  />
+                )}
+                <label
+                  htmlFor="has-roadside-assistance"
+                  className="text-sm font-semibold text-slate-700"
+                >
+                  Possui assistência 24 horas?
+                  <select
+                    id="has-roadside-assistance"
+                    className={fieldClass}
+                    value={values.hasRoadsideAssistance}
+                    onChange={(event) =>
+                      update(
+                        "hasRoadsideAssistance",
+                        event.target
+                          .value as Values["hasRoadsideAssistance"],
+                      )
+                    }
+                  >
+                    <option value="yes">Sim</option>
+                    <option value="no">Não</option>
+                    <option value="unknown">Não sei</option>
+                  </select>
+                </label>
+              </div>
+              <p className="mt-4 text-xs leading-5 text-slate-500">
+                Não solicitamos número da apólice, CPF ou dados financeiros.
+              </p>
+            </Section>
+            <Section title="Onde você está" eyebrow="D">
               <div className="grid gap-5 sm:grid-cols-2">
                 <label
                   htmlFor="state"
@@ -208,7 +274,7 @@ export function ServiceRequestForm({ serverError }: { serverError?: string }) {
                 />
               </div>
             </Section>
-            <Section title="O que aconteceu" eyebrow="D">
+            <Section title="O que aconteceu" eyebrow="E">
               <div className="grid gap-5">
                 <label
                   htmlFor="customer-report"

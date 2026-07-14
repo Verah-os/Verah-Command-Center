@@ -6,17 +6,12 @@ import { createSupabaseServerClient } from "@/services/supabase/server";
 import { getCustomerProviderProfile } from "@/services/service-providers";
 import { decideQuote, getQuoteForRequest } from "@/services/service-quotes";
 import { submitRating } from "@/services/service-completion";
-import { submitServiceRequestAnswers } from "@/services/service-requests/actions";
 import type { ServiceUrgency } from "@/services/service-copilot";
-
-const timeline = [
-  "Solicitado",
-  "Concierge aceitou",
-  "Prestador indicado",
-  "Aguardando aprovação",
-  "Em execução",
-  "Concluído",
-];
+import { CustomerAnswersForm } from "@/components/demo/customer-answers-form";
+import {
+  customerJourneyStages,
+  customerStageLabels,
+} from "@/lib/customer-service-stage";
 
 export default async function ServiceRequestPage({
   params,
@@ -34,15 +29,10 @@ export default async function ServiceRequestPage({
   const feedback = await searchParams;
   const request = await getCustomerServiceRequest(id);
   if (!request) notFound();
-  const stages = [
-    "solicitado",
-    "concierge_aceitou",
-    "prestador_indicado",
-    "aguardando_aprovacao",
-    "em_execucao",
-    "concluido",
-  ];
-  const currentStage = Math.max(0, stages.indexOf(request.serviceStage));
+  const currentStage = Math.max(
+    0,
+    customerJourneyStages.indexOf(request.serviceStage),
+  );
   const provider = request.providerId
     ? await getCustomerProviderProfile(request.providerId)
     : null;
@@ -71,8 +61,8 @@ export default async function ServiceRequestPage({
                   : "Seu atendimento está em acompanhamento"}
             </h1>
           </div>
-          <span className="w-fit rounded-full bg-teal-100 px-4 py-2 text-sm font-semibold capitalize text-teal-900">
-            {request.serviceStage.replaceAll("_", " ")}
+          <span className="w-fit rounded-full bg-teal-100 px-4 py-2 text-sm font-semibold text-teal-900">
+            {customerStageLabels[request.serviceStage]}
           </span>
         </div>
         <div className="mt-8 grid gap-5 lg:grid-cols-[1.4fr_0.8fr]">
@@ -92,6 +82,17 @@ export default async function ServiceRequestPage({
                   }
                 />
                 <UrgencyBadge urgency={request.perceivedUrgency} />
+                <Info
+                  label="Seguro"
+                  value={insuranceLabel(request.hasInsurance)}
+                />
+                {request.hasInsurance === "yes" && request.insurerName && (
+                  <Info label="Seguradora" value={request.insurerName} />
+                )}
+                <Info
+                  label="Assistência 24 horas"
+                  value={insuranceLabel(request.hasRoadsideAssistance)}
+                />
                 <Info label="Seu relato" value={request.customerReport} />
               </CardContent>
             </Card>
@@ -107,70 +108,18 @@ export default async function ServiceRequestPage({
             )}
             {request.copilotQuestions.length > 0 && (
               <Card className="border-rose-200">
-                <CardContent className="space-y-5 p-6">
-                  <div>
-                    <h2 className="text-xl font-semibold">
-                      Complete as informações
-                    </h2>
-                    <p className="mt-2 text-sm leading-6 text-slate-600">
-                      Suas respostas ajudam a VERAH a encaminhar o atendimento
-                      com mais precisão.
-                    </p>
-                  </div>
-                  {feedback.answersSaved && (
-                    <p className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-900">
-                      Respostas salvas com sucesso.
-                    </p>
-                  )}
-                  {feedback.answersError && (
-                    <p
-                      role="alert"
-                      className="rounded-lg bg-red-50 p-3 text-sm text-red-900"
-                    >
-                      {feedback.answersError}
-                    </p>
-                  )}
-                  <form
-                    action={submitServiceRequestAnswers}
-                    className="space-y-4"
-                  >
-                    <input
-                      type="hidden"
-                      name="serviceRequestId"
-                      value={request.id}
-                    />
-                    {request.copilotQuestions.map((question, index) => (
-                      <label
-                        key={question}
-                        htmlFor={`answer-${index}`}
-                        className="block text-sm font-semibold text-slate-800"
-                      >
-                        {question}
-                        <textarea
-                          id={`answer-${index}`}
-                          name={`answer:${question}`}
-                          defaultValue={request.copilotAnswers[question] ?? ""}
-                          className="mt-2 min-h-24 w-full rounded-xl border border-rose-100 p-3 font-normal outline-none focus-visible:border-teal-600 focus-visible:ring-4 focus-visible:ring-teal-100"
-                          disabled={["concluido", "cancelado"].includes(
-                            request.serviceStage,
-                          )}
-                        />
-                      </label>
-                    ))}
-                    {!["concluido", "cancelado"].includes(
+                <CardContent className="p-6">
+                  <CustomerAnswersForm
+                    requestId={request.id}
+                    questions={request.copilotQuestions}
+                    answers={request.copilotAnswers}
+                    submittedAt={request.customerAnswersSubmittedAt}
+                    answersSaved={feedback.answersSaved}
+                    answersError={feedback.answersError}
+                    locked={["concluido", "cancelado"].includes(
                       request.serviceStage,
-                    ) && (
-                      <button className="min-h-12 w-full rounded-xl bg-teal-700 px-5 font-semibold text-white">
-                        Salvar respostas
-                      </button>
                     )}
-                  </form>
-                  {request.customerAnswersSubmittedAt && (
-                    <p className="text-xs text-slate-500">
-                      Última atualização:{" "}
-                      {date(request.customerAnswersSubmittedAt)}
-                    </p>
-                  )}
+                  />
                 </CardContent>
               </Card>
             )}
@@ -293,8 +242,8 @@ export default async function ServiceRequestPage({
             <CardContent className="p-6">
               <h2 className="text-lg font-semibold">Acompanhamento</h2>
               <ol className="mt-6 space-y-0">
-                {timeline.map((item, index) => (
-                  <li key={item} className="relative flex gap-3 pb-7 last:pb-0">
+                {customerJourneyStages.map((stage, index) => (
+                  <li key={stage} className="relative flex gap-3 pb-7 last:pb-0">
                     <span
                       className={`relative z-10 mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-xs font-bold ${index < currentStage || (request.serviceStage === "concluido" && index === currentStage) ? "border-teal-700 bg-teal-700 text-white" : index === currentStage ? "border-teal-700 bg-white text-teal-800 ring-4 ring-teal-100" : "border-slate-200 bg-white text-slate-400"}`}
                     >
@@ -304,7 +253,7 @@ export default async function ServiceRequestPage({
                         ? "✓"
                         : index + 1}
                     </span>
-                    {index < timeline.length - 1 && (
+                    {index < customerJourneyStages.length - 1 && (
                       <span className="absolute left-[9px] top-5 h-full w-px bg-slate-200" />
                     )}
                     <div>
@@ -315,7 +264,7 @@ export default async function ServiceRequestPage({
                             : "font-medium text-slate-500"
                         }
                       >
-                        {item}
+                        {customerStageLabels[stage]}
                       </p>
                       <p className="mt-1 text-xs text-slate-500">
                         {stageDates[index]
@@ -352,6 +301,10 @@ function Info({ label, value }: { label: string; value: string }) {
 function naturalLabel(value: string) {
   const label = value.replaceAll("_", " ");
   return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
+function insuranceLabel(value: "yes" | "no" | "unknown") {
+  return value === "yes" ? "Sim" : value === "no" ? "Não" : "Não sei";
 }
 
 const date = (value: string) =>

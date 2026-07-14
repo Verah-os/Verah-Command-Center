@@ -23,6 +23,8 @@ function fail(message: string): never {
   );
 }
 
+const insuranceAnswers = ["yes", "no", "unknown"] as const;
+
 export async function createServiceRequest(formData: FormData) {
   const customerName = value(formData, "customerName");
   const vehicleBrand = value(formData, "vehicleBrand");
@@ -34,15 +36,29 @@ export async function createServiceRequest(formData: FormData) {
     formData,
     "perceivedUrgency",
   ) as ServiceUrgency;
+  const hasInsurance = value(formData, "hasInsurance");
+  const hasRoadsideAssistance = value(
+    formData,
+    "hasRoadsideAssistance",
+  );
+  const insurerName = value(formData, "insurerName");
   if (
     !customerName ||
     !vehicleBrand ||
     !vehicleModel ||
     !city ||
     !customerReport ||
-    !urgencyLevels.includes(perceivedUrgency)
+    !urgencyLevels.includes(perceivedUrgency) ||
+    !insuranceAnswers.includes(
+      hasInsurance as (typeof insuranceAnswers)[number],
+    ) ||
+    !insuranceAnswers.includes(
+      hasRoadsideAssistance as (typeof insuranceAnswers)[number],
+    )
   )
     fail("Revise os campos obrigatórios.");
+  if (insurerName.length > 120)
+    fail("O nome da seguradora deve ter no máximo 120 caracteres.");
   if (customerReport.length < 15)
     fail("Conte um pouco mais sobre o que aconteceu.");
   if (!isValidVehicle(vehicleBrand, vehicleModel))
@@ -96,6 +112,9 @@ export async function createServiceRequest(formData: FormData) {
       vehicle_plate: value(formData, "vehiclePlate") || null,
       state,
       city,
+      has_insurance: hasInsurance,
+      insurer_name: hasInsurance === "yes" ? insurerName || null : null,
+      has_roadside_assistance: hasRoadsideAssistance,
       customer_report: customerReport,
       perceived_urgency: analysis.urgency,
       service_stage: "solicitado",

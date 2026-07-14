@@ -12,6 +12,8 @@ export type ServiceStage =
   | "concluido"
   | "cancelado";
 
+export type InsuranceAnswer = "yes" | "no" | "unknown";
+
 export type ServiceRequest = {
   id: string;
   referenceCode: string;
@@ -23,6 +25,9 @@ export type ServiceRequest = {
   vehiclePlate: string | null;
   state: string | null;
   city: string;
+  hasInsurance: InsuranceAnswer;
+  insurerName: string | null;
+  hasRoadsideAssistance: InsuranceAnswer;
   customerReport: string;
   perceivedUrgency: ServiceUrgency;
   serviceStage: ServiceStage;

@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { DemoShell } from "@/components/demo/demo-shell";
 import { listCustomerServiceRequests } from "@/services/service-requests";
 import { createSupabaseServerClient } from "@/services/supabase/server";
+import { customerStageLabels } from "@/lib/customer-service-stage";
 
 const dateFormatter = new Intl.DateTimeFormat("pt-BR", {
   timeZone: "America/Sao_Paulo",
@@ -68,8 +69,8 @@ export default async function CustomerPage() {
                           · {dateFormatter.format(new Date(request.createdAt))}
                         </p>
                       </div>
-                      <span className="w-fit rounded-full bg-teal-50 px-3 py-1 text-sm font-medium capitalize text-teal-800">
-                        {request.serviceStage.replaceAll("_", " ")}
+                      <span className="w-fit rounded-full bg-teal-50 px-3 py-1 text-sm font-medium text-teal-800">
+                        {customerStageLabels[request.serviceStage]}
                       </span>
                     </CardContent>
                   </Card>
