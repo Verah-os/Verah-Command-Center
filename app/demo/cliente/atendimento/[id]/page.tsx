@@ -6,6 +6,7 @@ import { createSupabaseServerClient } from "@/services/supabase/server";
 import { getCustomerProviderProfile } from "@/services/service-providers";
 import { decideQuote, getQuoteForRequest } from "@/services/service-quotes";
 import { submitRating } from "@/services/service-completion";
+import { submitServiceRequestAnswers } from "@/services/service-requests/actions";
 import type { ServiceUrgency } from "@/services/service-copilot";
 
 const timeline = [
@@ -19,8 +20,10 @@ const timeline = [
 
 export default async function ServiceRequestPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ answersSaved?: string; answersError?: string }>;
 }) {
   const supabase = await createSupabaseServerClient();
   const {
@@ -28,6 +31,7 @@ export default async function ServiceRequestPage({
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
   const { id } = await params;
+  const feedback = await searchParams;
   const request = await getCustomerServiceRequest(id);
   if (!request) notFound();
   const stages = [
@@ -98,6 +102,75 @@ export default async function ServiceRequestPage({
                   <p className="mt-3 leading-7 text-slate-700">
                     {request.copilotSummary}
                   </p>
+                </CardContent>
+              </Card>
+            )}
+            {request.copilotQuestions.length > 0 && (
+              <Card className="border-rose-200">
+                <CardContent className="space-y-5 p-6">
+                  <div>
+                    <h2 className="text-xl font-semibold">
+                      Complete as informações
+                    </h2>
+                    <p className="mt-2 text-sm leading-6 text-slate-600">
+                      Suas respostas ajudam a VERAH a encaminhar o atendimento
+                      com mais precisão.
+                    </p>
+                  </div>
+                  {feedback.answersSaved && (
+                    <p className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-900">
+                      Respostas salvas com sucesso.
+                    </p>
+                  )}
+                  {feedback.answersError && (
+                    <p
+                      role="alert"
+                      className="rounded-lg bg-red-50 p-3 text-sm text-red-900"
+                    >
+                      {feedback.answersError}
+                    </p>
+                  )}
+                  <form
+                    action={submitServiceRequestAnswers}
+                    className="space-y-4"
+                  >
+                    <input
+                      type="hidden"
+                      name="serviceRequestId"
+                      value={request.id}
+                    />
+                    {request.copilotQuestions.map((question, index) => (
+                      <label
+                        key={question}
+                        htmlFor={`answer-${index}`}
+                        className="block text-sm font-semibold text-slate-800"
+                      >
+                        {question}
+                        <textarea
+                          id={`answer-${index}`}
+                          name={`answer:${question}`}
+                          defaultValue={request.copilotAnswers[question] ?? ""}
+                          className="mt-2 min-h-24 w-full rounded-xl border border-rose-100 p-3 font-normal outline-none focus-visible:border-teal-600 focus-visible:ring-4 focus-visible:ring-teal-100"
+                          disabled={["concluido", "cancelado"].includes(
+                            request.serviceStage,
+                          )}
+                        />
+                      </label>
+                    ))}
+                    {!["concluido", "cancelado"].includes(
+                      request.serviceStage,
+                    ) && (
+                      <button className="min-h-12 w-full rounded-xl bg-teal-700 px-5 font-semibold text-white">
+                        Salvar respostas
+                      </button>
+                    )}
+                  </form>
+                  {request.customerAnswersSubmittedAt && (
+                    <p className="text-xs text-slate-500">
+                      Última atualização:{" "}
+                      {date(request.customerAnswersSubmittedAt)}
+                    </p>
+                  )}
                 </CardContent>
               </Card>
             )}

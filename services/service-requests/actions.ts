@@ -118,3 +118,31 @@ export async function createServiceRequest(formData: FormData) {
   revalidatePath("/demo/cliente");
   redirect(`/demo/cliente/atendimento/${data.id}`);
 }
+
+export async function submitServiceRequestAnswers(formData: FormData) {
+  const serviceRequestId = value(formData, "serviceRequestId");
+  const answers = Object.fromEntries(
+    [...formData.entries()].flatMap(([key, answer]) =>
+      key.startsWith("answer:") && typeof answer === "string" && answer.trim()
+        ? [[key.slice(7), answer.trim()]]
+        : [],
+    ),
+  );
+  if (!serviceRequestId) redirect("/demo/cliente");
+  if (!Object.keys(answers).length)
+    redirect(
+      `/demo/cliente/atendimento/${serviceRequestId}?answersError=${encodeURIComponent("Responda pelo menos uma pergunta antes de salvar.")}`,
+    );
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.rpc("submit_service_request_answers", {
+    p_service_request_id: serviceRequestId,
+    p_answers: answers,
+  });
+  if (error)
+    redirect(
+      `/demo/cliente/atendimento/${serviceRequestId}?answersError=${encodeURIComponent(error.message)}`,
+    );
+  revalidatePath(`/demo/cliente/atendimento/${serviceRequestId}`);
+  revalidatePath(`/concierge/${serviceRequestId}`);
+  redirect(`/demo/cliente/atendimento/${serviceRequestId}?answersSaved=1`);
+}

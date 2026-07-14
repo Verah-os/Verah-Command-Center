@@ -3,7 +3,7 @@ import { createSupabaseServerClient } from "@/services/supabase/server";
 import type { ServiceRequest } from "@/types/service-request";
 
 const columns =
-  "id,reference_code,customer_name,customer_phone,vehicle_brand,vehicle_model,vehicle_year,vehicle_plate,state,city,customer_report,perceived_urgency,service_stage,probable_category,copilot_summary,copilot_questions,copilot_risk_signals,copilot_recommended_next_step,copilot_customer_message,copilot_concierge_brief,copilot_provider_brief,copilot_confidence,requires_human_review,created_at,created_by,concierge_id,concierge_accepted_at,work_order_id,provider_id,provider_assigned_at,provider_assigned_by,provider_completed_at,concierge_confirmed_at,completed_at,completion_notes,customer_rating,customer_feedback,customer_rated_at";
+  "id,reference_code,customer_name,customer_phone,vehicle_brand,vehicle_model,vehicle_year,vehicle_plate,state,city,customer_report,perceived_urgency,service_stage,probable_category,copilot_summary,copilot_questions,copilot_answers,customer_answers_submitted_at,copilot_risk_signals,copilot_recommended_next_step,copilot_customer_message,copilot_concierge_brief,copilot_provider_brief,copilot_confidence,requires_human_review,created_at,created_by,concierge_id,concierge_accepted_at,work_order_id,provider_id,provider_assigned_at,provider_assigned_by,provider_reassigned_at,provider_reassigned_by,provider_reassignment_reason,provider_completed_at,concierge_confirmed_at,completed_at,completion_notes,customer_rating,customer_feedback,customer_rated_at";
 
 function mapRow(row: Record<string, unknown>): ServiceRequest {
   return {
@@ -25,6 +25,9 @@ function mapRow(row: Record<string, unknown>): ServiceRequest {
       row.probable_category as ServiceRequest["probableCategory"],
     copilotSummary: row.copilot_summary as string | null,
     copilotQuestions: (row.copilot_questions as string[]) ?? [],
+    copilotAnswers: (row.copilot_answers as Record<string, string>) ?? {},
+    customerAnswersSubmittedAt: row.customer_answers_submitted_at as
+      string | null,
     copilotRiskSignals: (row.copilot_risk_signals as string[]) ?? [],
     copilotRecommendedNextStep: row.copilot_recommended_next_step as
       string | null,
@@ -41,6 +44,10 @@ function mapRow(row: Record<string, unknown>): ServiceRequest {
     providerId: row.provider_id as string | null,
     providerAssignedAt: row.provider_assigned_at as string | null,
     providerAssignedBy: row.provider_assigned_by as string | null,
+    providerReassignedAt: row.provider_reassigned_at as string | null,
+    providerReassignedBy: row.provider_reassigned_by as string | null,
+    providerReassignmentReason: row.provider_reassignment_reason as
+      string | null,
     providerCompletedAt: row.provider_completed_at as string | null,
     conciergeConfirmedAt: row.concierge_confirmed_at as string | null,
     completedAt: row.completed_at as string | null,

@@ -26,6 +26,19 @@ export async function listActiveProviders() {
     ? []
     : (data ?? []).map((row) => mapProvider(row as Record<string, unknown>));
 }
+export async function listActiveProvidersWithPortal(): Promise<ServiceProvider[]> {
+  if (!env.supabaseUrl || !env.supabaseAnonKey) return [];
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc(
+    "list_active_service_providers_with_portal",
+  );
+  return error
+    ? []
+    : (data ?? []).map((row: Record<string, unknown>) => ({
+        ...mapProvider(row),
+        portalActive: Boolean(row.portal_active),
+      }));
+}
 export async function getActiveProvider(id: string) {
   if (!env.supabaseUrl || !env.supabaseAnonKey) return null;
   const supabase = await createSupabaseServerClient();
