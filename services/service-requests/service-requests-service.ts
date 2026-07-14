@@ -17,6 +17,14 @@ function mapRow(row: Record<string, unknown>): ServiceRequest {
     vehiclePlate: row.vehicle_plate as string | null,
     state: row.state as string | null,
     city: row.city as string,
+    hasInsurance:
+      (row.has_insurance as ServiceRequest["hasInsurance"] | undefined) ??
+      "unknown",
+    insurerName: (row.insurer_name as string | null | undefined) ?? null,
+    hasRoadsideAssistance:
+      (row.has_roadside_assistance as
+        | ServiceRequest["hasRoadsideAssistance"]
+        | undefined) ?? "unknown",
     customerReport: row.customer_report as string,
     perceivedUrgency:
       row.perceived_urgency as ServiceRequest["perceivedUrgency"],
@@ -55,6 +63,23 @@ function mapRow(row: Record<string, unknown>): ServiceRequest {
     customerRating: row.customer_rating as number | null,
     customerFeedback: row.customer_feedback as string | null,
     customerRatedAt: row.customer_rated_at as string | null,
+  };
+}
+
+async function getInsurance(serviceRequestId: string) {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .rpc("get_service_request_insurance", {
+      p_service_request_id: serviceRequestId,
+    })
+    .maybeSingle();
+  if (error || !data) return null;
+  const row = data as Record<string, unknown>;
+  return {
+    hasInsurance: row.has_insurance as ServiceRequest["hasInsurance"],
+    insurerName: row.insurer_name as string | null,
+    hasRoadsideAssistance:
+      row.has_roadside_assistance as ServiceRequest["hasRoadsideAssistance"],
   };
 }
 
@@ -133,7 +158,9 @@ export async function getCustomerServiceRequest(id: string) {
     .eq("created_by", user.id)
     .maybeSingle();
   if (error || !data) return null;
-  return mapRow(data as Record<string, unknown>);
+  const request = mapRow(data as Record<string, unknown>);
+  const insurance = await getInsurance(id);
+  return insurance ? { ...request, ...insurance } : request;
 }
 
 export async function getConciergeServiceRequest(id: string) {
@@ -145,7 +172,9 @@ export async function getConciergeServiceRequest(id: string) {
     .eq("id", id)
     .maybeSingle();
   if (error || !data) return null;
-  return mapRow(data as Record<string, unknown>);
+  const request = mapRow(data as Record<string, unknown>);
+  const insurance = await getInsurance(id);
+  return insurance ? { ...request, ...insurance } : request;
 }
 
 export async function getConciergeStats() {

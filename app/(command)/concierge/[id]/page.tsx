@@ -49,8 +49,17 @@ export default async function ConciergeDetailPage({
         Number(a.city.toLowerCase() === request.city.toLowerCase()) ||
       Number(b.specialties.includes(request.probableCategory ?? "")) -
         Number(a.specialties.includes(request.probableCategory ?? "")) ||
-      (b.rating ?? 0) - (a.rating ?? 0),
+      (b.rating ?? 0) - (a.rating ?? 0) ||
+      a.name.localeCompare(b.name, "pt-BR"),
   );
+  const answeredQuestions = request.copilotQuestions.filter((question) =>
+    Boolean(request.copilotAnswers[question]?.trim()),
+  );
+  const pendingQuestions = request.copilotQuestions.filter(
+    (question) => !request.copilotAnswers[question]?.trim(),
+  );
+  const answeredCount = answeredQuestions.length;
+  const pendingCount = pendingQuestions.length;
   const assignedProvider = request.providerId
     ? await getActiveProvider(request.providerId)
     : null;
@@ -125,6 +134,17 @@ export default async function ConciergeDetailPage({
                 value={request.vehiclePlate ?? "Não informada"}
               />
               <Info label="Cidade" value={request.city} />
+              <Info
+                label="Seguro"
+                value={insuranceLabel(request.hasInsurance)}
+              />
+              {request.hasInsurance === "yes" && request.insurerName && (
+                <Info label="Seguradora" value={request.insurerName} />
+              )}
+              <Info
+                label="Assistência 24 horas"
+                value={insuranceLabel(request.hasRoadsideAssistance)}
+              />
               <div className="md:col-span-2">
                 <Info label="Relato original" value={request.customerReport} />
               </div>
@@ -139,21 +159,13 @@ export default async function ConciergeDetailPage({
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <p className="rounded bg-emerald-50 p-3">
                     <strong>
-                      {
-                        request.copilotQuestions.filter(
-                          (question) => request.copilotAnswers[question],
-                        ).length
-                      }
+                      {answeredCount}
                     </strong>{" "}
                     respondidas
                   </p>
                   <p className="rounded bg-amber-50 p-3">
                     <strong>
-                      {
-                        request.copilotQuestions.filter(
-                          (question) => !request.copilotAnswers[question],
-                        ).length
-                      }
+                      {pendingCount}
                     </strong>{" "}
                     pendentes
                   </p>
@@ -166,24 +178,44 @@ export default async function ConciergeDetailPage({
                     )}
                   </p>
                 )}
-                <dl className="space-y-3">
-                  {request.copilotQuestions.map((question) => (
-                    <div key={question} className="rounded-md border p-3">
-                      <dt className="text-sm font-semibold">{question}</dt>
-                      <dd className="mt-2 text-sm text-muted-foreground">
-                        {request.copilotAnswers[question] ||
-                          "Aguardando resposta"}
-                      </dd>
-                      <span
-                        className={`mt-2 inline-flex rounded-full px-2 py-1 text-xs font-semibold ${request.copilotAnswers[question] ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-900"}`}
-                      >
-                        {request.copilotAnswers[question]
-                          ? "Respondida"
-                          : "Aguardando resposta"}
-                      </span>
+                {answeredQuestions.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-semibold">
+                      Respostas recebidas
+                    </h3>
+                    <dl className="mt-3 space-y-3">
+                      {answeredQuestions.map((question) => (
+                        <div key={question} className="rounded-md border p-3">
+                          <dt className="text-sm font-semibold">{question}</dt>
+                          <dd className="mt-2 text-sm text-muted-foreground">
+                            {request.copilotAnswers[question]}
+                          </dd>
+                        </div>
+                      ))}
+                    </dl>
+                  </div>
+                )}
+                <div>
+                  <h3 className="text-sm font-semibold">
+                    Perguntas pendentes
+                  </h3>
+                  {pendingQuestions.length ? (
+                    <ul className="mt-3 space-y-3">
+                      {pendingQuestions.map((question) => (
+                        <li
+                          key={question}
+                          className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm"
+                        >
+                          {question}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <div className="mt-3 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+                      Todas as informações complementares foram respondidas.
                     </div>
-                  ))}
-                </dl>
+                  )}
+                </div>
               </CardContent>
             </Card>
           )}
@@ -202,8 +234,9 @@ export default async function ConciergeDetailPage({
                 items={request.copilotRiskSignals}
               />
               <List
-                label="Perguntas pendentes"
-                items={request.copilotQuestions}
+                label="Informações ainda necessárias"
+                items={pendingQuestions}
+                empty="Todas as informações complementares foram respondidas."
               />
               <Info
                 label="Briefing para Concierge"
@@ -344,6 +377,8 @@ export default async function ConciergeDetailPage({
                             providers={providers}
                             currentProviderId={assignedProvider.id}
                             mode="reassign"
+                            requestCity={request.city}
+                            probableCategory={request.probableCategory}
                           />
                         </div>
                       </details>
@@ -351,6 +386,12 @@ export default async function ConciergeDetailPage({
                   </div>
                 ) : (
                   <div className="space-y-4">
+                    {!providers.length && (
+                      <p className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900">
+                        Nenhum prestador ativo está disponível no momento.
+                        Verifique o cadastro operacional e tente novamente.
+                      </p>
+                    )}
                     {providers[0] && (
                       <div className="rounded-md border border-primary/20 bg-primary/5 p-3">
                         <p className="text-sm font-semibold">
@@ -369,6 +410,8 @@ export default async function ConciergeDetailPage({
                       requestId={request.id}
                       providers={providers}
                       mode="assign"
+                      requestCity={request.city}
+                      probableCategory={request.probableCategory}
                     />
                   </div>
                 )}
@@ -422,7 +465,15 @@ function Info({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
-function List({ label, items }: { label: string; items: string[] }) {
+function List({
+  label,
+  items,
+  empty = "Nenhum item identificado.",
+}: {
+  label: string;
+  items: string[];
+  empty?: string;
+}) {
   return (
     <div>
       <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -432,11 +483,15 @@ function List({ label, items }: { label: string; items: string[] }) {
         {items.length ? (
           items.map((item) => <li key={item}>• {item}</li>)
         ) : (
-          <li className="text-muted-foreground">Nenhum item identificado.</li>
+          <li className="text-muted-foreground">{empty}</li>
         )}
       </ul>
     </div>
   );
+}
+
+function insuranceLabel(value: "yes" | "no" | "unknown") {
+  return value === "yes" ? "Sim" : value === "no" ? "Não" : "Não sei";
 }
 function Timeline({ stage }: { stage: string }) {
   const items = [

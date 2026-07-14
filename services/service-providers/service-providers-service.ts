@@ -32,12 +32,16 @@ export async function listActiveProvidersWithPortal(): Promise<ServiceProvider[]
   const { data, error } = await supabase.rpc(
     "list_active_service_providers_with_portal",
   );
-  return error
-    ? []
-    : (data ?? []).map((row: Record<string, unknown>) => ({
-        ...mapProvider(row),
-        portalActive: Boolean(row.portal_active),
-      }));
+  if (error) {
+    console.error("service-providers:list-active-with-portal", {
+      code: error.code,
+    });
+    return [];
+  }
+  return (data ?? []).map((row: Record<string, unknown>) => ({
+    ...mapProvider(row),
+    portalActive: Boolean(row.portal_active),
+  }));
 }
 export async function getActiveProvider(id: string) {
   if (!env.supabaseUrl || !env.supabaseAnonKey) return null;
