@@ -14,6 +14,11 @@ import { getQuoteForRequest } from "@/services/service-quotes";
 import { conciergeConfirm } from "@/services/service-completion";
 import type { ServiceProvider } from "@/types/service-provider";
 import { ProviderAssignmentForm } from "@/components/concierge/provider-assignment-form";
+import {
+  buildConciergeChecklist,
+  buildTimeline,
+  type TimelineEvent,
+} from "@/lib/concierge-operations";
 
 const formatter = new Intl.DateTimeFormat("pt-BR", {
   timeZone: "America/Sao_Paulo",
@@ -64,6 +69,8 @@ export default async function ConciergeDetailPage({
     ? await getActiveProvider(request.providerId)
     : null;
   const quote = await getQuoteForRequest(id);
+  const timelineEvents = buildTimeline(request, quote);
+  const checklist = buildConciergeChecklist(request, quote);
   const canReassign = Boolean(
     assignedProvider &&
     ["prestador_indicado", "aguardando_aprovacao"].includes(
@@ -448,7 +455,8 @@ export default async function ConciergeDetailPage({
               </CardContent>
             </Card>
           )}
-          <Timeline stage={request.serviceStage} />
+          <ConciergeChecklist items={checklist} />
+          <Timeline events={timelineEvents} />
         </div>
       </div>
     </div>
@@ -493,33 +501,77 @@ function List({
 function insuranceLabel(value: "yes" | "no" | "unknown") {
   return value === "yes" ? "Sim" : value === "no" ? "Não" : "Não sei";
 }
-function Timeline({ stage }: { stage: string }) {
-  const items = [
-    "solicitado",
-    "concierge_aceitou",
-    "prestador_indicado",
-    "aguardando_aprovacao",
-    "em_execucao",
-    "concluido",
-  ];
-  const current = Math.max(0, items.indexOf(stage));
+function ConciergeChecklist({
+  items,
+}: {
+  items: Array<{ label: string; complete: boolean }>;
+}) {
+  const completed = items.filter((item) => item.complete).length;
   return (
     <Card>
       <CardHeader>
-        <h2 className="font-semibold">Timeline</h2>
+        <h2 className="font-semibold">Checklist do Concierge</h2>
+        <p className="text-sm text-muted-foreground">
+          {completed} de {items.length} etapas verificadas
+        </p>
       </CardHeader>
       <CardContent>
-        <ol className="space-y-3">
-          {items.map((item, index) => (
-            <li key={item} className="flex items-center gap-3 text-sm">
+        <ul className="space-y-3">
+          {items.map((item) => (
+            <li key={item.label} className="flex items-center gap-3 text-sm">
               <span
-                className={`h-3 w-3 rounded-full ${index <= current ? "bg-primary" : "bg-border"}`}
-              />
-              <span
-                className={`capitalize ${index <= current ? "font-medium" : "text-muted-foreground"}`}
+                aria-hidden="true"
+                className={`flex h-6 w-6 items-center justify-center rounded-full border text-xs font-bold ${item.complete ? "border-emerald-600 bg-emerald-50 text-emerald-700" : "border-border bg-muted text-muted-foreground"}`}
               >
-                {item.replaceAll("_", " ")}
+                {item.complete ? "✓" : "–"}
               </span>
+              <span className={item.complete ? "font-medium" : "text-muted-foreground"}>
+                <span className="sr-only">
+                  {item.complete ? "Concluído: " : "Pendente: "}
+                </span>
+                {item.label}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </CardContent>
+    </Card>
+  );
+}
+
+function Timeline({ events }: { events: TimelineEvent[] }) {
+  return (
+    <Card>
+      <CardHeader>
+        <h2 className="font-semibold">Timeline do atendimento</h2>
+      </CardHeader>
+      <CardContent>
+        <ol className="space-y-0">
+          {events.map((event, index) => (
+            <li
+              key={`${event.timestamp}-${event.order}`}
+              className="relative flex gap-3 pb-6 last:pb-0"
+            >
+              <span
+                aria-hidden="true"
+                className="relative z-10 mt-1 h-3 w-3 shrink-0 rounded-full bg-primary"
+              />
+              {index < events.length - 1 && (
+                <span
+                  aria-hidden="true"
+                  className="absolute left-[5px] top-3 h-full w-px bg-border"
+                />
+              )}
+              <div className="min-w-0">
+                <p className="font-medium">{event.title}</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {event.description}
+                </p>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {formatter.format(new Date(event.timestamp))}
+                  {event.actor ? ` · ${event.actor}` : ""}
+                </p>
+              </div>
             </li>
           ))}
         </ol>
