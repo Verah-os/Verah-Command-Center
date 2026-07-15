@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Route } from "next";
+import { AlertTriangle, ArrowLeft, CheckCircle2, Clock3, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
@@ -20,9 +21,11 @@ import { conciergeConfirm } from "@/services/service-completion";
 import type { ServiceProvider } from "@/types/service-provider";
 import type { ServiceRequest } from "@/types/service-request";
 import { ProviderAssignmentForm } from "@/components/concierge/provider-assignment-form";
+import { ProviderTrustPanel } from "@/components/concierge/provider-trust-panel";
 import {
   buildConciergeChecklist,
   buildTimeline,
+  getSla,
   type TimelineEvent,
 } from "@/lib/concierge-operations";
 
@@ -74,9 +77,14 @@ export default async function ConciergeDetailPage({
   const assignedProvider = request.providerId
     ? await getActiveProvider(request.providerId)
     : null;
+  const trustProvider = assignedProvider
+    ? providers.find((provider) => provider.id === assignedProvider.id) ??
+      assignedProvider
+    : providers[0] ?? null;
   const quote = await getQuoteForRequest(id);
   const timelineEvents = buildTimeline(request, quote);
   const checklist = buildConciergeChecklist(request, quote);
+  const sla = getSla(request, quote);
   const canReassign = Boolean(
     assignedProvider &&
     ["prestador_indicado", "aguardando_aprovacao"].includes(
@@ -94,34 +102,38 @@ export default async function ConciergeDetailPage({
       quote?.status ?? "",
     );
   return (
-    <div className="space-y-5">
-      <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+    <div className="space-y-6">
+      <header className="rounded-[1.5rem] border border-rose-100 bg-white/95 p-5 shadow-[0_18px_45px_rgba(64,83,80,0.06)] sm:p-7">
+        <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
         <div>
           <Link
             href={"/concierge" as Route}
-            className="text-sm text-primary hover:underline"
+            className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-teal-800 outline-none hover:underline focus-visible:ring-4 focus-visible:ring-teal-100"
           >
-            ← Voltar ao Concierge
+            <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Voltar aos atendimentos
           </Link>
           <p className="mt-3 font-mono text-sm font-semibold text-primary">
             {request.referenceCode}
           </p>
-          <h1 className="mt-1 text-2xl font-semibold">
+          <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
             {request.customerName} · {request.vehicleBrand}{" "}
             {request.vehicleModel}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Criado em {formatter.format(new Date(request.createdAt))}
           </p>
-          {request.isPriority && (
-            <p className="mt-2 inline-flex rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-900">
-              Prioritário
-            </p>
-          )}
+          <div className="mt-4 flex flex-wrap gap-2">
+            <CaseBadge label={naturalLabel(request.perceivedUrgency)} kind={request.perceivedUrgency} />
+            <CaseBadge label={naturalLabel(request.serviceStage)} kind={request.serviceStage === "cancelado" ? "neutral" : request.serviceStage === "concluido" ? "success" : "stage"} />
+            {request.isPriority && <CaseBadge label="Prioritário" kind="priority" />}
+          </div>
         </div>
-        <span className="w-fit rounded-full bg-muted px-3 py-1.5 text-sm font-semibold capitalize">
-          {request.serviceStage.replaceAll("_", " ")}
-        </span>
+        <div className={`w-full rounded-2xl border p-4 md:w-auto md:min-w-48 ${sla.level === "atrasado" ? "border-red-200 bg-red-50" : sla.level === "atencao" ? "border-amber-200 bg-amber-50" : "border-emerald-200 bg-emerald-50"}`}>
+          <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] text-slate-600"><Clock3 className="h-4 w-4" aria-hidden="true" /> Tempo de espera</p>
+          <p className="mt-2 font-semibold text-slate-900">{sla.label}</p>
+          <p className="mt-1 text-xs text-slate-600">Situação: {naturalLabel(sla.level)}</p>
+        </div>
+        </div>
       </header>
       {(feedback.accepted ||
         feedback.providerAssigned ||
@@ -130,7 +142,9 @@ export default async function ConciergeDetailPage({
         feedback.priorityUpdated ||
         feedback.cancelled ||
         feedback.reopened) && (
-        <p className="rounded-md border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+        <p role="status" className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <span>
           {feedback.created
             ? "Atendimento criado com sucesso. Nenhuma conta de cliente foi criada automaticamente."
             : feedback.cancelled
@@ -143,15 +157,16 @@ export default async function ConciergeDetailPage({
                     ? "Prestador alterado com sucesso."
                     : feedback.providerAssigned
                       ? "Prestador indicado com sucesso."
-                      : "Atendimento assumido com sucesso. A Work Order foi criada e a trigger encaminhou a criação do Dispatcher Job."}
+                      : "Atendimento assumido com sucesso e pronto para os próximos passos."}
+          </span>
         </p>
       )}
       {feedback.error && (
-        <p className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-          {feedback.error}
+        <p role="alert" className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-900">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" /> {feedback.error}
         </p>
       )}
-      <div className="grid gap-5 xl:grid-cols-[1.3fr_0.7fr]">
+      <div className="grid gap-6 xl:grid-cols-[1.35fr_0.65fr]">
         <div className="space-y-5">
           <Card>
             <CardHeader>
@@ -259,7 +274,8 @@ export default async function ConciergeDetailPage({
           )}
           <Card>
             <CardHeader>
-              <h2 className="font-semibold">Análise do Service Copilot</h2>
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-teal-700">Recomendação VERAH</p>
+              <h2 className="mt-1 font-semibold">Resumo e triagem</h2>
             </CardHeader>
             <CardContent className="space-y-5">
               <Info label="Urgência" value={request.perceivedUrgency} />
@@ -341,8 +357,8 @@ export default async function ConciergeDetailPage({
               {request.serviceStage === "solicitado" ? (
                 <>
                   <p className="text-sm text-muted-foreground">
-                    Ao assumir, o stage será atualizado e uma única Work Order
-                    será criada atomicamente.
+                    Ao assumir, o atendimento entra em análise e fica pronto
+                    para os próximos passos da operação.
                   </p>
                   <form action={acceptServiceRequest}>
                     <input
@@ -372,7 +388,15 @@ export default async function ConciergeDetailPage({
               <CardHeader>
                 <h2 className="font-semibold">Indicar prestador</h2>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4">
+                {trustProvider && (
+                  <ProviderTrustPanel
+                    provider={trustProvider}
+                    requestCity={request.city}
+                    probableCategory={request.probableCategory}
+                    reason={providerReason(trustProvider, request.city, request.probableCategory)}
+                  />
+                )}
                 {assignedProvider ? (
                   <div className="space-y-2 text-sm">
                     <p className="font-semibold">{assignedProvider.name}</p>
@@ -534,8 +558,8 @@ function LifecycleActions({
               </Button>
             </form>
           ) : (
-            <details className="rounded-md border p-3">
-              <summary className="cursor-pointer text-sm font-semibold text-primary">
+            <details className="rounded-xl border border-rose-100 p-4">
+              <summary className="min-h-11 cursor-pointer text-sm font-semibold text-teal-800 outline-none focus-visible:ring-4 focus-visible:ring-teal-100">
                 Marcar como prioridade
               </summary>
               <form action={setServiceRequestPriority} className="mt-4 space-y-3">
@@ -546,7 +570,7 @@ function LifecycleActions({
                   <textarea
                     name="reason"
                     required
-                    className="mt-2 min-h-24 w-full rounded-md border p-3 font-normal"
+                    className="mt-2 min-h-24 w-full rounded-xl border border-rose-100 p-3 font-normal outline-none focus-visible:border-teal-500 focus-visible:ring-4 focus-visible:ring-teal-100"
                   />
                 </label>
                 <Button className="w-full">Confirmar prioridade</Button>
@@ -555,8 +579,8 @@ function LifecycleActions({
           ))}
 
         {canCancel && (
-          <details className="rounded-md border border-red-200 p-3">
-            <summary className="cursor-pointer text-sm font-semibold text-red-700">
+          <details className="rounded-xl border border-red-200 p-4">
+            <summary className="min-h-11 cursor-pointer text-sm font-semibold text-red-700 outline-none focus-visible:ring-4 focus-visible:ring-red-100">
               Cancelar atendimento
             </summary>
             <form action={cancelServiceRequest} className="mt-4 space-y-3">
@@ -566,7 +590,7 @@ function LifecycleActions({
                 <select
                   name="reason"
                   required
-                  className="mt-2 h-11 w-full rounded-md border bg-white px-3 font-normal"
+                  className="mt-2 h-11 w-full rounded-xl border border-rose-100 bg-white px-3 font-normal outline-none focus-visible:border-teal-500 focus-visible:ring-4 focus-visible:ring-teal-100"
                 >
                   <option value="">Selecione</option>
                   <option value="customer_withdrew">Cliente desistiu</option>
@@ -587,7 +611,7 @@ function LifecycleActions({
                 Observação
                 <textarea
                   name="notes"
-                  className="mt-2 min-h-24 w-full rounded-md border p-3 font-normal"
+                  className="mt-2 min-h-24 w-full rounded-xl border border-rose-100 p-3 font-normal outline-none focus-visible:border-teal-500 focus-visible:ring-4 focus-visible:ring-teal-100"
                   placeholder="Obrigatória quando o motivo for Outro"
                 />
               </label>
@@ -621,7 +645,7 @@ function LifecycleActions({
 
         {request.serviceStage === "cancelado" && (
           <>
-            <div className="rounded-md bg-muted p-3 text-sm">
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm">
               <p className="font-semibold">Atendimento cancelado</p>
               <p className="mt-1">
                 Motivo: {cancellationReasonLabel(request.cancellationReason)}
@@ -630,8 +654,8 @@ function LifecycleActions({
                 <p className="mt-1">Observação: {request.cancellationNotes}</p>
               )}
             </div>
-            <details className="rounded-md border p-3">
-              <summary className="cursor-pointer text-sm font-semibold text-primary">
+            <details className="rounded-xl border border-rose-100 p-4">
+              <summary className="min-h-11 cursor-pointer text-sm font-semibold text-teal-800 outline-none focus-visible:ring-4 focus-visible:ring-teal-100">
                 Reabrir atendimento
               </summary>
               <form action={reopenServiceRequest} className="mt-4 space-y-3">
@@ -641,7 +665,7 @@ function LifecycleActions({
                   <textarea
                     name="reason"
                     required
-                    className="mt-2 min-h-24 w-full rounded-md border p-3 font-normal"
+                    className="mt-2 min-h-24 w-full rounded-xl border border-rose-100 p-3 font-normal outline-none focus-visible:border-teal-500 focus-visible:ring-4 focus-visible:ring-teal-100"
                   />
                 </label>
                 <label className="flex items-start gap-2 text-sm">
@@ -723,17 +747,18 @@ function ConciergeChecklist({
 }) {
   const completed = items.filter((item) => item.complete).length;
   return (
-    <Card>
-      <CardHeader>
-        <h2 className="font-semibold">Checklist do Concierge</h2>
+    <Card className="overflow-hidden">
+      <CardHeader className="bg-rose-50/50">
+        <p className="text-xs font-bold uppercase tracking-[0.16em] text-rose-700">Acompanhamento</p>
+        <h2 className="mt-1 font-semibold">Checklist do Concierge</h2>
         <p className="text-sm text-muted-foreground">
           {completed} de {items.length} etapas verificadas
         </p>
       </CardHeader>
       <CardContent>
-        <ul className="space-y-3">
+        <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
           {items.map((item) => (
-            <li key={item.label} className="flex items-center gap-3 text-sm">
+            <li key={item.label} className={`flex items-center gap-3 rounded-xl border p-3 text-sm ${item.complete ? "border-emerald-100 bg-emerald-50/70" : "border-slate-100 bg-slate-50"}`}>
               <span
                 aria-hidden="true"
                 className={`flex h-6 w-6 items-center justify-center rounded-full border text-xs font-bold ${item.complete ? "border-emerald-600 bg-emerald-50 text-emerald-700" : "border-border bg-muted text-muted-foreground"}`}
@@ -756,33 +781,34 @@ function ConciergeChecklist({
 
 function Timeline({ events }: { events: TimelineEvent[] }) {
   return (
-    <Card>
-      <CardHeader>
-        <h2 className="font-semibold">Timeline do atendimento</h2>
+    <Card className="overflow-hidden">
+      <CardHeader className="bg-teal-50/50">
+        <p className="text-xs font-bold uppercase tracking-[0.16em] text-teal-700">Histórico operacional</p>
+        <h2 className="mt-1 font-semibold">Timeline do atendimento</h2>
       </CardHeader>
       <CardContent>
         <ol className="space-y-0">
           {events.map((event, index) => (
             <li
               key={`${event.timestamp}-${event.order}`}
-              className="relative flex gap-3 pb-6 last:pb-0"
+              className="relative flex gap-4 pb-7 last:pb-0"
             >
               <span
                 aria-hidden="true"
-                className="relative z-10 mt-1 h-3 w-3 shrink-0 rounded-full bg-primary"
+                className="relative z-10 mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-4 border-teal-100 bg-teal-700"
               />
               {index < events.length - 1 && (
                 <span
                   aria-hidden="true"
-                  className="absolute left-[5px] top-3 h-full w-px bg-border"
+                  className="absolute left-[9px] top-5 h-full w-px bg-teal-100"
                 />
               )}
               <div className="min-w-0">
-                <p className="font-medium">{event.title}</p>
+                <p className="font-semibold text-slate-800">{event.title}</p>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {event.description}
                 </p>
-                <p className="mt-2 text-xs text-muted-foreground">
+                <p className="mt-2 inline-flex rounded-full bg-slate-100 px-2.5 py-1 font-mono text-[11px] text-slate-600">
                   {formatter.format(new Date(event.timestamp))}
                   {event.actor ? ` · ${event.actor}` : ""}
                 </p>
@@ -817,4 +843,31 @@ function providerReason(
   return reasons.length
     ? `Recomendado por ${reasons.join(" e ")}.`
     : "Primeiro prestador ativo na ordem recomendada.";
+}
+
+type CaseBadgeKind = "priority" | "critica" | "alta" | "media" | "baixa" | "success" | "neutral" | "stage";
+
+function CaseBadge({ label, kind }: { label: string; kind: CaseBadgeKind }) {
+  const styles: Record<CaseBadgeKind, string> = {
+    priority: "border-violet-200 bg-violet-50 text-violet-800",
+    critica: "border-red-200 bg-red-50 text-red-800",
+    alta: "border-orange-200 bg-orange-50 text-orange-800",
+    media: "border-amber-200 bg-amber-50 text-amber-800",
+    baixa: "border-emerald-200 bg-emerald-50 text-emerald-800",
+    success: "border-emerald-200 bg-emerald-50 text-emerald-800",
+    neutral: "border-slate-200 bg-slate-100 text-slate-600",
+    stage: "border-teal-100 bg-teal-50 text-teal-800",
+  };
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold ${styles[kind]}`}>
+      {kind === "priority" && <ShieldAlert className="h-3.5 w-3.5" aria-hidden="true" />}
+      {kind === "critica" && <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />}
+      {label}
+    </span>
+  );
+}
+
+function naturalLabel(value: string) {
+  const label = value.replaceAll("_", " ");
+  return label.charAt(0).toUpperCase() + label.slice(1);
 }

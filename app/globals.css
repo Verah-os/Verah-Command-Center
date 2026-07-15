@@ -23,3 +23,39 @@ body {
   background: hsl(var(--background));
   color: hsl(var(--foreground));
 }
+
+.concierge-surface {
+  --background: 30 33% 98%;
+  --foreground: 175 27% 17%;
+  --border: 18 28% 90%;
+  --muted: 24 29% 95%;
+  --muted-foreground: 176 10% 42%;
+  --primary: 174 53% 31%;
+  --primary-foreground: 0 0% 100%;
+  --accent: 349 48% 90%;
+  --accent-foreground: 348 36% 31%;
+  background:
+    radial-gradient(circle at 12% 8%, rgba(244, 218, 222, 0.62), transparent 26rem),
+    linear-gradient(180deg, #fffdfc 0%, #f7f3f0 100%);
+}
+
+.concierge-card {
+  border-color: rgba(226, 211, 204, 0.82);
+  border-radius: 1rem;
+  box-shadow: 0 16px 38px rgba(64, 83, 80, 0.06);
+}
+
+.concierge-surface main .rounded-lg.border.bg-white {
+  border-color: rgba(239, 219, 216, 0.9);
+  border-radius: 1rem;
+  box-shadow: 0 14px 34px rgba(64, 83, 80, 0.055);
+}
+
+.concierge-surface main input,
+.concierge-surface main select,
+.concierge-surface main textarea,
+.concierge-surface main summary,
+.concierge-surface main button,
+.concierge-surface main a {
+  scroll-margin-top: 6rem;
+}
