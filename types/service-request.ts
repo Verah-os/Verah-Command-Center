@@ -44,6 +44,7 @@ export type ServiceRequest = {
   copilotConfidence: number | null;
   requiresHumanReview: boolean;
   createdAt: string;
+  updatedAt: string;
   conciergeId: string | null;
   conciergeAcceptedAt: string | null;
   workOrderId: string | null;

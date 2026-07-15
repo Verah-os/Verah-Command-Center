@@ -3,7 +3,7 @@ import { createSupabaseServerClient } from "@/services/supabase/server";
 import type { ServiceRequest } from "@/types/service-request";
 
 const columns =
-  "id,reference_code,customer_name,customer_phone,vehicle_brand,vehicle_model,vehicle_year,vehicle_plate,state,city,customer_report,perceived_urgency,service_stage,probable_category,copilot_summary,copilot_questions,copilot_answers,customer_answers_submitted_at,copilot_risk_signals,copilot_recommended_next_step,copilot_customer_message,copilot_concierge_brief,copilot_provider_brief,copilot_confidence,requires_human_review,created_at,created_by,concierge_id,concierge_accepted_at,work_order_id,provider_id,provider_assigned_at,provider_assigned_by,provider_reassigned_at,provider_reassigned_by,provider_reassignment_reason,provider_completed_at,concierge_confirmed_at,completed_at,completion_notes,customer_rating,customer_feedback,customer_rated_at";
+  "id,reference_code,customer_name,customer_phone,vehicle_brand,vehicle_model,vehicle_year,vehicle_plate,state,city,customer_report,perceived_urgency,service_stage,probable_category,copilot_summary,copilot_questions,copilot_answers,customer_answers_submitted_at,copilot_risk_signals,copilot_recommended_next_step,copilot_customer_message,copilot_concierge_brief,copilot_provider_brief,copilot_confidence,requires_human_review,created_at,updated_at,created_by,concierge_id,concierge_accepted_at,work_order_id,provider_id,provider_assigned_at,provider_assigned_by,provider_reassigned_at,provider_reassigned_by,provider_reassignment_reason,provider_completed_at,concierge_confirmed_at,completed_at,completion_notes,customer_rating,customer_feedback,customer_rated_at";
 
 function mapRow(row: Record<string, unknown>): ServiceRequest {
   return {
@@ -46,6 +46,7 @@ function mapRow(row: Record<string, unknown>): ServiceRequest {
       row.copilot_confidence === null ? null : Number(row.copilot_confidence),
     requiresHumanReview: row.requires_human_review as boolean,
     createdAt: row.created_at as string,
+    updatedAt: row.updated_at as string,
     conciergeId: row.concierge_id as string | null,
     conciergeAcceptedAt: row.concierge_accepted_at as string | null,
     workOrderId: row.work_order_id as string | null,
