@@ -59,3 +59,25 @@ body {
 .concierge-surface main a {
   scroll-margin-top: 6rem;
 }
+
+.provider-surface {
+  --background: 30 33% 98%;
+  --foreground: 175 27% 17%;
+  --border: 18 28% 90%;
+  --muted: 24 29% 95%;
+  --muted-foreground: 176 10% 42%;
+  --primary: 174 53% 31%;
+  --primary-foreground: 0 0% 100%;
+  --accent: 349 48% 90%;
+  --accent-foreground: 348 36% 31%;
+  background:
+    radial-gradient(circle at 88% 0%, rgba(221, 239, 235, 0.9), transparent 30rem),
+    radial-gradient(circle at 8% 18%, rgba(247, 225, 227, 0.58), transparent 24rem),
+    linear-gradient(180deg, #fffdfc 0%, #f4f8f7 100%);
+}
+
+.provider-card {
+  border-color: rgba(226, 211, 204, 0.82);
+  border-radius: 1rem;
+  box-shadow: 0 16px 38px rgba(64, 83, 80, 0.06);
+}
