@@ -29,10 +29,10 @@ export default async function ServiceRequestPage({
   const feedback = await searchParams;
   const request = await getCustomerServiceRequest(id);
   if (!request) notFound();
-  const currentStage = Math.max(
-    0,
-    customerJourneyStages.indexOf(request.serviceStage),
-  );
+  const currentStage =
+    request.serviceStage === "cancelado"
+      ? -1
+      : Math.max(0, customerJourneyStages.indexOf(request.serviceStage));
   const provider = request.providerId
     ? await getCustomerProviderProfile(request.providerId)
     : null;
@@ -54,7 +54,9 @@ export default async function ServiceRequestPage({
               {request.referenceCode}
             </p>
             <h1 className="mt-2 text-3xl font-semibold">
-              {request.serviceStage === "concluido"
+              {request.serviceStage === "cancelado"
+                ? "Atendimento encerrado"
+                : request.serviceStage === "concluido"
                 ? "Seu atendimento foi concluído"
                 : request.serviceStage === "solicitado"
                   ? "Seu atendimento foi solicitado"
@@ -67,6 +69,30 @@ export default async function ServiceRequestPage({
         </div>
         <div className="mt-8 grid gap-5 lg:grid-cols-[1.4fr_0.8fr]">
           <div className="space-y-5">
+            {request.serviceStage === "cancelado" && (
+              <Card className="border-slate-200 bg-slate-50">
+                <CardContent className="p-6">
+                  <h2 className="text-lg font-semibold">Atendimento encerrado</h2>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    Este atendimento foi encerrado pela equipe VERAH. Se precisar
+                    de ajuda, entre em contato para receber orientação.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+            {request.reopenedAt && request.serviceStage !== "cancelado" && (
+              <Card className="border-teal-200 bg-teal-50">
+                <CardContent className="p-6">
+                  <h2 className="text-lg font-semibold">
+                    Atendimento de volta para análise
+                  </h2>
+                  <p className="mt-2 text-sm leading-6 text-slate-700">
+                    A equipe VERAH retomou o acompanhamento e seguirá com os
+                    próximos passos.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
             <Card>
               <CardContent className="space-y-5 p-6">
                 <Info

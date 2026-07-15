@@ -47,7 +47,8 @@ export function getRelevantTimestamp(
   request: ServiceRequest,
   quote?: ServiceQuoteTiming | null,
 ) {
-  switch (request.serviceStage) {
+  const stageTimestamp = (() => {
+    switch (request.serviceStage) {
     case "solicitado":
       return request.createdAt;
     case "concierge_aceitou":
@@ -61,8 +62,16 @@ export function getRelevantTimestamp(
     case "concluido":
       return request.completedAt ?? request.updatedAt;
     case "cancelado":
-      return request.updatedAt;
-  }
+        return request.cancelledAt ?? request.updatedAt;
+    }
+  })();
+  if (
+    request.reopenedAt &&
+    !["concluido", "cancelado"].includes(request.serviceStage) &&
+    Date.parse(request.reopenedAt) > Date.parse(stageTimestamp)
+  )
+    return request.reopenedAt;
+  return stageTimestamp;
 }
 
 export function getSla(
@@ -151,6 +160,7 @@ export function filterAndSortRequests(
     )
     .filter((request) => cutoff === null || Date.parse(request.createdAt) >= cutoff)
     .sort((a, b) => {
+      if (a.isPriority !== b.isPriority) return a.isPriority ? -1 : 1;
       const aTerminal = ["concluido", "cancelado"].includes(a.serviceStage);
       const bTerminal = ["concluido", "cancelado"].includes(b.serviceStage);
       if (aTerminal !== bTerminal) return aTerminal ? 1 : -1;
@@ -178,9 +188,13 @@ export function buildTimeline(
   const events: Array<TimelineEvent | null> = [
     event(
       request.createdAt,
-      "Cliente abriu o atendimento",
-      "Relato e dados do veículo foram enviados.",
-      "Cliente",
+      request.origin === "concierge"
+        ? "Atendimento criado pelo Concierge"
+        : "Cliente abriu o atendimento",
+      request.origin === "concierge"
+        ? "Relato recebido e registrado manualmente pela operação."
+        : "Relato e dados do veículo foram enviados.",
+      request.origin === "concierge" ? "Concierge" : "Cliente",
       0,
     ),
     request.copilotSummary
@@ -201,13 +215,33 @@ export function buildTimeline(
           2,
         )
       : null,
+    request.prioritySetAt ?? request.lastPrioritySetAt
+      ? event(
+          (request.prioritySetAt ?? request.lastPrioritySetAt)!,
+          "Atendimento marcado como prioritário",
+          request.priorityReason ||
+            request.lastPriorityReason ||
+            "Prioridade operacional definida.",
+          "Concierge",
+          3,
+        )
+      : null,
+    request.priorityRemovedAt
+      ? event(
+          request.priorityRemovedAt,
+          "Prioridade removida",
+          "Atendimento voltou para a ordenação operacional padrão.",
+          "Concierge",
+          4,
+        )
+      : null,
     request.conciergeAcceptedAt
       ? event(
           request.conciergeAcceptedAt,
           "Concierge assumiu",
           "Atendimento entrou na operação da VERAH.",
           "Concierge",
-          3,
+          5,
         )
       : null,
     request.providerAssignedAt && !request.providerReassignedAt
@@ -216,7 +250,7 @@ export function buildTimeline(
           "Prestador homologado foi indicado",
           "Atendimento encaminhado para preparação da proposta.",
           "Concierge",
-          4,
+          6,
         )
       : null,
     request.providerReassignedAt
@@ -225,7 +259,7 @@ export function buildTimeline(
           "Prestador foi alterado",
           request.providerReassignmentReason || "Prestador reatribuído pela operação.",
           "Concierge",
-          5,
+          7,
         )
       : null,
     quote?.submittedAt
@@ -234,7 +268,7 @@ export function buildTimeline(
           "Orçamento foi enviado",
           "Proposta disponibilizada para a cliente.",
           "Prestador",
-          6,
+          8,
         )
       : null,
     quote?.clarificationRequestedAt
@@ -243,7 +277,7 @@ export function buildTimeline(
           "Cliente solicitou esclarecimento",
           quote.customerDecisionNote || "Cliente pediu mais informações sobre a proposta.",
           "Cliente",
-          7,
+          9,
         )
       : null,
     quote?.approvedAt
@@ -252,7 +286,7 @@ export function buildTimeline(
           "Cliente aprovou",
           "Execução autorizada pela cliente.",
           "Cliente",
-          8,
+          10,
         )
       : null,
     request.providerCompletedAt
@@ -261,7 +295,7 @@ export function buildTimeline(
           "Prestador marcou serviço como finalizado",
           request.completionNotes || "Execução finalizada pelo prestador.",
           "Prestador",
-          9,
+          11,
         )
       : null,
     request.conciergeConfirmedAt
@@ -270,7 +304,7 @@ export function buildTimeline(
           "Concierge confirmou conclusão",
           "Conclusão validada pela operação.",
           "Concierge",
-          10,
+          12,
         )
       : null,
     request.customerRatedAt
@@ -281,16 +315,27 @@ export function buildTimeline(
             ? `Atendimento avaliado com nota ${request.customerRating} de 5.`
             : "Avaliação registrada.",
           "Cliente",
-          11,
+          13,
         )
       : null,
-    request.serviceStage === "cancelado"
+    request.lastCancelledAt
       ? event(
-          request.updatedAt,
+          request.lastCancelledAt,
           "Atendimento cancelado",
-          "O atendimento foi encerrado como cancelado.",
-          undefined,
-          12,
+          request.lastCancellationReason
+            ? `Motivo: ${cancellationReasonLabel(request.lastCancellationReason)}.`
+            : "O atendimento foi encerrado como cancelado.",
+          "Concierge",
+          14,
+        )
+      : null,
+    request.reopenedAt
+      ? event(
+          request.reopenedAt,
+          "Atendimento reaberto",
+          request.reopenReason || "Atendimento devolvido ao fluxo operacional.",
+          "Concierge",
+          15,
         )
       : null,
   ];
@@ -386,6 +431,20 @@ function elapsedLabel(elapsedMs: number) {
   if (hours < 24) return `${hours} h`;
   const days = Math.floor(hours / 24);
   return `${days} ${days === 1 ? "dia" : "dias"}`;
+}
+
+function cancellationReasonLabel(reason: string) {
+  const labels: Record<string, string> = {
+    customer_withdrew: "cliente desistiu",
+    duplicate: "atendimento duplicado",
+    no_response: "sem resposta",
+    resolved_without_service: "resolvido sem serviço",
+    provider_unavailable: "prestador indisponível",
+    invalid_request: "solicitação inválida",
+    operational_failure: "falha operacional",
+    other: "outro",
+  };
+  return labels[reason] ?? "motivo operacional";
 }
 
 function saoPauloDateKey(value: string) {
