@@ -23,6 +23,7 @@ export type ServiceRequest = {
   vehicleModel: string;
   vehicleYear: number | null;
   vehiclePlate: string | null;
+  vehicleId: string | null;
   state: string | null;
   city: string;
   origin: "customer" | "concierge";

@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
-import { DemoShell } from "@/components/demo/demo-shell";
+import { CustomerShell } from "@/components/customer/customer-shell";
 import { getCustomerServiceRequest } from "@/services/service-requests";
 import { createSupabaseServerClient } from "@/services/supabase/server";
 import { getCustomerProviderProfile } from "@/services/service-providers";
@@ -46,7 +46,7 @@ export default async function ServiceRequestPage({
     request.completedAt,
   ];
   return (
-    <DemoShell>
+    <CustomerShell>
       <section className="mx-auto max-w-4xl px-5 py-10 sm:py-14">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
@@ -307,7 +307,7 @@ export default async function ServiceRequestPage({
           </Card>
         </div>
       </section>
-    </DemoShell>
+    </CustomerShell>
   );
 }
 
