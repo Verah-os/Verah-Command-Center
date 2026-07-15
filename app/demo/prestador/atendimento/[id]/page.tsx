@@ -59,6 +59,12 @@ export default async function ProviderRequestPage({
           {request.referenceCode}
         </p>
         <h1 className="mt-2 text-3xl font-semibold">Briefing do atendimento</h1>
+        {request.serviceStage === "cancelado" && (
+          <p className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-700">
+            Este atendimento foi cancelado pela operação VERAH. Nenhuma nova
+            ação está disponível.
+          </p>
+        )}
         <div className="mt-8 grid gap-5 lg:grid-cols-[1.3fr_0.7fr]">
           <div className="space-y-5">
             <Card>

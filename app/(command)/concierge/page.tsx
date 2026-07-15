@@ -108,13 +108,21 @@ export default async function ConciergePage({
 
   return (
     <div className="space-y-6">
-      <header>
-        <p className="text-sm text-muted-foreground">Operação do Concierge</p>
-        <h1 className="text-2xl font-semibold">Atendimentos</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Priorize casos urgentes, acompanhe esperas e abra os detalhes para
-          dar continuidade.
-        </p>
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-sm text-muted-foreground">Operação do Concierge</p>
+          <h1 className="text-2xl font-semibold">Atendimentos</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Priorize casos urgentes, acompanhe esperas e abra os detalhes para
+            dar continuidade.
+          </p>
+        </div>
+        <Link
+          href={"/concierge/novo-atendimento" as Route}
+          className="inline-flex h-11 items-center justify-center rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+        >
+          Criar atendimento
+        </Link>
       </header>
 
       {query.error && (
@@ -249,6 +257,9 @@ export default async function ConciergePage({
                       )}
                     </div>
                     <div className="space-y-2">
+                      {request.isPriority && (
+                        <Badge value="Prioritário" priority />
+                      )}
                       <Badge
                         value={naturalLabel(request.perceivedUrgency)}
                         urgent={["critica", "alta"].includes(
@@ -321,10 +332,18 @@ function Select({
   );
 }
 
-function Badge({ value, urgent = false }: { value: string; urgent?: boolean }) {
+function Badge({
+  value,
+  urgent = false,
+  priority = false,
+}: {
+  value: string;
+  urgent?: boolean;
+  priority?: boolean;
+}) {
   return (
     <span
-      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${urgent ? "bg-red-100 text-red-800" : "bg-muted text-foreground"}`}
+      className={`mr-1 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${priority ? "bg-amber-100 text-amber-900" : urgent ? "bg-red-100 text-red-800" : "bg-muted text-foreground"}`}
     >
       {value}
     </span>

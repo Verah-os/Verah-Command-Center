@@ -12,20 +12,33 @@ import {
 import { createSupabaseServerClient } from "@/services/supabase/server";
 import { isValidVehicle } from "@/data/vehicles";
 import { isValidLocation } from "@/data/locations";
+import { requireRole } from "@/services/auth/profile";
 
 function value(data: FormData, key: string) {
   const item = data.get(key);
   return typeof item === "string" ? item.trim() : "";
 }
-function fail(message: string): never {
+function fail(message: string, origin: "customer" | "concierge"): never {
   redirect(
-    `/demo/cliente/novo-atendimento?error=${encodeURIComponent(message)}`,
+    `${origin === "concierge" ? "/concierge/novo-atendimento" : "/demo/cliente/novo-atendimento"}?error=${encodeURIComponent(message)}`,
   );
 }
 
 const insuranceAnswers = ["yes", "no", "unknown"] as const;
 
 export async function createServiceRequest(formData: FormData) {
+  return createServiceRequestFromForm(formData, "customer");
+}
+
+export async function createConciergeServiceRequest(formData: FormData) {
+  await requireRole(["concierge", "admin"]);
+  return createServiceRequestFromForm(formData, "concierge");
+}
+
+async function createServiceRequestFromForm(
+  formData: FormData,
+  origin: "customer" | "concierge",
+) {
   const customerName = value(formData, "customerName");
   const vehicleBrand = value(formData, "vehicleBrand");
   const vehicleModel = value(formData, "vehicleModel");
@@ -56,15 +69,15 @@ export async function createServiceRequest(formData: FormData) {
       hasRoadsideAssistance as (typeof insuranceAnswers)[number],
     )
   )
-    fail("Revise os campos obrigatórios.");
+    fail("Revise os campos obrigatórios.", origin);
   if (insurerName.length > 120)
-    fail("O nome da seguradora deve ter no máximo 120 caracteres.");
+    fail("O nome da seguradora deve ter no máximo 120 caracteres.", origin);
   if (customerReport.length < 15)
-    fail("Conte um pouco mais sobre o que aconteceu.");
+    fail("Conte um pouco mais sobre o que aconteceu.", origin);
   if (!isValidVehicle(vehicleBrand, vehicleModel))
-    fail("Selecione uma marca e um modelo válidos.");
+    fail("Selecione uma marca e um modelo válidos.", origin);
   if (!isValidLocation(state, city))
-    fail("Selecione um estado e uma cidade válidos.");
+    fail("Selecione um estado e uma cidade válidos.", origin);
   const yearRaw = value(formData, "vehicleYear");
   const vehicleYear = yearRaw ? Number(yearRaw) : null;
   if (
@@ -74,7 +87,7 @@ export async function createServiceRequest(formData: FormData) {
       vehicleYear < 1950 ||
       vehicleYear > new Date().getFullYear() + 1)
   )
-    fail("Ano do veículo inválido.");
+    fail("Ano do veículo inválido.", origin);
 
   const supabase = await createSupabaseServerClient();
   const {
@@ -112,6 +125,7 @@ export async function createServiceRequest(formData: FormData) {
       vehicle_plate: value(formData, "vehiclePlate") || null,
       state,
       city,
+      origin,
       has_insurance: hasInsurance,
       insurer_name: hasInsurance === "yes" ? insurerName || null : null,
       has_roadside_assistance: hasRoadsideAssistance,
@@ -133,7 +147,11 @@ export async function createServiceRequest(formData: FormData) {
     .select("id")
     .single();
   if (error || !data)
-    fail("Não foi possível criar o atendimento. Tente novamente.");
+    fail("Não foi possível criar o atendimento. Tente novamente.", origin);
+  if (origin === "concierge") {
+    revalidatePath("/concierge");
+    redirect(`/concierge/${data.id}?created=1`);
+  }
   revalidatePath("/demo/cliente");
   redirect(`/demo/cliente/atendimento/${data.id}`);
 }

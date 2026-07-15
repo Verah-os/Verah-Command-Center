@@ -1,11 +1,16 @@
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import type { Route } from "next";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { acceptServiceRequest } from "@/services/concierge";
+import {
+  acceptServiceRequest,
+  cancelServiceRequest,
+  reopenServiceRequest,
+  setServiceRequestPriority,
+} from "@/services/concierge";
 import { getConciergeServiceRequest } from "@/services/service-requests";
-import { createSupabaseServerClient } from "@/services/supabase/server";
+import { requireRole } from "@/services/auth/profile";
 import {
   getActiveProvider,
   listActiveProvidersWithPortal,
@@ -13,6 +18,7 @@ import {
 import { getQuoteForRequest } from "@/services/service-quotes";
 import { conciergeConfirm } from "@/services/service-completion";
 import type { ServiceProvider } from "@/types/service-provider";
+import type { ServiceRequest } from "@/types/service-request";
 import { ProviderAssignmentForm } from "@/components/concierge/provider-assignment-form";
 import {
   buildConciergeChecklist,
@@ -35,14 +41,14 @@ export default async function ConciergeDetailPage({
     accepted?: string;
     providerAssigned?: string;
     providerReassigned?: string;
+    created?: string;
+    priorityUpdated?: string;
+    cancelled?: string;
+    reopened?: string;
     error?: string;
   }>;
 }) {
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const profile = await requireRole(["concierge", "admin"]);
   const { id } = await params;
   const feedback = await searchParams;
   const request = await getConciergeServiceRequest(id);
@@ -79,6 +85,14 @@ export default async function ConciergeDetailPage({
     !quote?.submittedAt &&
     quote?.status !== "approved",
   );
+  const canChangePriority =
+    profile.role === "admin" ||
+    !["concluido", "cancelado"].includes(request.serviceStage);
+  const canCancel =
+    !["concluido", "cancelado"].includes(request.serviceStage) &&
+    !["submitted", "approved", "clarification_requested"].includes(
+      quote?.status ?? "",
+    );
   return (
     <div className="space-y-5">
       <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
@@ -99,6 +113,11 @@ export default async function ConciergeDetailPage({
           <p className="mt-1 text-sm text-muted-foreground">
             Criado em {formatter.format(new Date(request.createdAt))}
           </p>
+          {request.isPriority && (
+            <p className="mt-2 inline-flex rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-900">
+              Prioritário
+            </p>
+          )}
         </div>
         <span className="w-fit rounded-full bg-muted px-3 py-1.5 text-sm font-semibold capitalize">
           {request.serviceStage.replaceAll("_", " ")}
@@ -106,13 +125,25 @@ export default async function ConciergeDetailPage({
       </header>
       {(feedback.accepted ||
         feedback.providerAssigned ||
-        feedback.providerReassigned) && (
+        feedback.providerReassigned ||
+        feedback.created ||
+        feedback.priorityUpdated ||
+        feedback.cancelled ||
+        feedback.reopened) && (
         <p className="rounded-md border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
-          {feedback.providerReassigned
-            ? "Prestador alterado com sucesso."
-            : feedback.providerAssigned
-              ? "Prestador indicado com sucesso."
-              : "Atendimento assumido com sucesso. A Work Order foi criada e a trigger encaminhou a criação do Dispatcher Job."}
+          {feedback.created
+            ? "Atendimento criado com sucesso. Nenhuma conta de cliente foi criada automaticamente."
+            : feedback.cancelled
+              ? "Atendimento cancelado com sucesso."
+              : feedback.reopened
+                ? "Atendimento reaberto e devolvido ao fluxo operacional."
+                : feedback.priorityUpdated
+                  ? "Prioridade atualizada com sucesso."
+                  : feedback.providerReassigned
+                    ? "Prestador alterado com sucesso."
+                    : feedback.providerAssigned
+                      ? "Prestador indicado com sucesso."
+                      : "Atendimento assumido com sucesso. A Work Order foi criada e a trigger encaminhou a criação do Dispatcher Job."}
         </p>
       )}
       {feedback.error && (
@@ -296,6 +327,12 @@ export default async function ConciergeDetailPage({
           )}
         </div>
         <div className="space-y-5">
+          <LifecycleActions
+            request={request}
+            canChangePriority={canChangePriority}
+            canCancel={canCancel}
+            quoteStatus={quote?.status ?? null}
+          />
           <Card>
             <CardHeader>
               <h2 className="font-semibold">Assunção</h2>
@@ -461,6 +498,184 @@ export default async function ConciergeDetailPage({
       </div>
     </div>
   );
+}
+
+function LifecycleActions({
+  request,
+  canChangePriority,
+  canCancel,
+  quoteStatus,
+}: {
+  request: ServiceRequest;
+  canChangePriority: boolean;
+  canCancel: boolean;
+  quoteStatus: string | null;
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <h2 className="font-semibold">Ações operacionais</h2>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {request.isPriority && (
+          <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+            <p className="font-semibold">Atendimento prioritário</p>
+            <p className="mt-1">Motivo: {request.priorityReason}</p>
+          </div>
+        )}
+
+        {canChangePriority &&
+          (request.isPriority ? (
+            <form action={setServiceRequestPriority}>
+              <input type="hidden" name="serviceRequestId" value={request.id} />
+              <input type="hidden" name="isPriority" value="false" />
+              <Button variant="secondary" className="w-full">
+                Remover prioridade
+              </Button>
+            </form>
+          ) : (
+            <details className="rounded-md border p-3">
+              <summary className="cursor-pointer text-sm font-semibold text-primary">
+                Marcar como prioridade
+              </summary>
+              <form action={setServiceRequestPriority} className="mt-4 space-y-3">
+                <input type="hidden" name="serviceRequestId" value={request.id} />
+                <input type="hidden" name="isPriority" value="true" />
+                <label className="block text-sm font-semibold">
+                  Motivo da prioridade
+                  <textarea
+                    name="reason"
+                    required
+                    className="mt-2 min-h-24 w-full rounded-md border p-3 font-normal"
+                  />
+                </label>
+                <Button className="w-full">Confirmar prioridade</Button>
+              </form>
+            </details>
+          ))}
+
+        {canCancel && (
+          <details className="rounded-md border border-red-200 p-3">
+            <summary className="cursor-pointer text-sm font-semibold text-red-700">
+              Cancelar atendimento
+            </summary>
+            <form action={cancelServiceRequest} className="mt-4 space-y-3">
+              <input type="hidden" name="serviceRequestId" value={request.id} />
+              <label className="block text-sm font-semibold">
+                Motivo
+                <select
+                  name="reason"
+                  required
+                  className="mt-2 h-11 w-full rounded-md border bg-white px-3 font-normal"
+                >
+                  <option value="">Selecione</option>
+                  <option value="customer_withdrew">Cliente desistiu</option>
+                  <option value="duplicate">Atendimento duplicado</option>
+                  <option value="no_response">Sem resposta</option>
+                  <option value="resolved_without_service">
+                    Resolvido sem serviço
+                  </option>
+                  <option value="provider_unavailable">
+                    Prestador indisponível
+                  </option>
+                  <option value="invalid_request">Solicitação inválida</option>
+                  <option value="operational_failure">Falha operacional</option>
+                  <option value="other">Outro</option>
+                </select>
+              </label>
+              <label className="block text-sm font-semibold">
+                Observação
+                <textarea
+                  name="notes"
+                  className="mt-2 min-h-24 w-full rounded-md border p-3 font-normal"
+                  placeholder="Obrigatória quando o motivo for Outro"
+                />
+              </label>
+              <label className="flex items-start gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  name="confirmation"
+                  value="confirmed"
+                  required
+                  className="mt-1"
+                />
+                Confirmo que desejo cancelar este atendimento.
+              </label>
+              <Button className="w-full bg-red-700 hover:bg-red-800">
+                Confirmar cancelamento
+              </Button>
+            </form>
+          </details>
+        )}
+
+        {!canCancel &&
+          !["concluido", "cancelado"].includes(request.serviceStage) &&
+          ["submitted", "approved", "clarification_requested"].includes(
+            quoteStatus ?? "",
+          ) && (
+            <p className="rounded-md bg-muted p-3 text-xs text-muted-foreground">
+              O cancelamento está bloqueado porque o orçamento já foi enviado
+              ou aprovado.
+            </p>
+          )}
+
+        {request.serviceStage === "cancelado" && (
+          <>
+            <div className="rounded-md bg-muted p-3 text-sm">
+              <p className="font-semibold">Atendimento cancelado</p>
+              <p className="mt-1">
+                Motivo: {cancellationReasonLabel(request.cancellationReason)}
+              </p>
+              {request.cancellationNotes && (
+                <p className="mt-1">Observação: {request.cancellationNotes}</p>
+              )}
+            </div>
+            <details className="rounded-md border p-3">
+              <summary className="cursor-pointer text-sm font-semibold text-primary">
+                Reabrir atendimento
+              </summary>
+              <form action={reopenServiceRequest} className="mt-4 space-y-3">
+                <input type="hidden" name="serviceRequestId" value={request.id} />
+                <label className="block text-sm font-semibold">
+                  Motivo da reabertura
+                  <textarea
+                    name="reason"
+                    required
+                    className="mt-2 min-h-24 w-full rounded-md border p-3 font-normal"
+                  />
+                </label>
+                <label className="flex items-start gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    name="confirmation"
+                    value="confirmed"
+                    required
+                    className="mt-1"
+                  />
+                  Confirmo que desejo devolver o atendimento ao fluxo.
+                </label>
+                <Button className="w-full">Confirmar reabertura</Button>
+              </form>
+            </details>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function cancellationReasonLabel(reason: string | null) {
+  const labels: Record<string, string> = {
+    customer_withdrew: "Cliente desistiu",
+    duplicate: "Atendimento duplicado",
+    no_response: "Sem resposta",
+    resolved_without_service: "Resolvido sem serviço",
+    provider_unavailable: "Prestador indisponível",
+    invalid_request: "Solicitação inválida",
+    operational_failure: "Falha operacional",
+    other: "Outro",
+  };
+  return reason ? labels[reason] ?? "Motivo operacional" : "Não informado";
 }
 
 function Info({ label, value }: { label: string; value: string }) {

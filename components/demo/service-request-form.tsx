@@ -13,7 +13,10 @@ import {
   analyzeServiceRequest,
   type ServiceUrgency,
 } from "@/services/service-copilot";
-import { createServiceRequest } from "@/services/service-requests/actions";
+import {
+  createConciergeServiceRequest,
+  createServiceRequest,
+} from "@/services/service-requests/actions";
 
 type Values = {
   customerName: string;
@@ -48,7 +51,13 @@ const initial: Values = {
 const fieldClass =
   "mt-2 h-12 w-full rounded-xl border border-rose-100 bg-white px-4 text-base outline-none transition focus-visible:border-teal-600 focus-visible:ring-4 focus-visible:ring-teal-100 disabled:cursor-not-allowed disabled:bg-slate-100";
 
-export function ServiceRequestForm({ serverError }: { serverError?: string }) {
+export function ServiceRequestForm({
+  serverError,
+  mode = "customer",
+}: {
+  serverError?: string;
+  mode?: "customer" | "concierge";
+}) {
   const [values, setValues] = useState(initial);
   const [reviewing, setReviewing] = useState(false);
   const [error, setError] = useState(serverError ?? "");
@@ -68,6 +77,8 @@ export function ServiceRequestForm({ serverError }: { serverError?: string }) {
         : null,
     [reviewing, values],
   );
+  const action =
+    mode === "concierge" ? createConciergeServiceRequest : createServiceRequest;
 
   function update(name: keyof Values, value: string) {
     setValues((current) => ({
@@ -102,7 +113,7 @@ export function ServiceRequestForm({ serverError }: { serverError?: string }) {
   }
 
   return (
-    <form action={createServiceRequest} className="space-y-6" noValidate>
+    <form action={action} className="space-y-6" noValidate>
       {Object.entries(values).map(([name, value]) => (
         <input key={name} type="hidden" name={name} value={value} />
       ))}

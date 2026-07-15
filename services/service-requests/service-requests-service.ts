@@ -3,7 +3,7 @@ import { createSupabaseServerClient } from "@/services/supabase/server";
 import type { ServiceRequest } from "@/types/service-request";
 
 const columns =
-  "id,reference_code,customer_name,customer_phone,vehicle_brand,vehicle_model,vehicle_year,vehicle_plate,state,city,customer_report,perceived_urgency,service_stage,probable_category,copilot_summary,copilot_questions,copilot_answers,customer_answers_submitted_at,copilot_risk_signals,copilot_recommended_next_step,copilot_customer_message,copilot_concierge_brief,copilot_provider_brief,copilot_confidence,requires_human_review,created_at,updated_at,created_by,concierge_id,concierge_accepted_at,work_order_id,provider_id,provider_assigned_at,provider_assigned_by,provider_reassigned_at,provider_reassigned_by,provider_reassignment_reason,provider_completed_at,concierge_confirmed_at,completed_at,completion_notes,customer_rating,customer_feedback,customer_rated_at";
+  "id,reference_code,customer_name,customer_phone,vehicle_brand,vehicle_model,vehicle_year,vehicle_plate,state,city,origin,cancelled_at,reopened_at,customer_report,perceived_urgency,service_stage,probable_category,copilot_summary,copilot_questions,copilot_answers,customer_answers_submitted_at,copilot_risk_signals,copilot_recommended_next_step,copilot_customer_message,copilot_concierge_brief,copilot_provider_brief,copilot_confidence,requires_human_review,created_at,updated_at,created_by,concierge_id,concierge_accepted_at,work_order_id,provider_id,provider_assigned_at,provider_assigned_by,provider_reassigned_at,provider_reassigned_by,provider_reassignment_reason,provider_completed_at,concierge_confirmed_at,completed_at,completion_notes,customer_rating,customer_feedback,customer_rated_at";
 
 function mapRow(row: Record<string, unknown>): ServiceRequest {
   return {
@@ -17,6 +17,8 @@ function mapRow(row: Record<string, unknown>): ServiceRequest {
     vehiclePlate: row.vehicle_plate as string | null,
     state: row.state as string | null,
     city: row.city as string,
+    origin:
+      (row.origin as ServiceRequest["origin"] | undefined) ?? "customer",
     hasInsurance:
       (row.has_insurance as ServiceRequest["hasInsurance"] | undefined) ??
       "unknown",
@@ -47,6 +49,20 @@ function mapRow(row: Record<string, unknown>): ServiceRequest {
     requiresHumanReview: row.requires_human_review as boolean,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
+    isPriority: Boolean(row.is_priority),
+    priorityReason: (row.priority_reason as string | null | undefined) ?? null,
+    prioritySetAt: (row.priority_set_at as string | null | undefined) ?? null,
+    prioritySetBy: (row.priority_set_by as string | null | undefined) ?? null,
+    lastPrioritySetAt:
+      (row.last_priority_set_at as string | null | undefined) ?? null,
+    lastPrioritySetBy:
+      (row.last_priority_set_by as string | null | undefined) ?? null,
+    lastPriorityReason:
+      (row.last_priority_reason as string | null | undefined) ?? null,
+    priorityRemovedAt:
+      (row.priority_removed_at as string | null | undefined) ?? null,
+    priorityRemovedBy:
+      (row.priority_removed_by as string | null | undefined) ?? null,
     conciergeId: row.concierge_id as string | null,
     conciergeAcceptedAt: row.concierge_accepted_at as string | null,
     workOrderId: row.work_order_id as string | null,
@@ -60,11 +76,42 @@ function mapRow(row: Record<string, unknown>): ServiceRequest {
     providerCompletedAt: row.provider_completed_at as string | null,
     conciergeConfirmedAt: row.concierge_confirmed_at as string | null,
     completedAt: row.completed_at as string | null,
+    cancelledAt: (row.cancelled_at as string | null | undefined) ?? null,
+    cancelledBy: (row.cancelled_by as string | null | undefined) ?? null,
+    cancellationReason:
+      (row.cancellation_reason as string | null | undefined) ?? null,
+    cancellationNotes:
+      (row.cancellation_notes as string | null | undefined) ?? null,
+    previousStage:
+      (row.previous_stage as ServiceRequest["previousStage"] | undefined) ??
+      null,
+    lastCancelledAt:
+      (row.last_cancelled_at as string | null | undefined) ?? null,
+    lastCancelledBy:
+      (row.last_cancelled_by as string | null | undefined) ?? null,
+    lastCancellationReason:
+      (row.last_cancellation_reason as string | null | undefined) ?? null,
+    lastCancellationNotes:
+      (row.last_cancellation_notes as string | null | undefined) ?? null,
+    reopenedAt: (row.reopened_at as string | null | undefined) ?? null,
+    reopenedBy: (row.reopened_by as string | null | undefined) ?? null,
+    reopenReason: (row.reopen_reason as string | null | undefined) ?? null,
     completionNotes: row.completion_notes as string | null,
     customerRating: row.customer_rating as number | null,
     customerFeedback: row.customer_feedback as string | null,
     customerRatedAt: row.customer_rated_at as string | null,
   };
+}
+
+async function getConciergeLifecycleMetadata() {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc(
+    "get_concierge_service_request_lifecycle",
+  );
+  if (error) return new Map<string, Record<string, unknown>>();
+  return new Map(
+    (data ?? []).map((row: Record<string, unknown>) => [row.id as string, row]),
+  );
 }
 
 async function getInsurance(serviceRequestId: string) {
@@ -136,8 +183,12 @@ export async function listConciergeServiceRequests() {
     .order("created_at", { ascending: false });
   if (error) return [];
   const urgencyOrder = { critica: 0, alta: 1, media: 2, baixa: 3 };
+  const lifecycle = await getConciergeLifecycleMetadata();
   return (data ?? [])
-    .map((row) => mapRow(row as Record<string, unknown>))
+    .map((row) => {
+      const record = row as Record<string, unknown>;
+      return mapRow({ ...record, ...(lifecycle.get(record.id as string) ?? {}) });
+    })
     .sort(
       (a, b) =>
         urgencyOrder[a.perceivedUrgency] - urgencyOrder[b.perceivedUrgency] ||
@@ -173,7 +224,11 @@ export async function getConciergeServiceRequest(id: string) {
     .eq("id", id)
     .maybeSingle();
   if (error || !data) return null;
-  const request = mapRow(data as Record<string, unknown>);
+  const lifecycle = await getConciergeLifecycleMetadata();
+  const request = mapRow({
+    ...(data as Record<string, unknown>),
+    ...(lifecycle.get(id) ?? {}),
+  });
   const insurance = await getInsurance(id);
   return insurance ? { ...request, ...insurance } : request;
 }
