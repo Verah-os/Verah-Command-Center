@@ -30,7 +30,7 @@ export function ProviderAssignmentForm({
   const selected = available.find((provider) => provider.id === providerId);
   const action = mode === "reassign" ? reassignProvider : assignProvider;
   return (
-    <form action={action} className="space-y-4">
+    <form action={action} className="space-y-5">
       <input type="hidden" name="serviceRequestId" value={requestId} />
       <fieldset className="space-y-3">
         <legend className="text-sm font-semibold">
@@ -39,7 +39,7 @@ export function ProviderAssignmentForm({
         {available.map((provider, index) => (
           <label
             key={provider.id}
-            className={`block cursor-pointer rounded-md border p-3 text-sm ${providerId === provider.id ? "border-primary bg-primary/5" : "bg-white"}`}
+            className={`block cursor-pointer rounded-2xl border p-4 text-sm transition ${providerId === provider.id ? "border-teal-500 bg-teal-50 shadow-sm" : "border-rose-100 bg-white hover:border-teal-200"}`}
           >
             <span className="flex items-start gap-3">
               <input
@@ -49,7 +49,7 @@ export function ProviderAssignmentForm({
                 checked={providerId === provider.id}
                 onChange={() => setProviderId(provider.id)}
                 required
-                className="mt-1"
+                className="mt-1 h-4 w-4 accent-teal-700"
               />
               <span className="min-w-0 flex-1">
                 <span className="flex flex-wrap items-center justify-between gap-2">
@@ -99,7 +99,7 @@ export function ProviderAssignmentForm({
             <textarea
               name="reason"
               required
-              className="mt-2 min-h-24 w-full rounded-md border border-border p-3 font-normal"
+              className="mt-2 min-h-24 w-full rounded-xl border border-rose-100 p-3 font-normal outline-none focus-visible:border-teal-500 focus-visible:ring-4 focus-visible:ring-teal-100"
             />
           </label>
           <p className="text-xs text-muted-foreground">
@@ -107,7 +107,7 @@ export function ProviderAssignmentForm({
           </p>
         </>
       )}
-      <Button className="h-11 w-full" disabled={!available.length}>
+      <Button className="min-h-12 w-full rounded-xl bg-teal-700 shadow-sm hover:bg-teal-800" disabled={!available.length}>
         {mode === "reassign" ? "Confirmar alteração" : "Indicar prestador"}
       </Button>
     </form>

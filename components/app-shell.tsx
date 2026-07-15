@@ -3,13 +3,17 @@ import type { Route } from "next";
 import { modules } from "@/modules/registry";
 import { requireRole } from "@/services/auth/profile";
 import { signOut } from "@/services/auth/actions";
+import { ConciergeShell } from "@/components/concierge/concierge-shell";
 
 export async function AppShell({ children }: { children: React.ReactNode }) {
   const profile = await requireRole(["concierge", "admin"]);
+  if (profile.role === "concierge") {
+    return (
+      <ConciergeShell displayName={profile.displayName}>{children}</ConciergeShell>
+    );
+  }
   const visibleModules =
-    profile.role === "admin"
-      ? modules
-      : modules.filter((module) => module.slug === "concierge");
+    modules;
   return (
     <div className="min-h-screen">
       <aside className="fixed inset-y-0 left-0 hidden w-64 border-r border-border bg-white lg:block">

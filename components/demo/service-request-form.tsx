@@ -113,13 +113,17 @@ export function ServiceRequestForm({
   }
 
   return (
-    <form action={action} className="space-y-6" noValidate>
+    <form
+      action={action}
+      className={`space-y-6 ${mode === "concierge" ? "rounded-[1.5rem] bg-white/35 p-0 sm:p-1" : ""}`}
+      noValidate
+    >
       {Object.entries(values).map(([name, value]) => (
         <input key={name} type="hidden" name={name} value={value} />
       ))}
       <Progress current={reviewing ? 2 : 1} />
       {!reviewing ? (
-        <Card className="overflow-hidden border-rose-100 shadow-[0_18px_50px_rgba(82,54,64,0.08)]">
+        <Card className={`overflow-hidden border-rose-100 shadow-[0_18px_50px_rgba(82,54,64,0.08)] ${mode === "concierge" ? "rounded-[1.5rem]" : ""}`}>
           <CardContent className="space-y-8 p-5 sm:p-8">
             <Section title="Seus dados" eyebrow="A">
               <div className="grid gap-5 sm:grid-cols-2">
