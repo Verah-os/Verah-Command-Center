@@ -12,6 +12,15 @@ export type ServiceQuoteTiming = Pick<
   | "customerDecisionNote"
 >;
 
+export type CustomerQuoteSummary = {
+  id: string;
+  serviceRequestId: string;
+  status: string;
+  totalAmount: number;
+  warrantyText: string | null;
+  approvedAt: string | null;
+};
+
 export async function getQuoteForRequest(
   requestId: string,
 ): Promise<ServiceQuote | null> {
@@ -86,6 +95,33 @@ export async function listQuoteTimingsForRequests(requestIds: string[]) {
     });
   }
   return timings;
+}
+
+export async function listCustomerQuoteSummaries(requestIds: string[]) {
+  const summaries = new Map<string, CustomerQuoteSummary>();
+  if (!requestIds.length) return summaries;
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("service_quotes")
+    .select(
+      "id,service_request_id,status,total_amount,warranty_text,approved_at,updated_at",
+    )
+    .in("service_request_id", requestIds)
+    .neq("status", "cancelled")
+    .order("updated_at", { ascending: false });
+  if (error) return summaries;
+  for (const row of data ?? []) {
+    if (summaries.has(row.service_request_id)) continue;
+    summaries.set(row.service_request_id, {
+      id: row.id,
+      serviceRequestId: row.service_request_id,
+      status: row.status,
+      totalAmount: Number(row.total_amount),
+      warrantyText: row.warranty_text,
+      approvedAt: row.approved_at,
+    });
+  }
+  return summaries;
 }
 
 export async function getQuoteStats() {

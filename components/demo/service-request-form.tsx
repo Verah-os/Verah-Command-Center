@@ -17,6 +17,7 @@ import {
   createConciergeServiceRequest,
   createServiceRequest,
 } from "@/services/service-requests/actions";
+import type { CustomerVehicle } from "@/types/customer-vehicle";
 
 type Values = {
   customerName: string;
@@ -54,11 +55,26 @@ const fieldClass =
 export function ServiceRequestForm({
   serverError,
   mode = "customer",
+  vehicles = [],
+  initialCustomerName = "",
+  initialVehicleId,
 }: {
   serverError?: string;
   mode?: "customer" | "concierge";
+  vehicles?: CustomerVehicle[];
+  initialCustomerName?: string;
+  initialVehicleId?: string;
 }) {
-  const [values, setValues] = useState(initial);
+  const initialVehicle =
+    vehicles.find((vehicle) => vehicle.id === initialVehicleId) ?? vehicles[0];
+  const [selectedVehicleId, setSelectedVehicleId] = useState(
+    initialVehicle?.id ?? "new",
+  );
+  const [values, setValues] = useState<Values>(() => ({
+    ...initial,
+    customerName: initialCustomerName,
+    ...(initialVehicle ? valuesForVehicle(initialVehicle) : {}),
+  }));
   const [reviewing, setReviewing] = useState(false);
   const [error, setError] = useState(serverError ?? "");
   const models = modelsForBrand(values.vehicleBrand);
@@ -112,6 +128,26 @@ export function ServiceRequestForm({
     setReviewing(true);
   }
 
+  function chooseVehicle(id: string) {
+    setSelectedVehicleId(id);
+    const vehicle = vehicles.find((item) => item.id === id);
+    setValues((current) => ({
+      ...current,
+      ...(vehicle
+        ? valuesForVehicle(vehicle)
+        : {
+            vehicleBrand: "",
+            vehicleModel: "",
+            vehicleYear: "",
+            vehiclePlate: "",
+            state: "",
+            city: "",
+          }),
+    }));
+    setReviewing(false);
+    setError("");
+  }
+
   return (
     <form
       action={action}
@@ -121,6 +157,9 @@ export function ServiceRequestForm({
       {Object.entries(values).map(([name, value]) => (
         <input key={name} type="hidden" name={name} value={value} />
       ))}
+      {mode === "customer" && (
+        <input type="hidden" name="vehicleId" value={selectedVehicleId} />
+      )}
       <Progress current={reviewing ? 2 : 1} />
       {!reviewing ? (
         <Card className={`overflow-hidden border-rose-100 shadow-[0_18px_50px_rgba(82,54,64,0.08)] ${mode === "concierge" ? "rounded-[1.5rem]" : ""}`}>
@@ -146,6 +185,33 @@ export function ServiceRequestForm({
               </div>
             </Section>
             <Section title="Seu veículo" eyebrow="B">
+              {mode === "customer" && vehicles.length > 0 && (
+                <label
+                  htmlFor="saved-vehicle"
+                  className="mb-5 block text-sm font-semibold text-slate-700"
+                >
+                  Escolha um veículo cadastrado
+                  <select
+                    id="saved-vehicle"
+                    className={fieldClass}
+                    value={selectedVehicleId}
+                    onChange={(event) => chooseVehicle(event.target.value)}
+                  >
+                    {vehicles.map((vehicle) => (
+                      <option key={vehicle.id} value={vehicle.id}>
+                        {vehicle.nickname ? `${vehicle.nickname} · ` : ""}
+                        {vehicle.brand} {vehicle.model}
+                        {vehicle.year ? ` · ${vehicle.year}` : ""}
+                      </option>
+                    ))}
+                    <option value="new">Adicionar novo veículo</option>
+                  </select>
+                  <span className="mt-2 block text-xs font-normal text-slate-500">
+                    Marca, modelo, ano e placa do veículo cadastrado ficam
+                    protegidos durante esta solicitação.
+                  </span>
+                </label>
+              )}
               <div className="grid gap-5 sm:grid-cols-2">
                 <Autocomplete
                   id="vehicle-brand"
@@ -155,6 +221,7 @@ export function ServiceRequestForm({
                   onChange={(value) => update("vehicleBrand", value)}
                   listId="vehicle-brands"
                   required
+                  disabled={selectedVehicleId !== "new"}
                 />
                 <Autocomplete
                   id="vehicle-model"
@@ -163,7 +230,7 @@ export function ServiceRequestForm({
                   options={models}
                   onChange={(value) => update("vehicleModel", value)}
                   listId="vehicle-models"
-                  disabled={!models.length}
+                  disabled={!models.length || selectedVehicleId !== "new"}
                   placeholder={
                     !models.length
                       ? "Selecione a marca primeiro"
@@ -179,6 +246,7 @@ export function ServiceRequestForm({
                   update={update}
                   inputMode="numeric"
                   placeholder="Ex.: 2020"
+                  disabled={selectedVehicleId !== "new"}
                 />
                 <Field
                   id="vehicle-plate"
@@ -187,6 +255,7 @@ export function ServiceRequestForm({
                   value={values.vehiclePlate}
                   update={update}
                   placeholder="Opcional"
+                  disabled={selectedVehicleId !== "new"}
                 />
               </div>
             </Section>
@@ -471,6 +540,7 @@ function Field({
   required,
   inputMode,
   placeholder,
+  disabled,
 }: {
   id: string;
   label: string;
@@ -481,6 +551,7 @@ function Field({
   required?: boolean;
   inputMode?: "numeric";
   placeholder?: string;
+  disabled?: boolean;
 }) {
   return (
     <label htmlFor={id} className="text-sm font-semibold text-slate-700">
@@ -500,6 +571,7 @@ function Field({
         value={value}
         onChange={(event) => update(name, event.target.value)}
         required={required}
+        disabled={disabled}
       />
     </label>
   );
@@ -552,6 +624,17 @@ function Autocomplete({
       </datalist>
     </label>
   );
+}
+
+function valuesForVehicle(vehicle: CustomerVehicle): Partial<Values> {
+  return {
+    vehicleBrand: vehicle.brand,
+    vehicleModel: vehicle.model,
+    vehicleYear: vehicle.year?.toString() ?? "",
+    vehiclePlate: vehicle.plate ?? "",
+    state: vehicle.state ?? "",
+    city: vehicle.city ?? "",
+  };
 }
 function naturalLabel(value: string) {
   const label = value.replaceAll("_", " ");

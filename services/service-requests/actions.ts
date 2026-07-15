@@ -40,8 +40,8 @@ async function createServiceRequestFromForm(
   origin: "customer" | "concierge",
 ) {
   const customerName = value(formData, "customerName");
-  const vehicleBrand = value(formData, "vehicleBrand");
-  const vehicleModel = value(formData, "vehicleModel");
+  let vehicleBrand = value(formData, "vehicleBrand");
+  let vehicleModel = value(formData, "vehicleModel");
   const state = value(formData, "state");
   const city = value(formData, "city");
   const customerReport = value(formData, "customerReport");
@@ -79,7 +79,7 @@ async function createServiceRequestFromForm(
   if (!isValidLocation(state, city))
     fail("Selecione um estado e uma cidade válidos.", origin);
   const yearRaw = value(formData, "vehicleYear");
-  const vehicleYear = yearRaw ? Number(yearRaw) : null;
+  let vehicleYear = yearRaw ? Number(yearRaw) : null;
   if (
     vehicleYear &&
     (!/^\d{4}$/.test(yearRaw) ||
@@ -94,6 +94,64 @@ async function createServiceRequestFromForm(
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
+
+  let vehicleId: string | null = null;
+  let vehiclePlate = value(formData, "vehiclePlate") || null;
+  if (origin === "customer") {
+    const selectedVehicleId = value(formData, "vehicleId");
+    if (selectedVehicleId && selectedVehicleId !== "new") {
+      const { data: selectedVehicle } = await supabase
+        .from("customer_vehicles")
+        .select("id,brand,model,year,plate")
+        .eq("id", selectedVehicleId)
+        .eq("owner_id", user.id)
+        .eq("active", true)
+        .maybeSingle();
+      if (!selectedVehicle)
+        fail("O veículo selecionado não está disponível.", origin);
+      vehicleId = selectedVehicle.id;
+      vehicleBrand = selectedVehicle.brand;
+      vehicleModel = selectedVehicle.model;
+      vehicleYear = selectedVehicle.year;
+      vehiclePlate = selectedVehicle.plate;
+    } else {
+      const normalizedPlate = normalizePlate(vehiclePlate);
+      const { data: candidates } = await supabase
+        .from("customer_vehicles")
+        .select("id,brand,model,year,plate")
+        .eq("owner_id", user.id)
+        .eq("active", true)
+        .eq("brand", vehicleBrand)
+        .eq("model", vehicleModel);
+      const match = (candidates ?? []).find(
+        (candidate) =>
+          candidate.year === vehicleYear &&
+          (normalizedPlate
+            ? normalizePlate(candidate.plate) === normalizedPlate
+            : !normalizePlate(candidate.plate)),
+      );
+      if (match) {
+        vehicleId = match.id;
+      } else {
+        const { data: createdVehicle, error: vehicleError } = await supabase
+          .from("customer_vehicles")
+          .insert({
+            owner_id: user.id,
+            brand: vehicleBrand,
+            model: vehicleModel,
+            year: vehicleYear,
+            plate: vehiclePlate,
+            state,
+            city,
+          })
+          .select("id")
+          .single();
+        if (vehicleError || !createdVehicle)
+          fail("Não foi possível vincular o veículo. Tente novamente.", origin);
+        vehicleId = createdVehicle.id;
+      }
+    }
+  }
 
   const input: ServiceCopilotInput = {
     customerReport,
@@ -119,10 +177,11 @@ async function createServiceRequestFromForm(
       reference_code: referenceCode,
       customer_name: customerName,
       customer_phone: value(formData, "customerPhone") || null,
+      vehicle_id: vehicleId,
       vehicle_brand: vehicleBrand,
       vehicle_model: vehicleModel,
       vehicle_year: vehicleYear,
-      vehicle_plate: value(formData, "vehiclePlate") || null,
+      vehicle_plate: vehiclePlate,
       state,
       city,
       origin,
@@ -154,6 +213,10 @@ async function createServiceRequestFromForm(
   }
   revalidatePath("/demo/cliente");
   redirect(`/demo/cliente/atendimento/${data.id}`);
+}
+
+function normalizePlate(plate: string | null) {
+  return (plate ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
 }
 
 export async function submitServiceRequestAnswers(formData: FormData) {

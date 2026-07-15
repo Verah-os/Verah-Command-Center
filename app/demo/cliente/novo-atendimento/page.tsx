@@ -1,14 +1,20 @@
-import { DemoShell } from "@/components/demo/demo-shell";
+import { CustomerShell } from "@/components/customer/customer-shell";
 import { ServiceRequestForm } from "@/components/demo/service-request-form";
+import { requireRole } from "@/services/auth/profile";
+import { listCustomerVehicles } from "@/services/customer-vehicles";
 
 export default async function NewServiceRequestPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; vehicle?: string }>;
 }) {
-  const { error } = await searchParams;
+  const [{ error, vehicle }, profile, vehicles] = await Promise.all([
+    searchParams,
+    requireRole(["customer"]),
+    listCustomerVehicles(),
+  ]);
   return (
-    <DemoShell>
+    <CustomerShell>
       <section className="mx-auto max-w-3xl px-5 py-10 sm:py-14">
         <p className="text-sm font-semibold uppercase tracking-wider text-teal-700">
           Novo atendimento
@@ -20,8 +26,13 @@ export default async function NewServiceRequestPage({
           Preencha com calma. Você poderá revisar a análise antes de criar o
           atendimento.
         </p>
-        <ServiceRequestForm serverError={error} />
+        <ServiceRequestForm
+          serverError={error}
+          vehicles={vehicles}
+          initialCustomerName={profile.displayName}
+          initialVehicleId={vehicle}
+        />
       </section>
-    </DemoShell>
+    </CustomerShell>
   );
 }
