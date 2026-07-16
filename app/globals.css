@@ -3,81 +3,128 @@
 @tailwind utilities;
 
 :root {
-  --background: 210 20% 98%;
-  --foreground: 222 47% 11%;
-  --border: 214 32% 91%;
-  --muted: 210 40% 96%;
-  --muted-foreground: 215 16% 47%;
-  --primary: 173 80% 28%;
-  --primary-foreground: 0 0% 100%;
-  --accent: 24 95% 53%;
-  --accent-foreground: 0 0% 100%;
+  /* VERAH official foundations */
+  --verah-pink: #e8b6c0;
+  --verah-background: #232323;
+  --verah-card: #2e2e2e;
+  --verah-secondary: #3a3a3a;
+  --verah-sidebar: #1a1a1a;
+  --verah-white: #ffffff;
+  --verah-muted: #9a9a9a;
+  --verah-success: #31c48d;
+  --verah-danger: #ef4444;
+  --verah-border: rgba(255, 255, 255, 0.1);
+  --verah-border-strong: rgba(255, 255, 255, 0.18);
+  --verah-radius-card: 20px;
+  --verah-radius-button: 16px;
+
+  /* Semantic aliases: components consume these, never a role-specific color. */
+  --background: var(--verah-background);
+  --foreground: var(--verah-white);
+  --card: var(--verah-card);
+  --card-foreground: var(--verah-white);
+  --border: var(--verah-border);
+  --muted: var(--verah-secondary);
+  --muted-foreground: var(--verah-muted);
+  --primary: var(--verah-pink);
+  --primary-foreground: var(--verah-background);
+  --accent: var(--verah-pink);
+  --accent-foreground: var(--verah-background);
+  --success: var(--verah-success);
+  --danger: var(--verah-danger);
+  --focus: rgba(232, 182, 192, 0.46);
 }
 
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
+
+html { background: var(--background); }
 
 body {
   margin: 0;
-  background: hsl(var(--background));
-  color: hsl(var(--foreground));
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
 }
 
-.concierge-surface {
-  --background: 30 33% 98%;
-  --foreground: 175 27% 17%;
-  --border: 18 28% 90%;
-  --muted: 24 29% 95%;
-  --muted-foreground: 176 10% 42%;
-  --primary: 174 53% 31%;
-  --primary-foreground: 0 0% 100%;
-  --accent: 349 48% 90%;
-  --accent-foreground: 348 36% 31%;
-  background:
-    radial-gradient(circle at 12% 8%, rgba(244, 218, 222, 0.62), transparent 26rem),
-    linear-gradient(180deg, #fffdfc 0%, #f7f3f0 100%);
-}
+::selection { background: var(--verah-pink); color: var(--verah-background); }
 
-.concierge-card {
-  border-color: rgba(226, 211, 204, 0.82);
-  border-radius: 1rem;
-  box-shadow: 0 16px 38px rgba(64, 83, 80, 0.06);
-}
-
-.concierge-surface main .rounded-lg.border.bg-white {
-  border-color: rgba(239, 219, 216, 0.9);
-  border-radius: 1rem;
-  box-shadow: 0 14px 34px rgba(64, 83, 80, 0.055);
-}
-
-.concierge-surface main input,
-.concierge-surface main select,
-.concierge-surface main textarea,
-.concierge-surface main summary,
-.concierge-surface main button,
-.concierge-surface main a {
-  scroll-margin-top: 6rem;
-}
-
+/* Shared product surface. This compatibility layer migrates legacy operational
+   screens to semantic tokens while their business markup remains untouched. */
+.verah-surface,
+.concierge-surface,
 .provider-surface {
-  --background: 30 33% 98%;
-  --foreground: 175 27% 17%;
-  --border: 18 28% 90%;
-  --muted: 24 29% 95%;
-  --muted-foreground: 176 10% 42%;
-  --primary: 174 53% 31%;
-  --primary-foreground: 0 0% 100%;
-  --accent: 349 48% 90%;
-  --accent-foreground: 348 36% 31%;
+  min-height: 100vh;
   background:
-    radial-gradient(circle at 88% 0%, rgba(221, 239, 235, 0.9), transparent 30rem),
-    radial-gradient(circle at 8% 18%, rgba(247, 225, 227, 0.58), transparent 24rem),
-    linear-gradient(180deg, #fffdfc 0%, #f4f8f7 100%);
+    radial-gradient(circle at 88% 0%, rgba(232, 182, 192, 0.11), transparent 28rem),
+    radial-gradient(circle at 4% 28%, rgba(232, 182, 192, 0.05), transparent 22rem),
+    var(--verah-background);
+  color: var(--verah-white);
+  color-scheme: dark;
 }
 
+.verah-surface :is(input, select, textarea),
+.concierge-surface :is(input, select, textarea),
+.provider-surface :is(input, select, textarea) {
+  border-color: var(--verah-border-strong) !important;
+  background: var(--verah-secondary) !important;
+  color: var(--verah-white) !important;
+}
+
+.verah-surface :is(input, textarea)::placeholder,
+.concierge-surface :is(input, textarea)::placeholder,
+.provider-surface :is(input, textarea)::placeholder { color: var(--verah-muted); }
+
+.verah-surface :focus-visible,
+.concierge-surface :focus-visible,
+.provider-surface :focus-visible {
+  outline: 2px solid var(--verah-pink) !important;
+  outline-offset: 3px;
+}
+
+/* Temporary legacy color adapters. They intentionally live in one audited file
+   and can be removed as individual screens move fully to semantic components. */
+:is(.verah-surface, .concierge-surface, .provider-surface) [class*="bg-white"] { background-color: var(--verah-card) !important; }
+:is(.verah-surface, .concierge-surface, .provider-surface) [class*="bg-slate-50"] { background-color: var(--verah-secondary) !important; }
+:is(.verah-surface, .concierge-surface, .provider-surface) [class*="bg-slate-100"] { background-color: var(--verah-secondary) !important; }
+:is(.verah-surface, .concierge-surface, .provider-surface) [class*="bg-slate-200"] { background-color: rgba(255,255,255,.14) !important; }
+:is(.verah-surface, .concierge-surface, .provider-surface) [class*="bg-rose-50"],
+:is(.verah-surface, .concierge-surface, .provider-surface) [class*="bg-rose-100"],
+:is(.verah-surface, .concierge-surface, .provider-surface) [class*="bg-teal-50"],
+:is(.verah-surface, .concierge-surface, .provider-surface) [class*="bg-teal-100"] { background-color: rgba(232,182,192,.11) !important; }
+:is(.verah-surface, .concierge-surface, .provider-surface) [class*="bg-teal-7"],
+:is(.verah-surface, .concierge-surface, .provider-surface) [class*="bg-teal-8"] { background-color: var(--verah-pink) !important; color: var(--verah-background) !important; }
+
+:is(.verah-surface, .concierge-surface, .provider-surface) [class*="text-slate-9"],
+:is(.verah-surface, .concierge-surface, .provider-surface) [class*="text-slate-8"],
+:is(.verah-surface, .concierge-surface, .provider-surface) [class*="text-slate-7"] { color: var(--verah-white) !important; }
+:is(.verah-surface, .concierge-surface, .provider-surface) [class*="text-slate-6"],
+:is(.verah-surface, .concierge-surface, .provider-surface) [class*="text-slate-5"],
+:is(.verah-surface, .concierge-surface, .provider-surface) [class*="text-slate-4"] { color: var(--verah-muted) !important; }
+:is(.verah-surface, .concierge-surface, .provider-surface) [class*="text-teal-"],
+:is(.verah-surface, .concierge-surface, .provider-surface) [class*="text-rose-"] { color: var(--verah-pink) !important; }
+:is(.verah-surface, .concierge-surface, .provider-surface) [class*="border-slate-"],
+:is(.verah-surface, .concierge-surface, .provider-surface) [class*="border-rose-"],
+:is(.verah-surface, .concierge-surface, .provider-surface) [class*="border-teal-"] { border-color: var(--verah-border) !important; }
+
+/* Operational states keep distinct semantics on the dark canvas. */
+:is(.verah-surface, .concierge-surface, .provider-surface) [class*="bg-emerald-"] { background-color: rgba(49,196,141,.13) !important; }
+:is(.verah-surface, .concierge-surface, .provider-surface) [class*="text-emerald-"] { color: #74e6bd !important; }
+:is(.verah-surface, .concierge-surface, .provider-surface) [class*="border-emerald-"] { border-color: rgba(49,196,141,.35) !important; }
+:is(.verah-surface, .concierge-surface, .provider-surface) [class*="bg-red-"] { background-color: rgba(239,68,68,.13) !important; }
+:is(.verah-surface, .concierge-surface, .provider-surface) [class*="text-red-"] { color: #ff9292 !important; }
+:is(.verah-surface, .concierge-surface, .provider-surface) [class*="border-red-"] { border-color: rgba(239,68,68,.4) !important; }
+:is(.verah-surface, .concierge-surface, .provider-surface) [class*="bg-amber-"],
+:is(.verah-surface, .concierge-surface, .provider-surface) [class*="bg-orange-"] { background-color: rgba(245,158,11,.13) !important; }
+:is(.verah-surface, .concierge-surface, .provider-surface) [class*="text-amber-"],
+:is(.verah-surface, .concierge-surface, .provider-surface) [class*="text-orange-"] { color: #fbc76b !important; }
+
+.concierge-card,
 .provider-card {
-  border-color: rgba(226, 211, 204, 0.82);
-  border-radius: 1rem;
-  box-shadow: 0 16px 38px rgba(64, 83, 80, 0.06);
+  border-color: var(--verah-border);
+  border-radius: var(--verah-radius-card);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.18);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
 }

@@ -16,7 +16,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
     modules;
   return (
     <div className="min-h-screen">
-      <aside className="fixed inset-y-0 left-0 hidden w-64 border-r border-border bg-white lg:block">
+      <aside className="fixed inset-y-0 left-0 hidden w-64 border-r border-border bg-card lg:block">
         <div className="border-b border-border px-5 py-4">
           <p className="text-sm font-semibold text-primary">VERAH</p>
           <h1 className="text-lg font-semibold">Command Center</h1>
@@ -39,7 +39,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
         </nav>
       </aside>
       <main className="lg:pl-64">
-        <header className="sticky top-0 z-10 border-b border-border bg-white/95 px-5 py-3">
+        <header className="sticky top-0 z-10 border-b border-border bg-card/95 px-5 py-3">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs uppercase tracking-wide text-muted-foreground">

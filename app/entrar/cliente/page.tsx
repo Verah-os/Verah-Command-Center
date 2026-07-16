@@ -8,7 +8,7 @@ export default async function CustomerLoginPage({
 }) {
   const { error } = await searchParams;
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top,#fdecef_0%,#fff8f6_38%,#f2f8f7_100%)] p-5">
+    <main className="verah-surface flex min-h-screen items-center justify-center p-5">
       <div className="w-full max-w-sm">
         <Link
           href="/demo"

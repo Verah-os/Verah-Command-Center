@@ -10,18 +10,18 @@ export function DemoShell({
   showLogout?: boolean;
 }) {
   return (
-    <main className="min-h-screen bg-[linear-gradient(180deg,#fff8f6_0%,#f8faf9_42%,#f3f8f7_100%)] text-slate-900">
-      <header className="border-b border-rose-100/80 bg-white/80 backdrop-blur">
+    <main className="verah-surface min-h-screen text-foreground">
+      <header className="border-b border-border bg-[var(--verah-sidebar)]/95 backdrop-blur">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-5 py-4">
           <Link
             href="/demo"
-            className="text-lg font-semibold tracking-[0.18em] text-teal-800"
+            className="text-lg font-semibold tracking-[0.18em] text-primary"
           >
             VERAH
           </Link>
           {showLogout && (
             <form action={signOut}>
-              <button className="text-sm font-medium text-slate-600 hover:text-teal-800">
+              <button className="text-sm font-medium text-muted-foreground hover:text-foreground">
                 Sair
               </button>
             </form>
