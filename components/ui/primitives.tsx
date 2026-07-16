@@ -6,7 +6,7 @@ import type {
 } from "react";
 import { cn } from "@/lib/utils";
 
-const control = "min-h-11 w-full rounded-md border border-border bg-muted px-4 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-4 focus-visible:ring-[var(--focus)] disabled:cursor-not-allowed disabled:opacity-50";
+const control = "min-h-11 w-full rounded-md border border-border bg-muted px-4 text-sm text-foreground caret-[var(--verah-pink)] outline-none placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-4 focus-visible:ring-[var(--focus)] disabled:cursor-not-allowed disabled:opacity-50";
 
 export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
   return <input className={cn(control, className)} {...props} />;
