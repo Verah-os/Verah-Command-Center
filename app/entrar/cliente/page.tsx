@@ -8,7 +8,7 @@ export default async function CustomerLoginPage({
 }) {
   const { error } = await searchParams;
   return (
-    <main className="verah-surface flex min-h-screen items-center justify-center p-5">
+    <main className="auth-surface verah-surface flex min-h-screen items-center justify-center p-5">
       <div className="w-full max-w-sm">
         <Link
           href="/demo"

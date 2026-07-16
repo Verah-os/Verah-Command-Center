@@ -8,7 +8,7 @@ export default async function LoginPage({
   const { error } = await searchParams;
 
   return (
-    <main className="flex min-h-screen items-center justify-center p-5">
+    <main className="auth-surface flex min-h-screen items-center justify-center p-5">
       <LoginForm error={error} title="Acesso administrativo" description="Entre no Command Center da Verah." />
     </main>
   );
