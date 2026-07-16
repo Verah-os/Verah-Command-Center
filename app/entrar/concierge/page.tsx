@@ -8,7 +8,7 @@ export default async function ConciergeLoginPage({
 }) {
   const { error } = await searchParams;
   return (
-    <main className="concierge-surface flex min-h-screen items-center justify-center px-4 py-10 sm:px-6">
+    <main className="auth-surface concierge-surface flex min-h-screen items-center justify-center px-4 py-10 sm:px-6">
       <div className="w-full max-w-md">
         <Link
           href="/"

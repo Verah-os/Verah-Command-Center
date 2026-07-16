@@ -1,6 +1,7 @@
 import { signInWithEmail } from "@/services/auth/actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Input } from "@/components/ui/primitives";
 
 export function LoginForm({ error, title = "Command Center", description = "Acesso administrativo autorizado." }: { error?: string; title?: string; description?: string }) {
   return (
@@ -14,8 +15,8 @@ export function LoginForm({ error, title = "Command Center", description = "Aces
         <form action={signInWithEmail} className="space-y-3">
           <label className="block text-sm font-medium">
             Email
-            <input
-              className="mt-1 h-10 w-full rounded-md border border-border px-3"
+            <Input
+              className="mt-1"
               name="email"
               type="email"
               autoComplete="email"
@@ -24,8 +25,8 @@ export function LoginForm({ error, title = "Command Center", description = "Aces
           </label>
           <label className="block text-sm font-medium">
             Senha
-            <input
-              className="mt-1 h-10 w-full rounded-md border border-border px-3"
+            <Input
+              className="mt-1"
               name="password"
               type="password"
               autoComplete="current-password"

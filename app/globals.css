@@ -48,6 +48,49 @@ body {
 
 ::selection { background: var(--verah-pink); color: var(--verah-background); }
 
+/* Authentication controls have an explicit contract because browser autofill
+   may otherwise reintroduce a light background over white text. */
+.auth-surface input:is([type="email"], [type="password"], [type="text"]) {
+  background: var(--verah-secondary) !important;
+  border-color: var(--verah-border) !important;
+  color: var(--verah-white) !important;
+  caret-color: var(--verah-pink);
+}
+
+.auth-surface input:is([type="email"], [type="password"], [type="text"])::placeholder {
+  color: var(--verah-muted);
+  opacity: 1;
+}
+
+.auth-surface input:is([type="email"], [type="password"], [type="text"]):focus-visible {
+  border-color: var(--verah-pink) !important;
+  outline: 2px solid var(--verah-pink) !important;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px var(--focus);
+}
+
+.auth-surface input:-webkit-autofill,
+.auth-surface input:-webkit-autofill:hover,
+.auth-surface input:-webkit-autofill:focus,
+.auth-surface input:-webkit-autofill:active {
+  border-color: var(--verah-border) !important;
+  caret-color: var(--verah-pink) !important;
+  -webkit-text-fill-color: var(--verah-white) !important;
+  -webkit-box-shadow: 0 0 0 1000px var(--verah-secondary) inset !important;
+  box-shadow: 0 0 0 1000px var(--verah-secondary) inset !important;
+  transition: background-color 9999s ease-out 0s;
+}
+
+.auth-surface input:-webkit-autofill:focus {
+  border-color: var(--verah-pink) !important;
+  -webkit-box-shadow:
+    0 0 0 1000px var(--verah-secondary) inset,
+    0 0 0 4px var(--focus) !important;
+  box-shadow:
+    0 0 0 1000px var(--verah-secondary) inset,
+    0 0 0 4px var(--focus) !important;
+}
+
 /* Shared product surface. This compatibility layer migrates legacy operational
    screens to semantic tokens while their business markup remains untouched. */
 .verah-surface,
@@ -68,6 +111,7 @@ body {
   border-color: var(--verah-border-strong) !important;
   background: var(--verah-secondary) !important;
   color: var(--verah-white) !important;
+  caret-color: var(--verah-pink);
 }
 
 .verah-surface :is(input, textarea)::placeholder,
