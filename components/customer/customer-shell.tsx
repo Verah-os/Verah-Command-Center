@@ -13,12 +13,12 @@ const navigation = [
 
 export function CustomerShell({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-screen bg-[linear-gradient(180deg,#fff8f6_0%,#f8faf9_42%,#f3f8f7_100%)] text-slate-900">
-      <header className="border-b border-rose-100/80 bg-white/90 backdrop-blur">
+    <div className="verah-surface min-h-screen text-foreground">
+      <header className="border-b border-border bg-[var(--verah-sidebar)]/95 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-5 px-4 py-4 sm:px-6">
           <Link
             href="/demo/cliente"
-            className="text-lg font-semibold tracking-[0.18em] text-teal-800 outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
+            className="text-lg font-semibold tracking-[0.18em] text-primary outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus)]"
           >
             VERAH
           </Link>
@@ -27,27 +27,27 @@ export function CustomerShell({ children }: { children: ReactNode }) {
               <Link
                 key={href}
                 href={href}
-                className="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 outline-none transition hover:bg-teal-50 hover:text-teal-800 focus-visible:ring-4 focus-visible:ring-teal-100"
+                className="rounded-md px-3 py-2 text-sm font-medium text-muted-foreground outline-none transition hover:bg-muted hover:text-foreground focus-visible:ring-4 focus-visible:ring-[var(--focus)]"
               >
                 {label}
               </Link>
             ))}
           </nav>
           <form action={signOut}>
-            <button className="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 outline-none hover:bg-rose-50 hover:text-teal-800 focus-visible:ring-4 focus-visible:ring-teal-100">
+            <button className="rounded-md px-3 py-2 text-sm font-medium text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-4 focus-visible:ring-[var(--focus)]">
               Sair
             </button>
           </form>
         </div>
         <nav
           aria-label="Navegação da cliente no celular"
-          className="mx-auto grid max-w-2xl grid-cols-3 gap-1 border-t border-rose-100 px-3 py-2 lg:hidden"
+          className="mx-auto grid max-w-2xl grid-cols-3 gap-1 border-t border-border px-3 py-2 lg:hidden"
         >
           {navigation.map(({ href, label, icon: Icon }) => (
             <Link
               key={href}
               href={href}
-              className="flex min-h-11 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-center text-xs font-semibold text-slate-600 outline-none hover:bg-teal-50 hover:text-teal-800 focus-visible:ring-4 focus-visible:ring-teal-100"
+              className="flex min-h-11 items-center justify-center gap-1.5 rounded-md px-2 py-2 text-center text-xs font-semibold text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-4 focus-visible:ring-[var(--focus)]"
             >
               <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
               <span>{label}</span>
