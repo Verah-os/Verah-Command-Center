@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { BriefcaseBusiness, LogOut, Wrench } from "lucide-react";
+import { BriefcaseBusiness, LogOut } from "lucide-react";
 import { signOut } from "@/services/auth/actions";
+import { VerahLogo } from "@/components/brand/verah-logo";
 
 export function ProviderShell({
   children,
@@ -17,11 +18,8 @@ export function ProviderShell({
             href="/demo/prestador"
             className="flex min-h-11 items-center gap-3 rounded-md outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus)]"
           >
-            <span className="flex h-10 w-10 items-center justify-center rounded-md bg-primary text-primary-foreground shadow-sm">
-              <Wrench className="h-5 w-5" aria-hidden="true" />
-            </span>
+            <VerahLogo variant="light" size="sm" priority />
             <span>
-              <span className="block text-[10px] font-bold uppercase tracking-[0.2em] text-primary">VERAH</span>
               <span className="block text-sm font-semibold text-foreground sm:text-base">Portal do prestador</span>
             </span>
           </Link>

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { signOut } from "@/services/auth/actions";
+import { VerahLogo } from "@/components/brand/verah-logo";
 
 export function DemoShell({
   children,
@@ -15,9 +16,9 @@ export function DemoShell({
         <div className="mx-auto flex max-w-5xl items-center justify-between px-5 py-4">
           <Link
             href="/demo"
-            className="text-lg font-semibold tracking-[0.18em] text-primary"
+            className="rounded-sm outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus)]"
           >
-            VERAH
+            <VerahLogo variant="light" size="sm" priority />
           </Link>
           {showLogout && (
             <form action={signOut}>

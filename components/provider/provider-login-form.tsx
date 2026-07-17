@@ -1,4 +1,5 @@
-import { LockKeyhole, Wrench } from "lucide-react";
+import { LockKeyhole } from "lucide-react";
+import { VerahLogo } from "@/components/brand/verah-logo";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/primitives";
@@ -7,11 +8,8 @@ import { signInWithEmail } from "@/services/auth/actions";
 export function ProviderLoginForm({ error }: { error?: string }) {
   return (
     <Card className="w-full p-6 sm:p-9">
-      <div className="flex h-12 w-12 items-center justify-center rounded-md bg-primary text-primary-foreground">
-        <Wrench className="h-6 w-6" aria-hidden="true" />
-      </div>
-      <p className="mt-6 text-xs font-bold uppercase tracking-[0.2em] text-primary">VERAH</p>
-      <h1 className="mt-2 text-3xl font-semibold tracking-tight">Portal do prestador</h1>
+      <VerahLogo variant="light" size="md" priority />
+      <h1 className="mt-6 text-3xl font-semibold tracking-tight">Portal do prestador</h1>
       <p className="mt-3 leading-6 text-muted-foreground">
         Acesse seus atendimentos, prepare propostas e acompanhe os serviços em andamento.
       </p>
