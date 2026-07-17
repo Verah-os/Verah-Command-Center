@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Route } from "next";
+import { LogOut } from "lucide-react";
 import { modules } from "@/modules/registry";
 import { requireRole } from "@/services/auth/profile";
 import { signOut } from "@/services/auth/actions";
@@ -17,12 +18,12 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
     modules;
   return (
     <div className="min-h-screen">
-      <aside className="fixed inset-y-0 left-0 hidden w-64 border-r border-border bg-card lg:block">
+      <aside className="fixed inset-y-0 left-0 hidden w-64 flex-col border-r border-border bg-card lg:flex">
         <div className="border-b border-border px-5 py-4">
           <VerahLogo variant="light" size="sm" priority />
           <h1 className="mt-2 text-lg font-semibold">Command Center</h1>
         </div>
-        <nav className="space-y-1 p-3">
+        <nav className="flex-1 space-y-1 overflow-y-auto p-3">
           {visibleModules.map((module) => (
             <Link
               key={module.slug}
@@ -32,12 +33,18 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
               {module.title}
             </Link>
           ))}
-          <form action={signOut} className="pt-3">
-            <button className="w-full rounded-md px-3 py-2 text-left text-sm text-muted-foreground hover:bg-muted hover:text-foreground">
+        </nav>
+        <div className="border-t border-border p-3">
+          <p className="truncate px-3 pb-2 text-xs text-muted-foreground">
+            {profile.displayName}
+          </p>
+          <form action={signOut}>
+            <button className="flex min-h-11 w-full items-center gap-3 rounded-md px-3 text-left text-sm font-semibold text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-4 focus-visible:ring-[var(--focus)]">
+              <LogOut className="h-4 w-4" aria-hidden="true" />
               Sair
             </button>
           </form>
-        </nav>
+        </div>
       </aside>
       <main className="lg:pl-64">
         <header className="sticky top-0 z-10 border-b border-border bg-card/95 px-5 py-3">
@@ -53,7 +60,8 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
                 {profile.displayName}
               </span>
               <form action={signOut} className="lg:hidden">
-                <button className="rounded-md border border-border px-3 py-1 text-sm text-muted-foreground">
+                <button className="flex min-h-11 items-center gap-2 rounded-md border border-border px-3 text-sm font-semibold text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-4 focus-visible:ring-[var(--focus)]">
+                  <LogOut className="h-4 w-4" aria-hidden="true" />
                   Sair
                 </button>
               </form>

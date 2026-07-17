@@ -9,6 +9,11 @@ const nextConfig: NextConfig = {
         destination: "/demo/cliente",
         permanent: true,
       },
+      {
+        source: "/prestador",
+        destination: "/demo/prestador",
+        permanent: true,
+      },
     ];
   },
 };

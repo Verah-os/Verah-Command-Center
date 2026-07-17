@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/services/supabase/server";
 import { roleHome } from "@/services/auth/profile";
 import type { UserRole } from "@/types/user-profile";
@@ -27,5 +28,6 @@ export async function signInWithEmail(formData: FormData) {
 export async function signOut() {
   const supabase = await createSupabaseServerClient();
   await supabase.auth.signOut();
+  revalidatePath("/", "layout");
   redirect("/login");
 }
