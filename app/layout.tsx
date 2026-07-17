@@ -11,7 +11,7 @@ const poppins = Poppins({
 
 export const metadata: Metadata = {
   title: "VERAH",
-  description: "Cuidado automotivo com clareza, confiança e acompanhamento.",
+  description: "Confiança para cuidar do que é seu.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

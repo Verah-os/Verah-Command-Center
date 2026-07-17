@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { CarFront, FileClock, Home, Plus, ShieldCheck } from "lucide-react";
 import { signOut } from "@/services/auth/actions";
+import { VerahLogo } from "@/components/brand/verah-logo";
 
 const navigation = [
   { href: "/demo/cliente", label: "Início", icon: Home },
@@ -18,9 +19,9 @@ export function CustomerShell({ children }: { children: ReactNode }) {
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-5 px-4 py-4 sm:px-6">
           <Link
             href="/demo/cliente"
-            className="text-lg font-semibold tracking-[0.18em] text-primary outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus)]"
+            className="rounded-sm outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus)]"
           >
-            VERAH
+            <VerahLogo variant="light" size="sm" priority />
           </Link>
           <nav aria-label="Navegação da cliente" className="hidden items-center gap-1 lg:flex">
             {navigation.map(({ href, label }) => (

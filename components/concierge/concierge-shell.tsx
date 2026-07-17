@@ -1,7 +1,8 @@
 import Link from "next/link";
 import type { Route } from "next";
-import { ClipboardList, HeartHandshake, LogOut, Menu, Plus } from "lucide-react";
+import { ClipboardList, LogOut, Menu, Plus } from "lucide-react";
 import { signOut } from "@/services/auth/actions";
+import { VerahLogo } from "@/components/brand/verah-logo";
 
 export function ConciergeShell({
   children,
@@ -77,11 +78,8 @@ export function ConciergeShell({
 function Brand({ compact = false }: { compact?: boolean }) {
   return (
     <div className="flex items-center gap-3">
-      <span className={`${compact ? "h-9 w-9" : "h-11 w-11"} flex items-center justify-center rounded-md bg-primary text-primary-foreground shadow-sm`}>
-        <HeartHandshake className="h-5 w-5" aria-hidden="true" />
-      </span>
+      <VerahLogo variant={compact ? "icon" : "light"} size="sm" priority />
       <div>
-        <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">VERAH</p>
         <p className={`${compact ? "text-sm" : "text-lg"} font-semibold text-slate-800`}>Central Concierge</p>
       </div>
     </div>

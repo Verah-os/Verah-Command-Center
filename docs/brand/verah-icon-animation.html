@@ -1,0 +1,311 @@
+
+<style>
+:root { --p: #E8B4B8; --p2: #F2D6D8; --d: #2B2B2B; --g: #D9D9D9; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body, .wrap { background: transparent; }
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+  padding: 2rem 0 1.5rem;
+}
+
+.stage {
+  display: flex;
+  gap: 48px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.variant {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.box-dark {
+  background: #2B2B2B;
+  border-radius: 16px;
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.box-light {
+  background: #FAFAFA;
+  border: 0.5px solid #E4E4E4;
+  border-radius: 16px;
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lbl {
+  font-size: 11px;
+  letter-spacing: 2.5px;
+  color: var(--color-text-secondary);
+  font-family: system-ui, sans-serif;
+}
+
+.controls {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+button.ctrl {
+  font-size: 12px;
+  padding: 7px 18px;
+  border-radius: 8px;
+  border: 0.5px solid var(--color-border-secondary);
+  background: var(--color-background-secondary);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  font-family: system-ui, sans-serif;
+  letter-spacing: 0.5px;
+}
+button.ctrl:hover { background: var(--color-background-tertiary); }
+
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+
+/* ─── SVG ANIMATION KEYFRAMES ─── */
+
+/* Circle draw */
+@keyframes drawCircle {
+  from { stroke-dashoffset: 502; }
+  to   { stroke-dashoffset: 0; }
+}
+
+/* V lines */
+@keyframes drawLineL {
+  from { stroke-dashoffset: 200; }
+  to   { stroke-dashoffset: 0; }
+}
+@keyframes drawLineR {
+  from { stroke-dashoffset: 200; }
+  to   { stroke-dashoffset: 0; }
+}
+
+/* Nodes pop in */
+@keyframes nodeIn {
+  0%   { r: 0; opacity: 0; }
+  60%  { r: 11; opacity: 1; }
+  80%  { r: 8; }
+  100% { r: 9; opacity: 1; }
+}
+
+@keyframes smallNodeIn {
+  0%   { r: 0; opacity: 0; }
+  100% { r: 5; opacity: 1; }
+}
+
+@keyframes tinyNodeIn {
+  0%   { r: 0; opacity: 0; }
+  100% { r: 3; opacity: 1; }
+}
+
+/* Extension lines grow */
+@keyframes extGrow {
+  from { stroke-dashoffset: 40; }
+  to   { stroke-dashoffset: 0; }
+}
+
+/* Word mark fade */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Pulse loop on nodes */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.55; }
+}
+
+/* Orbit dot around circle */
+@keyframes orbit {
+  from { transform: rotate(0deg) translateX(80px) rotate(0deg); }
+  to   { transform: rotate(360deg) translateX(80px) rotate(-360deg); }
+}
+
+.anim-run .circle {
+  stroke-dasharray: 502;
+  stroke-dashoffset: 502;
+  animation: drawCircle 1.1s cubic-bezier(.4,0,.2,1) forwards;
+}
+
+.anim-run .lineL {
+  stroke-dasharray: 200;
+  stroke-dashoffset: 200;
+  animation: drawLineL 0.7s cubic-bezier(.4,0,.2,1) 0.9s forwards;
+}
+
+.anim-run .lineR {
+  stroke-dasharray: 200;
+  stroke-dashoffset: 200;
+  animation: drawLineR 0.7s cubic-bezier(.4,0,.2,1) 1.05s forwards;
+}
+
+.anim-run .nodeMain {
+  animation: nodeIn 0.45s cubic-bezier(.34,1.56,.64,1) forwards;
+}
+.anim-run .nA { animation-delay: 1.55s; }
+.anim-run .nB { animation-delay: 1.65s; }
+.anim-run .nC { animation-delay: 1.75s; }
+
+.anim-run .nodeSm {
+  animation: smallNodeIn 0.3s ease forwards;
+}
+.anim-run .nTop  { animation-delay: 0.5s; }
+.anim-run .nLft  { animation-delay: 0.7s; }
+.anim-run .nRgt  { animation-delay: 0.7s; }
+
+.anim-run .extLine {
+  stroke-dasharray: 40;
+  stroke-dashoffset: 40;
+  animation: extGrow 0.4s ease forwards;
+}
+.anim-run .eT { animation-delay: 1.9s; }
+.anim-run .eL { animation-delay: 2.0s; }
+.anim-run .eR { animation-delay: 2.0s; }
+
+.anim-run .nodeTiny {
+  animation: tinyNodeIn 0.25s ease forwards;
+}
+.anim-run .ntT { animation-delay: 2.3s; }
+.anim-run .ntL { animation-delay: 2.4s; }
+.anim-run .ntR { animation-delay: 2.4s; }
+
+.anim-run .wordmark {
+  animation: fadeUp 0.6s ease 2.4s forwards;
+}
+.anim-run .tagline {
+  animation: fadeUp 0.5s ease 2.8s forwards;
+}
+.anim-run .divider {
+  animation: fadeUp 0.4s ease 2.6s forwards;
+}
+
+/* Idle pulse after intro */
+.anim-run .nodeMain {
+  animation: nodeIn 0.45s cubic-bezier(.34,1.56,.64,1) forwards,
+             pulse 2.8s ease-in-out 3.5s infinite;
+}
+
+/* ── initial hidden state ── */
+.circle  { stroke-dasharray: 502; stroke-dashoffset: 502; }
+.lineL   { stroke-dasharray: 200; stroke-dashoffset: 200; }
+.lineR   { stroke-dasharray: 200; stroke-dashoffset: 200; }
+.nodeMain { r: 0; opacity: 0; }
+.nodeSm   { r: 0; opacity: 0; }
+.extLine  { stroke-dasharray: 40; stroke-dashoffset: 40; }
+.nodeTiny { r: 0; opacity: 0; }
+.wordmark { opacity: 0; }
+.tagline  { opacity: 0; }
+.divider  { opacity: 0; }
+</style>
+
+<h2 class="sr-only">Animação do ícone VERAH — círculo com nós em V e wordmark</h2>
+
+<div class="wrap">
+
+  <div class="stage">
+
+    <!-- DARK VERSION (main) -->
+    <div class="variant">
+      <div class="box-dark">
+        <svg id="svgDark" width="220" height="220" viewBox="0 0 220 220" xmlns="http://www.w3.org/2000/svg">
+          <circle class="circle" cx="110" cy="110" r="80" fill="none" stroke="#F2D6D8" stroke-width="1.4"/>
+          <line class="lineL" x1="43" y1="63" x2="110" y2="173" stroke="#F2D6D8" stroke-width="2.2" stroke-linecap="round"/>
+          <line class="lineR" x1="177" y1="63" x2="110" y2="173" stroke="#F2D6D8" stroke-width="2.2" stroke-linecap="round"/>
+          <circle class="nodeSm nTop" cx="110" cy="30" r="0" fill="#F2D6D8"/>
+          <circle class="nodeSm nLft" cx="30"  cy="110" r="0" fill="#555" stroke="#F2D6D8" stroke-width="1"/>
+          <circle class="nodeSm nRgt" cx="190" cy="110" r="0" fill="#555" stroke="#F2D6D8" stroke-width="1"/>
+          <line class="extLine eT" x1="110" y1="25" x2="110" y2="8"  stroke="#E8B4B8" stroke-width="1.4" stroke-linecap="round"/>
+          <line class="extLine eL" x1="24"  y1="110" x2="6"  y2="110" stroke="#E8B4B8" stroke-width="1.4" stroke-linecap="round"/>
+          <line class="extLine eR" x1="196" y1="110" x2="214" y2="110" stroke="#E8B4B8" stroke-width="1.4" stroke-linecap="round"/>
+          <circle class="nodeTiny ntT" cx="110" cy="6"   r="0" fill="#E8B4B8"/>
+          <circle class="nodeTiny ntL" cx="5"   cy="110" r="0" fill="#E8B4B8"/>
+          <circle class="nodeTiny ntR" cx="215" cy="110" r="0" fill="#E8B4B8"/>
+          <circle class="nodeMain nA" cx="43"  cy="63"  r="0" fill="#E8B4B8" stroke="#F2D6D8" stroke-width="0.8"/>
+          <circle class="nodeMain nB" cx="177" cy="63"  r="0" fill="#E8B4B8" stroke="#F2D6D8" stroke-width="0.8"/>
+          <circle class="nodeMain nC" cx="110" cy="173" r="0" fill="#E8B4B8" stroke="#F2D6D8" stroke-width="0.8"/>
+        </svg>
+      </div>
+      <p class="lbl">fundo escuro</p>
+    </div>
+
+    <!-- LIGHT VERSION -->
+    <div class="variant">
+      <div class="box-light">
+        <svg id="svgLight" width="220" height="220" viewBox="0 0 220 220" xmlns="http://www.w3.org/2000/svg">
+          <circle class="circle" cx="110" cy="110" r="80" fill="none" stroke="#2B2B2B" stroke-width="1.4"/>
+          <line class="lineL" x1="43" y1="63" x2="110" y2="173" stroke="#2B2B2B" stroke-width="2.2" stroke-linecap="round"/>
+          <line class="lineR" x1="177" y1="63" x2="110" y2="173" stroke="#2B2B2B" stroke-width="2.2" stroke-linecap="round"/>
+          <circle class="nodeSm nTop" cx="110" cy="30" r="0" fill="#2B2B2B"/>
+          <circle class="nodeSm nLft" cx="30"  cy="110" r="0" fill="#D9D9D9" stroke="#2B2B2B" stroke-width="1"/>
+          <circle class="nodeSm nRgt" cx="190" cy="110" r="0" fill="#D9D9D9" stroke="#2B2B2B" stroke-width="1"/>
+          <line class="extLine eT" x1="110" y1="25" x2="110" y2="8"  stroke="#E8B4B8" stroke-width="1.4" stroke-linecap="round"/>
+          <line class="extLine eL" x1="24"  y1="110" x2="6"  y2="110" stroke="#E8B4B8" stroke-width="1.4" stroke-linecap="round"/>
+          <line class="extLine eR" x1="196" y1="110" x2="214" y2="110" stroke="#E8B4B8" stroke-width="1.4" stroke-linecap="round"/>
+          <circle class="nodeTiny ntT" cx="110" cy="6"   r="0" fill="#E8B4B8"/>
+          <circle class="nodeTiny ntL" cx="5"   cy="110" r="0" fill="#E8B4B8"/>
+          <circle class="nodeTiny ntR" cx="215" cy="110" r="0" fill="#E8B4B8"/>
+          <circle class="nodeMain nA" cx="43"  cy="63"  r="0" fill="#E8B4B8" stroke="#2B2B2B" stroke-width="0.8"/>
+          <circle class="nodeMain nB" cx="177" cy="63"  r="0" fill="#E8B4B8" stroke="#2B2B2B" stroke-width="0.8"/>
+          <circle class="nodeMain nC" cx="110" cy="173" r="0" fill="#E8B4B8" stroke="#2B2B2B" stroke-width="0.8"/>
+        </svg>
+      </div>
+      <p class="lbl">fundo claro</p>
+    </div>
+
+  </div>
+
+  <!-- WORDMARK animated -->
+  <svg id="svgWord" width="100%" viewBox="0 0 680 90" xmlns="http://www.w3.org/2000/svg" style="max-width:620px">
+    <line class="divider" x1="0" y1="58" x2="680" y2="58" stroke="#E8B4B8" stroke-width="1" opacity="0"/>
+    <text class="wordmark" x="340" y="48"
+      font-family="system-ui,-apple-system,sans-serif"
+      font-size="52" font-weight="700"
+      fill="var(--color-text-primary)"
+      text-anchor="middle" letter-spacing="14"
+      opacity="0">VERAH</text>
+    <text class="tagline" x="340" y="80"
+      font-family="system-ui,-apple-system,sans-serif"
+      font-size="11" font-weight="300"
+      fill="var(--color-text-secondary)"
+      text-anchor="middle" letter-spacing="4"
+      opacity="0">serviços automotivos para mulheres</text>
+  </svg>
+
+  <!-- Controls -->
+  <div class="controls">
+    <button class="ctrl" id="btnPlay" onclick="playAnim()">Reproduzir animação ↗</button>
+    <button class="ctrl" id="btnReset" onclick="resetAnim()">Reiniciar</button>
+  </div>
+
+</div>
+
+<script>
+const targets = [document.getElementById('svgDark'), document.getElementById('svgLight'), document.getElementById('svgWord')];
+
+function playAnim() {
+  targets.forEach(el => el.classList.add('anim-run'));
+}
+
+function resetAnim() {
+  targets.forEach(el => {
+    el.classList.remove('anim-run');
+    void el.offsetWidth;
+  });
+}
+
+playAnim();
+</script>

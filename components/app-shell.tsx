@@ -4,6 +4,7 @@ import { modules } from "@/modules/registry";
 import { requireRole } from "@/services/auth/profile";
 import { signOut } from "@/services/auth/actions";
 import { ConciergeShell } from "@/components/concierge/concierge-shell";
+import { VerahLogo } from "@/components/brand/verah-logo";
 
 export async function AppShell({ children }: { children: React.ReactNode }) {
   const profile = await requireRole(["concierge", "admin"]);
@@ -18,8 +19,8 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen">
       <aside className="fixed inset-y-0 left-0 hidden w-64 border-r border-border bg-card lg:block">
         <div className="border-b border-border px-5 py-4">
-          <p className="text-sm font-semibold text-primary">VERAH</p>
-          <h1 className="text-lg font-semibold">Command Center</h1>
+          <VerahLogo variant="light" size="sm" priority />
+          <h1 className="mt-2 text-lg font-semibold">Command Center</h1>
         </div>
         <nav className="space-y-1 p-3">
           {visibleModules.map((module) => (

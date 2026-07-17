@@ -2,12 +2,13 @@ import { signInWithEmail } from "@/services/auth/actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/primitives";
+import { VerahLogo } from "@/components/brand/verah-logo";
 
 export function LoginForm({ error, title = "Command Center", description = "Acesso administrativo autorizado." }: { error?: string; title?: string; description?: string }) {
   return (
     <Card className="w-full max-w-sm">
       <CardHeader>
-        <p className="text-sm font-semibold text-primary">VERAH</p>
+        <VerahLogo variant="light" size="md" priority className="mb-2" />
         <h1 className="text-xl font-semibold">{title}</h1>
         <p className="text-sm text-muted-foreground">{description}</p>
       </CardHeader>
