@@ -46,7 +46,11 @@ export async function middleware(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = path.startsWith("/demo/cliente")
       ? "/entrar/cliente"
-      : "/login";
+      : path.startsWith("/concierge")
+        ? "/entrar/concierge"
+        : path.startsWith("/demo/prestador")
+          ? "/entrar/prestador"
+          : "/login";
     return NextResponse.redirect(url);
   }
 
@@ -65,14 +69,22 @@ export async function middleware(request: NextRequest) {
   }
   const role = profile.role as UserRole;
   if (isLogin) return NextResponse.redirect(new URL(homes[role], request.url));
+
+  const routeRole: UserRole | null = path.startsWith("/demo/cliente")
+    ? "customer"
+    : path.startsWith("/concierge")
+      ? "concierge"
+      : path.startsWith("/demo/prestador")
+        ? "provider"
+        : null;
+
+  if (routeRole && role !== routeRole) {
+    return NextResponse.redirect(new URL(homes[role], request.url));
+  }
+
   const allowed =
     path === "/demo" ||
-    ((role === "customer" || role === "admin") &&
-      path.startsWith("/demo/cliente")) ||
-    ((role === "concierge" || role === "admin") &&
-      path.startsWith("/concierge")) ||
-    ((role === "provider" || role === "admin") &&
-      path.startsWith("/demo/prestador")) ||
+    routeRole === role ||
     role === "admin";
   if (!allowed) return NextResponse.redirect(new URL(homes[role], request.url));
 
