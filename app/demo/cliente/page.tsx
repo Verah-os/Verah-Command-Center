@@ -3,6 +3,7 @@ import type { Route } from "next";
 import { ArrowRight, CarFront, Clock3, ShieldCheck, Sparkles } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { CustomerShell } from "@/components/customer/customer-shell";
+import { VerahNetworkMotif } from "@/components/brand/verah-network-motif";
 import { nextCareMessages, vehicleName } from "@/lib/customer-vehicle";
 import { customerStageLabels } from "@/lib/customer-service-stage";
 import { requireRole } from "@/services/auth/profile";
@@ -48,17 +49,18 @@ export default async function CustomerPage() {
   return (
     <CustomerShell>
       <section className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
-        <div className="rounded-[2rem] border border-rose-100 bg-white/80 p-6 shadow-[0_24px_70px_rgba(77,54,60,0.08)] sm:p-9">
-          <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+        <div className="relative overflow-hidden rounded-[2rem] border border-rose-100 bg-white/80 p-6 shadow-[0_24px_70px_rgba(77,54,60,0.08)] sm:p-9">
+          <VerahNetworkMotif className="absolute -right-10 -top-2 w-[28rem] opacity-15" />
+          <div className="relative flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.16em] text-teal-700">
-                Olá, {firstName}
+                Sua jornada VERAH · Olá, {firstName}
               </p>
               <h1 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight sm:text-4xl">
-                Seu veículo, seus cuidados, tudo em um só lugar.
+                Cuidado para o seu veículo. Clareza para você.
               </h1>
               <p className="mt-3 max-w-2xl leading-7 text-slate-600">
-                Acompanhe seu veículo e conte com a VERAH quando precisar.
+                Do primeiro relato ao cuidado concluído, a VERAH conecta cada próximo passo.
               </p>
             </div>
             <Link
@@ -176,6 +178,8 @@ export default async function CustomerPage() {
             </CardContent>
           </Card>
         </div>
+
+        <div className="verah-route-divider mt-8" aria-hidden="true" />
 
         <div className="mt-6 grid gap-6 lg:grid-cols-3">
           <Card className="border-rose-100 bg-white/90 lg:col-span-1">

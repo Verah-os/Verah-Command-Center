@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { CarFront, FileClock, Home, Plus, ShieldCheck } from "lucide-react";
 import { signOut } from "@/services/auth/actions";
 import { VerahLogo } from "@/components/brand/verah-logo";
+import { PortalNavLink } from "@/components/brand/portal-nav-link";
 
 const navigation = [
   { href: "/demo/cliente", label: "Início", icon: Home },
@@ -19,19 +20,23 @@ export function CustomerShell({ children }: { children: ReactNode }) {
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-5 px-4 py-4 sm:px-6">
           <Link
             href="/demo/cliente"
-            className="rounded-sm outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus)]"
+            aria-label="VERAH — início da área da cliente"
+            className="flex min-h-11 items-center rounded-sm outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus)]"
           >
-            <VerahLogo variant="light" size="sm" priority />
+            <VerahLogo kind="symbol" tone="light" size="sm" priority alt="" className="sm:hidden" />
+            <VerahLogo kind="wordmark" tone="light" size="sm" priority alt="" className="hidden sm:block" />
           </Link>
           <nav aria-label="Navegação da cliente" className="hidden items-center gap-1 lg:flex">
             {navigation.map(({ href, label }) => (
-              <Link
+              <PortalNavLink
                 key={href}
                 href={href}
+                exact={href === "/demo/cliente"}
                 className="rounded-md px-3 py-2 text-sm font-medium text-muted-foreground outline-none transition hover:bg-muted hover:text-foreground focus-visible:ring-4 focus-visible:ring-[var(--focus)]"
+                activeClassName="bg-primary/10 text-primary shadow-[inset_0_-2px_0_var(--verah-pink)]"
               >
                 {label}
-              </Link>
+              </PortalNavLink>
             ))}
           </nav>
           <form action={signOut}>
@@ -45,14 +50,16 @@ export function CustomerShell({ children }: { children: ReactNode }) {
           className="mx-auto grid max-w-2xl grid-cols-3 gap-1 border-t border-border px-3 py-2 lg:hidden"
         >
           {navigation.map(({ href, label, icon: Icon }) => (
-            <Link
+            <PortalNavLink
               key={href}
               href={href}
+              exact={href === "/demo/cliente"}
+              icon={<Icon className="h-4 w-4 shrink-0" aria-hidden="true" />}
               className="flex min-h-11 items-center justify-center gap-1.5 rounded-md px-2 py-2 text-center text-xs font-semibold text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-4 focus-visible:ring-[var(--focus)]"
+              activeClassName="bg-primary/10 text-primary"
             >
-              <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
               <span>{label}</span>
-            </Link>
+            </PortalNavLink>
           ))}
         </nav>
       </header>

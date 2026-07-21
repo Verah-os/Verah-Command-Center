@@ -1,44 +1,53 @@
 # Ativos oficiais da marca VERAH
 
-Este documento registra os ativos oficiais incorporados ao produto e as regras para seu uso. As artes devem ser consumidas pelos caminhos abaixo, sem recoloração, distorção, recorte ou recriação manual.
+Este inventário registra a origem, a preparação e o uso dos ativos oficiais. As seis variações transparentes são derivadas exclusivamente das artes fornecidas pela VERAH; não houve redesenho, troca tipográfica ou criação de símbolo.
 
-## Inventário
+## Auditoria das fontes
 
-| Arquivo no projeto | Origem oficial | Uso permitido |
-| --- | --- | --- |
-| `public/brand/logo-light.png` | `verah_logo_clara.png` | Arte escura para superfícies claras |
-| `public/brand/logo-dark.png` | `verah_logo_escura.png` | Arte clara para superfícies escuras |
-| `public/brand/icon.png` | `verah_icone.png` | Favicon, app icon e espaços compactos |
-| `public/brand/logo-animated.gif` | `verah_logo_animado.gif` | Aberturas ou carregamentos explícitos e controlados |
-| `public/brand/icon-animated.gif` | `verah_icone_animado.gif` | Loader explícito e controlado |
-| `public/brand/app-mockup.jpg` | `verah_app_mockup.jpg` | Material institucional; não usar como tela real do produto |
-| `docs/brand/verah-app-mockup.pptx` | `verah_app_mockup.pptx` | Referência editável da marca, fora da interface |
-| `docs/brand/verah-icon-animation.html` | `verah_icon_animation.html` | Referência técnica; não executar no runtime da aplicação |
+| Fonte | Dimensão | Transparência | Área útil aproximada | Observação |
+| --- | ---: | --- | ---: | --- |
+| `public/brand/logo-dark.png` | 1360 × 356 | Não | 51,1% | Assinatura clara sobre retângulo `#2B2B2B`, com margens amplas |
+| `public/brand/logo-light.png` | 1360 × 356 | Não | 51,1% | Assinatura escura sobre fundo branco, com margens amplas |
+| `public/brand/icon.png` | 400 × 400 | Não | 62,8% | Símbolo oficial sobre fundo branco |
+| `public/brand/logo-animated.gif` | 1360 × 356 | Não | variável | Primeiro quadro vazio; reservado como fonte histórica |
+| `public/brand/icon-animated.gif` | 400 × 400 | Não | variável | Animação oficial, não usada em navegação permanente |
 
-`app/icon.png` e `app/apple-icon.png` são cópias exatas do ícone oficial para os metadados gerados pelo Next.js.
+Os arquivos opacos permanecem no repositório como fontes oficiais de referência, mas não devem ser usados diretamente na interface. O script `scripts/prepare-brand-assets.py` remove apenas o fundo plano, preserva as cores e proporções da arte e aplica recorte justo com 4 px de respiro.
+
+## Variações transparentes
+
+| Arquivo | Dimensão | Uso |
+| --- | ---: | --- |
+| `public/brand/verah-symbol-light.png` | 294 × 249 | Símbolo claro em fundo escuro |
+| `public/brand/verah-symbol-dark.png` | 294 × 249 | Símbolo escuro em fundo claro |
+| `public/brand/verah-wordmark-light.png` | 919 × 249 | Símbolo + VERAH, sem assinatura, em fundo escuro |
+| `public/brand/verah-wordmark-dark.png` | 919 × 249 | Símbolo + VERAH, sem assinatura, em fundo claro |
+| `public/brand/verah-signature-light.png` | 1031 × 251 | Marca completa e assinatura em fundo escuro |
+| `public/brand/verah-signature-dark.png` | 1031 × 251 | Marca completa e assinatura em fundo claro |
+
+Todos possuem canal alfa real, fundo totalmente transparente fora da arte e proporção original preservada. `app/icon.png` e `app/apple-icon.png` são derivados do símbolo escuro transparente, centralizado em uma tela quadrada.
 
 ## Componente oficial
 
-Use `VerahLogo` de `components/brand/verah-logo.tsx` em vez de escrever “VERAH” como substituto visual.
+Use `VerahLogo` de `components/brand/verah-logo.tsx`:
 
-- `variant="light"`: arte clara para fundo escuro.
-- `variant="dark"`: arte escura para fundo claro.
-- `variant="icon"`: uso compacto.
-- `size="sm" | "md" | "lg"`: tamanhos predefinidos com proporção preservada.
-- `priority`: somente para marcas visíveis na primeira dobra.
+- `kind="symbol" | "wordmark" | "signature"` define a composição.
+- `tone="light"` é para fundo escuro; `tone="dark"` é para fundo claro.
+- `size="sm" | "md" | "lg"` preserva proporção e tamanhos consistentes.
+- `priority` é reservado à marca visível na primeira dobra.
 
-Os nomes dos arquivos mantêm o mapeamento solicitado. Como as artes oficiais possuem fundo opaco, as variantes do componente descrevem a cor da marca em primeiro plano e selecionam o arquivo que oferece o contraste visual correto.
+No desktop, shells e logins usam o wordmark. Em espaços móveis compactos, os shells usam o símbolo. A assinatura completa fica reservada a momentos institucionais e não aparece repetidamente na operação.
 
 ## Regras de aplicação
 
-- Fundo escuro: `variant="light"`.
-- Fundo claro: `variant="dark"`.
-- Espaço reduzido: `variant="icon"`.
-- Não esticar, comprimir, recortar, recolorir ou aplicar filtros.
-- Não duplicar o texto “VERAH” ao lado da marca completa.
-- Não usar GIF em cabeçalhos, sidebars, menus ou outros elementos permanentes.
-- Não usar o mockup institucional como se fosse uma tela funcional do produto.
+- Não esticar, comprimir, recolorir, aplicar filtros, rotacionar ou recriar a marca.
+- Não adicionar fundo opaco ao arquivo transparente.
+- Não duplicar “VERAH” ao lado do wordmark.
+- Não usar a assinatura completa em menus compactos.
+- Não usar GIF em cabeçalhos, sidebars ou navegação.
+- Não usar o mockup institucional como se fosse uma tela real do produto.
+- Em links com marca decorativa (`alt=""`), fornecer um nome acessível no próprio link.
 
-## Movimento reduzido
+## Movimento
 
-`VerahBrandLoader` usa o ícone animado apenas quando o componente é renderizado em um estado de carregamento explícito. Com `prefers-reduced-motion: reduce`, o navegador seleciona `icon.png` antes de carregar o GIF. Nenhum GIF é usado na navegação permanente.
+`VerahBrandLoader` utiliza o símbolo transparente com uma pulsação discreta em CSS. Em `prefers-reduced-motion: reduce`, a animação é removida. Os GIFs oficiais permanecem arquivados e não são carregados pelo produto.

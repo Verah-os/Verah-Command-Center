@@ -16,9 +16,11 @@ export function DemoShell({
         <div className="mx-auto flex max-w-5xl items-center justify-between px-5 py-4">
           <Link
             href="/demo"
+            aria-label="VERAH — início"
             className="rounded-sm outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus)]"
           >
-            <VerahLogo variant="light" size="sm" priority />
+            <VerahLogo kind="symbol" tone="light" size="sm" priority alt="" className="sm:hidden" />
+            <VerahLogo kind="wordmark" tone="light" size="sm" priority alt="" className="hidden sm:block" />
           </Link>
           {showLogout && (
             <form action={signOut}>

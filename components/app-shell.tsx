@@ -20,7 +20,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen">
       <aside className="fixed inset-y-0 left-0 hidden w-64 flex-col border-r border-border bg-card lg:flex">
         <div className="border-b border-border px-5 py-4">
-          <VerahLogo variant="light" size="sm" priority />
+          <VerahLogo kind="wordmark" tone="light" size="sm" priority />
           <h1 className="mt-2 text-lg font-semibold">Command Center</h1>
         </div>
         <nav className="flex-1 space-y-1 overflow-y-auto p-3">
@@ -49,7 +49,8 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
       <main className="lg:pl-64">
         <header className="sticky top-0 z-10 border-b border-border bg-card/95 px-5 py-3">
           <div className="flex items-center justify-between">
-            <div>
+            <VerahLogo kind="symbol" tone="light" size="sm" priority className="lg:hidden" />
+            <div className="hidden lg:block">
               <p className="text-xs uppercase tracking-wide text-muted-foreground">
                 Operating System
               </p>
