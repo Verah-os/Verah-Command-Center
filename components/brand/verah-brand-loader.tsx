@@ -1,3 +1,4 @@
+import { VerahLogo } from "@/components/brand/verah-logo";
 import { cn } from "@/lib/utils";
 
 export function VerahBrandLoader({
@@ -9,11 +10,7 @@ export function VerahBrandLoader({
 }) {
   return (
     <div className={cn("inline-flex flex-col items-center gap-3", className)} role="status">
-      <picture>
-        <source media="(prefers-reduced-motion: reduce)" srcSet="/brand/icon.png" />
-        {/* eslint-disable-next-line @next/next/no-img-element -- animated GIF is intentionally unoptimized */}
-        <img src="/brand/icon-animated.gif" width="64" height="64" alt="" aria-hidden="true" />
-      </picture>
+      <VerahLogo kind="symbol" tone="light" size="lg" alt="" className="verah-loader-mark" />
       <span className="text-sm text-muted-foreground">{label}</span>
     </div>
   );

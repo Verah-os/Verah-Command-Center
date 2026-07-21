@@ -48,6 +48,51 @@ body {
 
 ::selection { background: var(--verah-pink); color: var(--verah-background); }
 
+.verah-network-motif {
+  height: auto;
+  color: var(--verah-pink);
+  fill: var(--verah-pink);
+  overflow: visible;
+  pointer-events: none;
+}
+
+.verah-network-motif path {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+}
+
+.verah-route-divider {
+  position: relative;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--verah-border-strong) 12%, var(--verah-border-strong) 88%, transparent);
+}
+
+.verah-route-divider::before,
+.verah-route-divider::after {
+  position: absolute;
+  top: 50%;
+  width: .55rem;
+  height: .55rem;
+  border-radius: 999px;
+  background: var(--verah-pink);
+  box-shadow: 0 0 0 4px rgba(232, 182, 192, .12);
+  content: "";
+  transform: translateY(-50%);
+}
+
+.verah-route-divider::before { left: 18%; }
+.verah-route-divider::after { right: 18%; }
+
+.verah-loader-mark { animation: verah-breathe 1.8s ease-in-out infinite; }
+
+@keyframes verah-breathe {
+  0%, 100% { opacity: .66; transform: scale(.98); }
+  50% { opacity: 1; transform: scale(1); }
+}
+
 /* Authentication controls have an explicit contract because browser autofill
    may otherwise reintroduce a light background over white text. */
 .auth-surface input:is([type="email"], [type="password"], [type="text"]) {
@@ -171,4 +216,5 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
+  .verah-loader-mark { animation: none; }
 }

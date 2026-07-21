@@ -2,6 +2,7 @@ import Link from "next/link";
 import { BriefcaseBusiness, LogOut } from "lucide-react";
 import { signOut } from "@/services/auth/actions";
 import { VerahLogo } from "@/components/brand/verah-logo";
+import { PortalNavLink } from "@/components/brand/portal-nav-link";
 
 export function ProviderShell({
   children,
@@ -16,20 +17,25 @@ export function ProviderShell({
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3">
           <Link
             href="/demo/prestador"
+            aria-label="VERAH — início do Portal do prestador"
             className="flex min-h-11 items-center gap-3 rounded-md outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus)]"
           >
-            <VerahLogo variant="light" size="sm" priority />
+            <VerahLogo kind="symbol" tone="light" size="sm" priority alt="" className="sm:hidden" />
+            <VerahLogo kind="wordmark" tone="light" size="sm" priority alt="" className="hidden sm:block" />
             <span>
               <span className="block text-sm font-semibold text-foreground sm:text-base">Portal do prestador</span>
             </span>
           </Link>
           <nav aria-label="Navegação do prestador" className="flex items-center gap-1 sm:gap-3">
-            <Link
+            <PortalNavLink
               href="/demo/prestador"
+              exact
+              icon={<BriefcaseBusiness className="h-4 w-4" aria-hidden="true" />}
               className="hidden min-h-11 items-center gap-2 rounded-md px-3 text-sm font-semibold text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-4 focus-visible:ring-[var(--focus)] sm:flex"
+              activeClassName="bg-primary/10 text-primary"
             >
-              <BriefcaseBusiness className="h-4 w-4" aria-hidden="true" /> Atendimentos
-            </Link>
+              Atendimentos
+            </PortalNavLink>
             <span className="hidden max-w-48 truncate text-sm text-muted-foreground lg:block">{displayName}</span>
             <form action={signOut}>
               <button

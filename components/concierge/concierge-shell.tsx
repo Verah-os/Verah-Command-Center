@@ -1,8 +1,8 @@
 import Link from "next/link";
-import type { Route } from "next";
 import { ClipboardList, LogOut, Menu, Plus } from "lucide-react";
 import { signOut } from "@/services/auth/actions";
 import { VerahLogo } from "@/components/brand/verah-logo";
+import { PortalNavLink } from "@/components/brand/portal-nav-link";
 
 export function ConciergeShell({
   children,
@@ -77,12 +77,16 @@ export function ConciergeShell({
 
 function Brand({ compact = false }: { compact?: boolean }) {
   return (
-    <div className="flex items-center gap-3">
-      <VerahLogo variant={compact ? "icon" : "light"} size="sm" priority />
+    <Link
+      href="/concierge"
+      aria-label="VERAH — início da Central Concierge"
+      className="flex items-center gap-3 rounded-md outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus)]"
+    >
+      <VerahLogo kind={compact ? "symbol" : "wordmark"} tone="light" size="sm" priority alt="" />
       <div>
         <p className={`${compact ? "text-sm" : "text-lg"} font-semibold text-slate-800`}>Central Concierge</p>
       </div>
-    </div>
+    </Link>
   );
 }
 
@@ -96,12 +100,14 @@ function NavLink({
   children: React.ReactNode;
 }) {
   return (
-    <Link
-      href={href as Route}
+    <PortalNavLink
+      href={href}
+      exact={href === "/concierge"}
+      icon={icon}
       className="flex min-h-11 items-center gap-3 rounded-md px-3 text-sm font-semibold text-muted-foreground outline-none transition hover:bg-muted hover:text-foreground focus-visible:ring-4 focus-visible:ring-[var(--focus)]"
+      activeClassName="bg-primary/10 text-primary shadow-[inset_3px_0_0_var(--verah-pink)]"
     >
-      {icon}
       {children}
-    </Link>
+    </PortalNavLink>
   );
 }
