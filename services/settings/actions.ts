@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { env } from "@/lib/env";
+import { requireRole } from "@/services/auth/profile";
 import { createSupabaseServerClient } from "@/services/supabase/server";
 
 function getRequiredValue(formData: FormData, key: string) {
@@ -16,6 +17,8 @@ function redirectWithFeedback(status: "success" | "error", message: string): nev
 }
 
 export async function updateSystemSetting(formData: FormData) {
+  await requireRole(["admin"]);
+
   if (!env.supabaseUrl || !env.supabaseAnonKey) {
     redirectWithFeedback("error", "Supabase nao configurado.");
   }

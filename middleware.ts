@@ -1,14 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { env } from "@/lib/env";
+import { isUserRole, roleHome as homes } from "@/services/auth/access";
 import type { UserRole } from "@/types/user-profile";
-
-const homes: Record<UserRole, string> = {
-  customer: "/demo/cliente",
-  concierge: "/concierge",
-  provider: "/demo/prestador",
-  admin: "/dashboard",
-};
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -55,19 +49,26 @@ export async function middleware(request: NextRequest) {
   }
 
   if (!user) return response;
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from("user_profiles")
     .select("role")
     .eq("user_id", user.id)
     .maybeSingle();
-  if (!profile) {
+  if (profileError) {
     if (isLogin) return response;
     const url = request.nextUrl.clone();
     url.pathname = "/login";
-    url.search = "?error=profile_missing";
+    url.search = "?error=profile_error";
     return NextResponse.redirect(url);
   }
-  const role = profile.role as UserRole;
+  if (!profile || !isUserRole(profile.role)) {
+    if (isLogin) return response;
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    url.search = `?error=${profile ? "profile_invalid" : "profile_missing"}`;
+    return NextResponse.redirect(url);
+  }
+  const role = profile.role;
   if (isLogin) return NextResponse.redirect(new URL(homes[role], request.url));
 
   const routeRole: UserRole | null = path.startsWith("/demo/cliente")
@@ -79,14 +80,20 @@ export async function middleware(request: NextRequest) {
         : null;
 
   if (routeRole && role !== routeRole) {
-    return NextResponse.redirect(new URL(homes[role], request.url));
+    const url = new URL(homes[role], request.url);
+    url.searchParams.set("error", "access_denied");
+    return NextResponse.redirect(url);
   }
 
   const allowed =
     path === "/demo" ||
     routeRole === role ||
     role === "admin";
-  if (!allowed) return NextResponse.redirect(new URL(homes[role], request.url));
+  if (!allowed) {
+    const url = new URL(homes[role], request.url);
+    url.searchParams.set("error", "access_denied");
+    return NextResponse.redirect(url);
+  }
 
   return response;
 }
