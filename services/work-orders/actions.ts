@@ -4,6 +4,7 @@ import { randomUUID } from "crypto";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { env } from "@/lib/env";
+import { requireRole } from "@/services/auth/profile";
 import { createSupabaseServerClient } from "@/services/supabase/server";
 import type { WorkOrderOrigin, WorkOrderPriority } from "@/types/work-order";
 
@@ -28,6 +29,8 @@ function redirectWithError(message: string): never {
 }
 
 export async function createWorkOrder(formData: FormData) {
+  await requireRole(["admin"]);
+
   if (!env.supabaseUrl || !env.supabaseAnonKey) {
     redirectWithError("Supabase nao configurado.");
   }

@@ -9,6 +9,7 @@ import {
   runDispatcherJobWithAiRuntime,
   runNextDispatcherJob
 } from "@/services/dispatcher/engine";
+import { requireRole } from "@/services/auth/profile";
 
 function revalidateDispatcher(jobId?: string) {
   revalidatePath("/dashboard");
@@ -24,6 +25,7 @@ function redirectWithFeedback(status: "success" | "error", message: string): nev
 }
 
 export async function runDispatcherEngineAction() {
+  await requireRole(["admin"]);
   const result = await runNextDispatcherJob();
 
   revalidateDispatcher(result.status === "completed" ? result.jobId : undefined);
@@ -36,6 +38,7 @@ export async function runDispatcherEngineAction() {
 }
 
 export async function retryFailedDispatcherJobAction(formData: FormData) {
+  await requireRole(["admin"]);
   const jobId = String(formData.get("jobId") ?? "");
   const result = await retryFailedDispatcherJob(jobId);
 
@@ -49,6 +52,7 @@ export async function retryFailedDispatcherJobAction(formData: FormData) {
 }
 
 export async function markDispatcherJobCompletedAction(formData: FormData) {
+  await requireRole(["admin"]);
   const jobId = String(formData.get("jobId") ?? "");
   const result = await markDispatcherJobCompleted(jobId);
 
@@ -62,6 +66,7 @@ export async function markDispatcherJobCompletedAction(formData: FormData) {
 }
 
 export async function markDispatcherJobFailedAction(formData: FormData) {
+  await requireRole(["admin"]);
   const jobId = String(formData.get("jobId") ?? "");
   const result = await markDispatcherJobFailed(jobId);
 
@@ -75,6 +80,7 @@ export async function markDispatcherJobFailedAction(formData: FormData) {
 }
 
 export async function runDispatcherJobWithAiRuntimeAction(formData: FormData) {
+  await requireRole(["admin"]);
   const jobId = String(formData.get("jobId") ?? "");
   const result = await runDispatcherJobWithAiRuntime(jobId);
 

@@ -1,9 +1,19 @@
 import { signInWithEmail } from "@/services/auth/actions";
+import { LoginSubmitButton } from "@/components/auth/login-submit-button";
 import { VerahLogo } from "@/components/brand/verah-logo";
 import { VerahNetworkMotif } from "@/components/brand/verah-network-motif";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/primitives";
+
+const errorMessages: Record<string, string> = {
+  invalid_credentials: "E-mail ou senha inválidos.",
+  profile_missing:
+    "Esta conta ainda não possui um perfil de acesso. Fale com o administrador.",
+  profile_invalid:
+    "O perfil desta conta está inconsistente. Fale com o administrador.",
+  profile_error: "Não foi possível validar seu acesso. Tente novamente.",
+  session_required: "Sua sessão expirou. Entre novamente.",
+};
 
 export function LoginForm({
   error,
@@ -14,11 +24,21 @@ export function LoginForm({
   title?: string;
   description?: string;
 }) {
+  const errorMessage = error
+    ? (errorMessages[error] ?? "Não foi possível concluir o acesso.")
+    : null;
+
   return (
     <Card className="w-full max-w-sm overflow-hidden">
       <CardHeader className="relative p-6">
         <VerahNetworkMotif className="absolute -right-16 -top-3 w-64 opacity-20" />
-        <VerahLogo kind="wordmark" tone="light" size="md" priority className="relative mb-5" />
+        <VerahLogo
+          kind="wordmark"
+          tone="light"
+          size="md"
+          priority
+          className="relative mb-5"
+        />
         <h1 className="relative text-xl font-semibold">{title}</h1>
         <p className="relative text-sm text-muted-foreground">{description}</p>
       </CardHeader>
@@ -26,21 +46,30 @@ export function LoginForm({
         <form action={signInWithEmail} className="space-y-3">
           <label className="block text-sm font-medium">
             E-mail
-            <Input className="mt-1" name="email" type="email" autoComplete="email" required />
+            <Input
+              className="mt-1"
+              name="email"
+              type="email"
+              autoComplete="email"
+              required
+            />
           </label>
           <label className="block text-sm font-medium">
             Senha
-            <Input className="mt-1" name="password" type="password" autoComplete="current-password" required />
+            <Input
+              className="mt-1"
+              name="password"
+              type="password"
+              autoComplete="current-password"
+              required
+            />
           </label>
-          {error === "profile_missing" ? (
+          {errorMessage ? (
             <p role="alert" className="text-sm text-accent">
-              Esta conta ainda não possui um perfil de acesso. Fale com o administrador.
+              {errorMessage}
             </p>
           ) : null}
-          {error && error !== "profile_missing" ? (
-            <p role="alert" className="text-sm text-accent">E-mail ou senha inválidos.</p>
-          ) : null}
-          <Button className="w-full" type="submit">Entrar</Button>
+          <LoginSubmitButton />
         </form>
       </CardContent>
     </Card>
