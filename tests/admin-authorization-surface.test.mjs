@@ -110,9 +110,12 @@ test("hardening migration scopes tables and privileged functions to admin", () =
     privilegedFunctions.length,
   );
   assert.equal(
-    migration.match(/auth\.jwt\(\) ->> 'role'/g)?.length ?? 0,
+    migration.match(
+      /current_setting\('request\.jwt\.claim\.role', true\)/g,
+    )?.length ?? 0,
     privilegedFunctions.length,
   );
+  assert.doesNotMatch(migration, /auth\.jwt\(\)/);
   assert.equal(
     migration.match(
       /revoke all on function public\.dispatcher_[\s\S]*?from public, anon, authenticated;/g,

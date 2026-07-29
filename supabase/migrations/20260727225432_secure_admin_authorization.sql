@@ -99,7 +99,11 @@ declare
   work_order_text text := '';
   selected_load integer := 0;
 begin
-  if coalesce(auth.jwt() ->> 'role', '') <> 'service_role'
+  if coalesce(
+    nullif(current_setting('request.jwt.claim.role', true), ''),
+    nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'role',
+    ''
+  ) <> 'service_role'
     and (select public.current_verah_role()) is distinct from 'admin' then
     raise exception using
       errcode = '42501',
@@ -266,7 +270,11 @@ declare
   next_status text;
   log_message text;
 begin
-  if coalesce(auth.jwt() ->> 'role', '') <> 'service_role'
+  if coalesce(
+    nullif(current_setting('request.jwt.claim.role', true), ''),
+    nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'role',
+    ''
+  ) <> 'service_role'
     and (select public.current_verah_role()) is distinct from 'admin' then
     raise exception using
       errcode = '42501',
@@ -317,7 +325,11 @@ security definer
 set search_path = ''
 as $$
 begin
-  if coalesce(auth.jwt() ->> 'role', '') <> 'service_role'
+  if coalesce(
+    nullif(current_setting('request.jwt.claim.role', true), ''),
+    nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'role',
+    ''
+  ) <> 'service_role'
     and (select public.current_verah_role()) is distinct from 'admin' then
     raise exception using
       errcode = '42501',
@@ -356,7 +368,11 @@ as $$
 declare
   selected_job public.dispatcher_jobs%rowtype;
 begin
-  if coalesce(auth.jwt() ->> 'role', '') <> 'service_role'
+  if coalesce(
+    nullif(current_setting('request.jwt.claim.role', true), ''),
+    nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'role',
+    ''
+  ) <> 'service_role'
     and (select public.current_verah_role()) is distinct from 'admin' then
     raise exception using
       errcode = '42501',
@@ -411,7 +427,11 @@ as $$
 declare
   selected_job public.dispatcher_jobs%rowtype;
 begin
-  if coalesce(auth.jwt() ->> 'role', '') <> 'service_role'
+  if coalesce(
+    nullif(current_setting('request.jwt.claim.role', true), ''),
+    nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'role',
+    ''
+  ) <> 'service_role'
     and (select public.current_verah_role()) is distinct from 'admin' then
     raise exception using
       errcode = '42501',
@@ -475,7 +495,11 @@ declare
   next_status text := case when succeeded then 'completed' else 'failed' end;
   log_message text;
 begin
-  if coalesce(auth.jwt() ->> 'role', '') <> 'service_role'
+  if coalesce(
+    nullif(current_setting('request.jwt.claim.role', true), ''),
+    nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'role',
+    ''
+  ) <> 'service_role'
     and (select public.current_verah_role()) is distinct from 'admin' then
     raise exception using
       errcode = '42501',
