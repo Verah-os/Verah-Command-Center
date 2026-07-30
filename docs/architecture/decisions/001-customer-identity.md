@@ -17,7 +17,7 @@ Plataforma VERAH.
 
 ## Decisão
 
-Esta primeira etapa cria somente a fundação estrutural:
+A primeira etapa cria somente a fundação estrutural:
 
 - `public.customers` representa a identidade canônica da cliente;
 - `customers.auth_user_id` permite um vínculo opcional com `auth.users`;
@@ -64,30 +64,52 @@ consultas e exclusões por cliente.
 Para WhatsApp, `channel_address` deve estar previamente normalizado e obedecer
 ao formato E.164. A normalização em si não pertence a esta etapa.
 
-## Fora desta etapa
+## Segurança e comandos da segunda etapa
+
+RLS permanece habilitada nas duas tabelas. Cliente autenticada lê apenas sua
+identidade e seus canais; Concierge e Admin possuem leitura operacional;
+Provider e `anon` não recebem acesso. Nenhum papel autenticado recebe escrita
+direta nas tabelas.
+
+As escritas são concentradas nos seguintes comandos:
+
+- `private.current_customer_id()` resolve somente a identidade da cliente
+  autenticada;
+- `public.ensure_current_customer(display_name text)` cria ou retorna de forma
+  idempotente a identidade da cliente autenticada;
+- `public.resolve_or_create_whatsapp_customer(text, text)` normaliza o telefone,
+  valida E.164 e cria ou retorna a identidade pelo canal WhatsApp;
+- `public.set_whatsapp_consent(uuid, text)` registra consentimento ou opt-out no
+  canal WhatsApp primário.
+
+O resolvedor de WhatsApp é restrito a `service_role`. O consentimento pode ser
+registrado pela própria cliente em sua identidade ou por `service_role`.
+Funções com `security definer` validam o ator dentro do banco, usam
+`search_path` vazio e não retornam o telefone.
+
+Locks transacionais por identidade, combinados com índices únicos, impedem
+duplicidade em chamadas concorrentes. As funções têm execução revogada de
+`PUBLIC`, `anon` e papéis não necessários, com grants explícitos.
+
+## Fora destas etapas
 
 Esta decisão não adiciona `customer_id` a `service_requests` ou
 `customer_vehicles`, não altera `owner_id` e não implementa:
 
-- RLS, grants ou políticas de autorização;
-- funções ou RPCs;
 - backfill;
 - serviços, backend, frontend ou DTOs;
-- testes de aplicação ou de autorização;
 - webhook ou integração com WhatsApp;
-- resolução, criação ou mesclagem automática de clientes.
+- mesclagem automática de identidades conflitantes.
 
-As tabelas não devem ser usadas pela aplicação nem aplicadas remotamente antes
-da etapa de autorização com RLS e grants mínimos. A migration administrativa
-da Issue #43 continua sendo um gate separado para produção.
+A resolução e criação idempotente pelos comandos acima não representa merge
+automático de identidades conflitantes. A migration administrativa da
+Issue #43 continua sendo um gate separado para produção.
 
 ## Consequências
 
-O domínio passa a ter uma base estável para desvincular identidade e canal sem
-alterar os fluxos existentes. Em contrapartida, esta etapa isolada ainda não
-oferece uma API segura de acesso às novas tabelas e não migra registros
-anteriores.
+O domínio passa a ter uma base estável e uma API de banco estreita para
+desvincular identidade e canal sem alterar os fluxos existentes. Nenhum
+registro anterior é migrado.
 
-As próximas etapas devem adicionar autorização, comandos idempotentes, testes
-de concorrência e vínculos graduais com veículos e atendimentos em migrations
-separadas.
+As próximas etapas devem adicionar os vínculos graduais com veículos e
+atendimentos em migrations separadas.
