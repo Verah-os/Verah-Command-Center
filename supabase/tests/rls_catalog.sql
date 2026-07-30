@@ -6,7 +6,9 @@ do $$
 declare
   expected_tables constant text[] := array[
     'ai_agents',
+    'customer_channels',
     'customer_vehicles',
+    'customers',
     'dispatcher_jobs',
     'service_providers',
     'service_quote_items',
