@@ -12,7 +12,6 @@ export function sanitizeText(value: string, maxLength = 4_000) {
     .trim()
     .slice(0, maxLength);
 }
-
 export function sanitizePayload(
   value: unknown,
   depth = 0,
@@ -37,4 +36,3 @@ export function sanitizePayload(
   }
   return "[unsupported]";
 }
-

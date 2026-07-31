@@ -42,4 +42,3 @@ Executor, credenciais, custos externos, migration remota, deploy, merge, exclus�
 ## Risco residual
 
 O webhook sintético confia que o emissor autorizado representa corretamente a aprovação do mantenedor. Não há consulta read-only ao GitHub nesta versão. O sistema também não mede custo real de modelos ou infraestrutura; trabalha apenas com unidades sintéticas limitadas.
-

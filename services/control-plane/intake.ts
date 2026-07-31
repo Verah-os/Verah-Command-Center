@@ -17,7 +17,6 @@ const eventPattern = /^[A-Za-z0-9_.:-]{1,200}$/;
 function sha256(value: string) {
   return createHash("sha256").update(value).digest("hex");
 }
-
 function isIsoDate(value: unknown): value is string {
   return typeof value === "string" && Number.isFinite(Date.parse(value));
 }
@@ -96,4 +95,3 @@ export async function processSyntheticIssue(
 
   return persistence.process(command);
 }
-

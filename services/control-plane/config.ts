@@ -21,7 +21,6 @@ function boundedInteger(
     ? parsed
     : fallback;
 }
-
 export function readControlPlaneConfig(
   source: Record<string, string | undefined>,
 ): ControlPlaneConfig {
@@ -54,4 +53,3 @@ export function readControlPlaneConfig(
     },
   };
 }
-

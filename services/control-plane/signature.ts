@@ -3,7 +3,6 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 export function createControlPlaneSignature(body: Uint8Array, secret: string) {
   return `sha256=${createHmac("sha256", secret).update(body).digest("hex")}`;
 }
-
 export function verifyControlPlaneSignature(
   body: Uint8Array,
   signature: string | null,
@@ -18,4 +17,3 @@ export function verifyControlPlaneSignature(
     timingSafeEqual(actualBytes, expectedBytes)
   );
 }
-

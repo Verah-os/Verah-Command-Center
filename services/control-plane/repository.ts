@@ -29,4 +29,3 @@ export const controlPlanePersistence: DryRunPersistence = {
     return data as unknown as DryRunReport;
   },
 };
-

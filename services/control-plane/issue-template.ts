@@ -19,7 +19,6 @@ function normalizedHeading(value: string) {
     .trim()
     .toLowerCase();
 }
-
 function listFromSection(value: string) {
   return value
     .split(/\r?\n/)
@@ -84,4 +83,3 @@ export function buildDryRunPlan(issue: ParsedIssue): DryRunPlan {
     ],
   };
 }
-

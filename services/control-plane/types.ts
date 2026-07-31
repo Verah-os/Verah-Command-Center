@@ -24,7 +24,6 @@ export type ParsedIssue = {
   acceptanceCriteria: string[];
   constraints: string[];
 };
-
 export type SyntheticIssueEvent = {
   eventId: string;
   action: "opened" | "edited" | "labeled";
@@ -98,4 +97,3 @@ export type DryRunReport = {
 export type DryRunPersistence = {
   process(command: DryRunCommand): Promise<DryRunReport>;
 };
-

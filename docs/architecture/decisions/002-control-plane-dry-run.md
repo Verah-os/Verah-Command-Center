@@ -56,4 +56,3 @@ Estados futuros (`implementing`, `testing`, `fixing` e `pr_open`) pertencem ao c
 ## Consequências
 
 O protótipo consegue demonstrar controle e persistência, mas não verifica aprovação consultando o GitHub em tempo real. A assinatura e a allowlist protegem o payload sintético; uma integração real deverá usar uma GitHub App read-only e comprovar a origem da aprovação antes de habilitar qualquer executor.
-

@@ -20,7 +20,6 @@ export function canTransition(
 ) {
   return transitions[from].includes(to);
 }
-
 export function assertTransition(
   from: ControlPlaneState,
   to: ControlPlaneState,
@@ -39,4 +38,3 @@ export function isDryRunTransition(
     !["implementing", "testing", "fixing", "pr_open"].includes(to)
   );
 }
-
