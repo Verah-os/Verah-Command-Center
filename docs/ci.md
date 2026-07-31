@@ -71,13 +71,14 @@ O script:
 9. executa `admin_authorization_matrix.sql`;
 10. executa `customer_identity_security.sql`;
 11. executa `communication_intake_security.sql`;
-12. executa duas resoluções concorrentes e valida o resultado com
+12. executa `control_plane_dry_run.sql`;
+13. executa duas resoluções concorrentes e valida o resultado com
     `customer_identity_concurrency.sql`;
-13. executa o schema lint;
-14. faz um segundo replay completo de todas as migrations desde zero;
-15. repete catálogo, RLS, identidade de cliente, comunicação, concorrência e
+14. executa o schema lint;
+15. faz um segundo replay completo de todas as migrations desde zero;
+16. repete catálogo, RLS, identidade de cliente, comunicação, Control Plane, concorrência e
     schema lint;
-16. remove containers e volumes locais mesmo quando algum passo falha.
+17. remove containers e volumes locais mesmo quando algum passo falha.
 
 O arquivo `supabase/seed.sql` nunca é aplicado na CI. Todos os resets usam
 obrigatoriamente `--no-seed`.
@@ -104,6 +105,7 @@ A matriz atual verifica:
 - mensagens inbound e outbound são idempotentes e exigem os papéis previstos;
 - conversas, mensagens, eventos e anexos respeitam a audiência de cada papel;
 - eventos são imutáveis e o bucket de anexos permanece privado;
+- o Control Plane aceita somente `service_role`, deduplica deliveries, respeita lock e budget e não declara efeitos externos;
 - contagens das fixtures não mudam durante a migration.
 
 `rls_catalog.sql` mantém a lista explícita de todas as tabelas públicas da
@@ -122,7 +124,7 @@ contagem real do catálogo PostgreSQL e exige RLS nas 17 tabelas existentes.
 O comando usa:
 
 ```bash
-supabase db lint --local --schema public --level warning --fail-on error
+supabase db lint --local --schema public,private --level warning --fail-on error
 ```
 
 Erros bloqueiam a CI. Warnings são registrados no log, mas ainda não bloqueiam.
