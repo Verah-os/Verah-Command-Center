@@ -69,10 +69,13 @@ O script:
 7. executa `admin_authorization_catalog.sql`;
 8. executa `rls_catalog.sql`;
 9. executa `admin_authorization_matrix.sql`;
-10. executa o schema lint;
-11. faz um segundo replay completo de todas as migrations desde zero;
-12. repete catálogo, RLS e schema lint;
-13. remove containers e volumes locais mesmo quando algum passo falha.
+10. executa `customer_identity_security.sql`;
+11. executa duas resoluções concorrentes e valida o resultado com
+    `customer_identity_concurrency.sql`;
+12. executa o schema lint;
+13. faz um segundo replay completo de todas as migrations desde zero;
+14. repete catálogo, RLS, identidade de cliente, concorrência e schema lint;
+15. remove containers e volumes locais mesmo quando algum passo falha.
 
 O arquivo `supabase/seed.sql` nunca é aplicado na CI. Todos os resets usam
 obrigatoriamente `--no-seed`.
@@ -91,17 +94,23 @@ A matriz atual verifica:
 - as seis funções recusam atores autenticados que não sejam Admin;
 - grants administrativos continuam mínimos;
 - as políticas essenciais de atendimento e veículos permanecem presentes;
+- Customer lê somente sua identidade e seus canais;
+- Concierge e Admin leem identidades e canais para operação;
+- Provider e `anon` não acessam identidades ou canais de clientes;
+- RPCs de identidade mantêm grants mínimos, validação E.164 e idempotência;
+- duas sessões concorrentes resolvem o mesmo telefone para uma única cliente;
 - contagens das fixtures não mudam durante a migration.
 
 `rls_catalog.sql` mantém a lista explícita de todas as tabelas públicas da
 aplicação. Uma nova tabela pública faz o teste falhar até que sua presença e
 RLS sejam revisadas.
 
-O catálogo atual contém 10 tabelas públicas distintas. A auditoria das
+O catálogo atual contém 12 tabelas públicas distintas, incluindo `customers` e
+`customer_channels`. A auditoria das
 migrations mostrou que `dispatcher_jobs` é criada de forma defensiva em dois
 arquivos, o que explica a contagem anterior de 11 ocorrências sem representar
 uma décima primeira tabela. O teste compara tanto a lista nominal quanto a
-contagem real do catálogo PostgreSQL e exige RLS nas 10 tabelas existentes.
+contagem real do catálogo PostgreSQL e exige RLS nas 12 tabelas existentes.
 
 ## Schema lint
 
