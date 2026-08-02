@@ -258,7 +258,7 @@ create policy "Operations read intake events"
   using ((select public.current_verah_role()) in ('concierge', 'admin'));
 
 drop policy "Customers and admins read customer vehicles" on public.customer_vehicles;
-create policy "Customers and operations read customer vehicles"
+create policy "Customers and admins read customer vehicles"
   on public.customer_vehicles for select to authenticated
   using (
     (
