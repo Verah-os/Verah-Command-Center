@@ -1,14 +1,15 @@
 # Handoff — Control Plane e Sprint Alpha
 
-Data de referência: 2026-07-31
+Data de referência: 2026-08-02
 
 ## Estado seguro
 
-- `main`: `4652c9fbde7767e2e7e77180318eeb4cab88d126`.
+- `main`: `7643a095afb33a543464171513c50c3e4b02a219`.
 - PR #66 (`feat(alpha): add communication intake foundation`): mesclado.
-- PR #68 (`feat(control-plane): add supervised dry-run intake`): aberto em draft; não mesclado.
+- PR #69 (`feat(alpha): add intelligent intake foundation`): mesclado na `main`.
+- PR #68 (`feat(control-plane): add supervised dry-run intake`): reconciliado com a `main`, aberto e não mesclado.
 - Branch: `feat/control-plane-001-dry-run`.
-- A branch estava 0 commits atrás da `main` antes deste handoff.
+- A branch está 0 commits atrás da `main`; o merge de reconciliação preservou os testes de Control Plane e de intake inteligente no mesmo pipeline.
 - GitHub Integration → Deploy to production do Supabase permanece desabilitado.
 - Nenhuma migration foi aplicada remotamente e produção não foi acessada ou alterada.
 
@@ -18,6 +19,8 @@ Data de referência: 2026-07-31
 - `02cbdd9` — `feat(db): persist control plane dry-run state`
 - `3b0898f` — `feat(control-plane): add synthetic dry-run intake`
 - `e5dc2bf` — `style(control-plane): normalize file endings`
+- `1d4e6ac` — `docs(handoff): record control plane and alpha status`
+- `f3b6484` — `merge: reconcile control plane with intelligent intake`
 
 O commit exclusivamente documental que adiciona este handoff deve ser consultado no histórico do PR, pois um arquivo não pode registrar antecipadamente o SHA do próprio commit.
 
@@ -42,15 +45,16 @@ Arquivos centrais:
 
 ## Validações
 
-- 25 testes Node aprovados.
+- 33 testes Node aprovados após a reconciliação.
 - Typecheck aprovado.
 - Lint aprovado, com um warning preexistente e fora do escopo.
 - Next.js build aprovado.
-- Replay integral de 30 migrations em Supabase local oficial com `--no-seed`.
+- Replay integral de 31 migrations em Supabase local oficial com `--no-seed`.
 - Replay incremental com fixture sintética aprovado.
-- Matrizes SQL de Control Plane, autorização e comunicação aprovadas.
+- Matrizes SQL de autorização administrativa, RLS, identidade, comunicação, Control Plane e intake inteligente aprovadas.
+- Teste concorrente de identidade aprovado para duas chamadas simultâneas.
 - Schema lint dos schemas `public` e `private` sem erros ou warnings.
-- No último estado verificado do PR: CI / Application, CI / Database authorization, CI / Required e Vercel em sucesso; Supabase Preview ignorado.
+- Os checks remotos devem ser reexecutados após o push da reconciliação antes do merge.
 
 ## Decisões e limitações atuais
 
@@ -72,9 +76,9 @@ Arquivos centrais:
 
 ## Próximo passo recomendado
 
-Realizar a revisão final do PR #68 antes de qualquer autorização de merge. Manter o PR em draft até essa revisão e não executar migrations remotas.
+Concluir os checks remotos do PR #68 e fazer o merge somente se a branch permanecer atualizada, mergeável e integralmente verde. Não executar migrations remotas.
 
 Sequência futura, somente após autorização específica:
 
-1. Control Plane 002 read-only.
-2. Intake Inteligente da Sprint Alpha.
+1. VERAH OS Core da Issue #71, usando o Control Plane existente sem ampliar acesso a produção.
+2. Control Plane 002 read-only.
