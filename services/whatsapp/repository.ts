@@ -3,10 +3,11 @@ import "server-only";
 import type { ParsedInboundMessage } from "./payload";
 import { createSupabaseAdminClient } from "@/services/supabase/admin";
 import { createSupabaseServerClient } from "@/services/supabase/server";
+import { processIntelligentIntakeMessage } from "@/services/intelligent-intake";
 
 export async function persistInboundMessage(message: ParsedInboundMessage) {
   const supabase = createSupabaseAdminClient();
-  const { error } = await supabase.rpc("persist_whatsapp_inbound_message", {
+  const { data, error } = await supabase.rpc("persist_whatsapp_inbound_message", {
     p_phone: message.phone,
     p_external_message_id: message.externalMessageId,
     p_message_type: message.messageType,
@@ -15,6 +16,10 @@ export async function persistInboundMessage(message: ParsedInboundMessage) {
     p_sanitized_metadata: message.sanitizedMetadata,
   });
   if (error) throw new Error(`Inbound persistence failed: ${error.code}`);
+  const row = Array.isArray(data) ? data[0] : data;
+  const messageId = row?.message_id as string | undefined;
+  if (!messageId) throw new Error("Inbound persistence returned no message id");
+  await processIntelligentIntakeMessage(messageId);
 }
 
 export async function queueOutboundMessage(input: {
