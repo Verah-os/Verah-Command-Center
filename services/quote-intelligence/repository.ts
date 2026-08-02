@@ -74,4 +74,3 @@ export async function classifyQuoteIntelligence(input: {
     engineVersion: row.engine_version,
   };
 }
-

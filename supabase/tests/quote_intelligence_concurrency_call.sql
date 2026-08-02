@@ -22,4 +22,3 @@ from public.classify_quote_intelligence(
 );
 
 commit;
-

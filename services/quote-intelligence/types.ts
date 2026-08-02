@@ -79,4 +79,3 @@ export type QuoteIntelligenceAssessment = {
   ruleVersion: "quoteability-alpha-1";
   engineVersion: "quote-intelligence-1.0.0";
 };
-

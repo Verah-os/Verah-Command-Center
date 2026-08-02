@@ -106,4 +106,3 @@ reproducible and would introduce credentials, cost and availability risks.
 Rejected because quote finance and technical guidance have different
 lifecycles and audiences. Financial calculations remain the responsibility of
 the existing quote tables and RPCs.
-

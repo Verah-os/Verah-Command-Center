@@ -24,4 +24,3 @@ export function createQuoteIntelligenceLog(input: QuoteIntelligenceLogInput) {
     ...(input.errorCode ? { errorCode: input.errorCode } : {}),
   } as const;
 }
-

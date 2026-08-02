@@ -106,4 +106,3 @@ This Alpha Core does not:
 - publish data to the customer;
 - provide investor-demo screens;
 - call external AI, n8n or production services.
-

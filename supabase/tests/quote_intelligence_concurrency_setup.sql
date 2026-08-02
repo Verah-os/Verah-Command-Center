@@ -27,4 +27,3 @@ values (
   'concierge'
 )
 on conflict (id) do nothing;
-
