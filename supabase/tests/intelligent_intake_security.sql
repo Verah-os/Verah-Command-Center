@@ -219,11 +219,6 @@ begin
     );
     raise exception 'Expected invalid assessment failure';
   exception when invalid_parameter_value then null; end;
-
-  if (select status from public.intake_sessions where id = '89999999-9999-4999-8999-999999999991') <> 'waiting_customer'
-    or (select intake_processed_at from public.service_messages where id = '89999999-9999-4999-8999-999999999992') is not null
-    or (select count(*) from public.service_requests where origin = 'whatsapp') <> 1
-  then raise exception 'Failed completion was not rolled back atomically'; end if;
 end;
 $$;
 reset role;
@@ -231,6 +226,11 @@ reset role;
 do $$
 declare session_id uuid; event_id uuid;
 begin
+  if (select status from public.intake_sessions where id = '89999999-9999-4999-8999-999999999991') <> 'waiting_customer'
+    or (select intake_processed_at from public.service_messages where id = '89999999-9999-4999-8999-999999999992') is not null
+    or (select count(*) from public.service_requests where origin = 'whatsapp') <> 1
+  then raise exception 'Failed completion was not rolled back atomically'; end if;
+
   if (select count(*) from public.service_requests where origin = 'whatsapp') <> 1 then
     raise exception 'Expected exactly one WhatsApp service request';
   end if;
