@@ -132,10 +132,11 @@ run_sql supabase/tests/rls_catalog.sql
 run_sql supabase/tests/admin_authorization_matrix.sql
 run_sql supabase/tests/customer_identity_security.sql
 run_sql supabase/tests/communication_intake_security.sql
+run_sql supabase/tests/control_plane_dry_run.sql
 run_sql supabase/tests/intelligent_intake_security.sql
 run_customer_identity_concurrency
 
-printf 'Linting the public schema; warnings are reported and errors block CI\n'
+printf 'Linting public and private schemas; warnings are reported and errors block CI\n'
 supabase db lint --local --schema public,private --level warning --fail-on error
 
 printf 'Replaying every migration again from a clean database\n'
@@ -146,6 +147,7 @@ run_sql supabase/tests/admin_authorization_catalog.sql
 run_sql supabase/tests/rls_catalog.sql
 run_sql supabase/tests/customer_identity_security.sql
 run_sql supabase/tests/communication_intake_security.sql
+run_sql supabase/tests/control_plane_dry_run.sql
 run_sql supabase/tests/intelligent_intake_security.sql
 run_customer_identity_concurrency
 supabase db lint --local --schema public,private --level warning --fail-on error
