@@ -72,13 +72,14 @@ O script:
 10. executa `customer_identity_security.sql`;
 11. executa `communication_intake_security.sql`;
 12. executa `control_plane_dry_run.sql`;
-13. executa duas resoluções concorrentes e valida o resultado com
+13. executa `intelligent_intake_security.sql`;
+14. executa duas resoluções concorrentes e valida o resultado com
     `customer_identity_concurrency.sql`;
-14. executa o schema lint;
-15. faz um segundo replay completo de todas as migrations desde zero;
-16. repete catálogo, RLS, identidade de cliente, comunicação, Control Plane, concorrência e
-    schema lint;
-17. remove containers e volumes locais mesmo quando algum passo falha.
+15. executa o schema lint;
+16. faz um segundo replay completo de todas as migrations desde zero;
+17. repete catálogo, RLS, identidade de cliente, comunicação, Control Plane,
+    intake inteligente, concorrência e schema lint;
+18. remove containers e volumes locais mesmo quando algum passo falha.
 
 O arquivo `supabase/seed.sql` nunca é aplicado na CI. Todos os resets usam
 obrigatoriamente `--no-seed`.
@@ -112,12 +113,12 @@ A matriz atual verifica:
 aplicação. Uma nova tabela pública faz o teste falhar até que sua presença e
 RLS sejam revisadas.
 
-O catálogo atual contém 17 tabelas públicas distintas, incluindo as fundações
-de identidade e comunicação. A auditoria das
+O catálogo atual contém 20 tabelas públicas distintas, incluindo as fundações
+de identidade, comunicação e intake inteligente. A auditoria das
 migrations mostrou que `dispatcher_jobs` é criada de forma defensiva em dois
 arquivos, o que explica a contagem anterior de 11 ocorrências sem representar
 uma décima primeira tabela. O teste compara tanto a lista nominal quanto a
-contagem real do catálogo PostgreSQL e exige RLS nas 17 tabelas existentes.
+contagem real do catálogo PostgreSQL e exige RLS nas 20 tabelas existentes.
 
 ## Schema lint
 

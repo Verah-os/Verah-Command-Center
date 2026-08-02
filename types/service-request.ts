@@ -26,7 +26,11 @@ export type ServiceRequest = {
   vehicleId: string | null;
   state: string | null;
   city: string;
-  origin: "customer" | "concierge";
+  origin: "customer" | "concierge" | "whatsapp";
+  customerId: string | null;
+  conversationId: string | null;
+  intakeSessionId: string | null;
+  mileageSnapshot: number | null;
   hasInsurance: InsuranceAnswer;
   insurerName: string | null;
   hasRoadsideAssistance: InsuranceAnswer;
