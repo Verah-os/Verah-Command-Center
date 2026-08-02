@@ -18,6 +18,10 @@ import {
 } from "@/services/service-providers";
 import { getQuoteForRequest } from "@/services/service-quotes";
 import { conciergeConfirm } from "@/services/service-completion";
+import {
+  getConciergeIntakeDetails,
+  type ConciergeIntakeDetails,
+} from "@/services/intelligent-intake";
 import type { ServiceProvider } from "@/types/service-provider";
 import type { ServiceRequest } from "@/types/service-request";
 import { ProviderAssignmentForm } from "@/components/concierge/provider-assignment-form";
@@ -56,6 +60,9 @@ export default async function ConciergeDetailPage({
   const feedback = await searchParams;
   const request = await getConciergeServiceRequest(id);
   if (!request) notFound();
+  const intake = request.intakeSessionId
+    ? await getConciergeIntakeDetails(id)
+    : null;
   const providers = (await listActiveProvidersWithPortal()).sort(
     (a, b) =>
       Number(Boolean(b.portalActive)) - Number(Boolean(a.portalActive)) ||
@@ -115,6 +122,11 @@ export default async function ConciergeDetailPage({
           <p className="mt-3 font-mono text-sm font-semibold text-primary">
             {request.referenceCode}
           </p>
+          {request.origin === "whatsapp" && (
+            <span className="mt-2 inline-flex rounded-full border border-teal-200 bg-teal-50 px-3 py-1 text-xs font-bold uppercase tracking-wide text-teal-800">
+              Origem WhatsApp
+            </span>
+          )}
           <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
             {request.customerName} · {request.vehicleBrand}{" "}
             {request.vehicleModel}
@@ -168,6 +180,7 @@ export default async function ConciergeDetailPage({
       )}
       <div className="grid gap-6 xl:grid-cols-[1.35fr_0.65fr]">
         <div className="space-y-5">
+          {intake && <IntelligentIntakeCard intake={intake} mileage={request.mileageSnapshot} />}
           <Card>
             <CardHeader>
               <h2 className="font-semibold">Cliente e veículo</h2>
@@ -700,6 +713,72 @@ function cancellationReasonLabel(reason: string | null) {
     other: "Outro",
   };
   return reason ? labels[reason] ?? "Motivo operacional" : "Não informado";
+}
+
+function IntelligentIntakeCard({
+  intake,
+  mileage,
+}: {
+  intake: ConciergeIntakeDetails;
+  mileage: number | null;
+}) {
+  const data = intake.collectedData;
+  return (
+    <Card className="overflow-hidden border-teal-200">
+      <CardHeader className="bg-teal-50/70">
+        <p className="text-xs font-bold uppercase tracking-[0.16em] text-teal-700">
+          Intake pelo WhatsApp
+        </p>
+        <h2 className="mt-1 font-semibold">Avaliação inicial para revisão humana</h2>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Motor determinístico {intake.engineVersion} · correlação {intake.correlationId.slice(0, 8)}
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        <Info label="Resumo" value={intake.summary} />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Info label="Sintoma relatado" value={data.symptom ?? "Não informado"} />
+          <Info label="Quilometragem" value={mileage === null ? "Não informada" : `${mileage.toLocaleString("pt-BR")} km`} />
+          <Info label="Quando ocorre" value={data.conditions ?? "Não informado"} />
+          <Info label="Frequência" value={data.frequency ?? "Não informada"} />
+          <Info label="Luzes no painel" value={data.dashboardLights ?? "Não informado"} />
+          <Info label="Condição do veículo" value={data.operatingCondition ?? "Não informada"} />
+        </div>
+        <List label="Sinais de risco" items={intake.riskFlags} empty="Nenhum sinal crítico identificado pelas regras iniciais." />
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Hipóteses para verificação</p>
+          <ul className="mt-2 space-y-2">
+            {intake.hypotheses.map((hypothesis) => (
+              <li key={`${hypothesis.label}-${hypothesis.basis}`} className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm">
+                <strong>{hypothesis.label}</strong>
+                <span className="mt-1 block text-muted-foreground">{hypothesis.basis}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <Info label="Próximo passo seguro" value={intake.safeNextStep} />
+        <List label="Informações pendentes" items={intake.missingQuestions} empty="Coleta mínima concluída." />
+        {intake.attachments.length > 0 && (
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Anexos privados</p>
+            <ul className="mt-2 flex flex-wrap gap-2">
+              {intake.attachments.map((attachment, index) => (
+                <li key={attachment.id}>
+                  {attachment.signedUrl ? (
+                    <a className="inline-flex min-h-11 items-center rounded-md border px-3 text-sm font-semibold text-teal-800 hover:bg-teal-50" href={attachment.signedUrl} target="_blank" rel="noreferrer">
+                      Abrir anexo {index + 1}
+                    </a>
+                  ) : (
+                    <span className="inline-flex min-h-11 items-center rounded-md border px-3 text-sm text-muted-foreground">Anexo {index + 1} indisponível</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
 }
 
 function Info({ label, value }: { label: string; value: string }) {
