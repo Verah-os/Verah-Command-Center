@@ -68,6 +68,41 @@ run_customer_identity_concurrency() {
   run_sql supabase/tests/customer_identity_concurrency.sql
 }
 
+run_quote_intelligence_concurrency() {
+  local first_pid
+  local first_status=0
+  local second_pid
+  local second_status=0
+
+  printf 'Running concurrent Quote Intelligence classification\n'
+  run_sql supabase/tests/quote_intelligence_concurrency_setup.sql
+
+  docker exec --interactive "${DATABASE_CONTAINER}" psql \
+    --username=postgres \
+    --dbname=postgres \
+    --no-psqlrc \
+    --set=ON_ERROR_STOP=1 \
+    --file=- <supabase/tests/quote_intelligence_concurrency_call.sql &
+  first_pid=$!
+
+  docker exec --interactive "${DATABASE_CONTAINER}" psql \
+    --username=postgres \
+    --dbname=postgres \
+    --no-psqlrc \
+    --set=ON_ERROR_STOP=1 \
+    --file=- <supabase/tests/quote_intelligence_concurrency_call.sql &
+  second_pid=$!
+
+  wait "${first_pid}" || first_status=$?
+  wait "${second_pid}" || second_status=$?
+
+  if [[ "${first_status}" -ne 0 || "${second_status}" -ne 0 ]]; then
+    fail "concurrent Quote Intelligence classification failed"
+  fi
+
+  run_sql supabase/tests/quote_intelligence_concurrency_verify.sql
+}
+
 assert_local_database_container() {
   local project_label
 
@@ -133,7 +168,9 @@ run_sql supabase/tests/admin_authorization_matrix.sql
 run_sql supabase/tests/customer_identity_security.sql
 run_sql supabase/tests/communication_intake_security.sql
 run_sql supabase/tests/intelligent_intake_security.sql
+run_sql supabase/tests/quote_intelligence_security.sql
 run_customer_identity_concurrency
+run_quote_intelligence_concurrency
 
 printf 'Linting the public schema; warnings are reported and errors block CI\n'
 supabase db lint --local --schema public,private --level warning --fail-on error
@@ -147,7 +184,9 @@ run_sql supabase/tests/rls_catalog.sql
 run_sql supabase/tests/customer_identity_security.sql
 run_sql supabase/tests/communication_intake_security.sql
 run_sql supabase/tests/intelligent_intake_security.sql
+run_sql supabase/tests/quote_intelligence_security.sql
 run_customer_identity_concurrency
+run_quote_intelligence_concurrency
 supabase db lint --local --schema public,private --level warning --fail-on error
 
 printf 'Database authorization CI completed successfully\n'
