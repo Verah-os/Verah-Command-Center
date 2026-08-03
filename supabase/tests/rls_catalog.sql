@@ -27,8 +27,12 @@ declare
     'service_taxonomy_related_services',
     'system_settings',
     'quote_intelligence_assessments',
+    'quote_comparison_members',
+    'quote_comparison_sets',
+    'quote_quality_assessments',
     'quote_rule_requirements',
     'quote_rule_sets',
+    'service_quote_revisions',
     'user_profiles',
     'work_orders'
   ];
