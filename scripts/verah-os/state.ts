@@ -13,7 +13,7 @@ export async function readCheckpoint(runtimeDirectory: string) {
     const value = JSON.parse(
       await readFile(join(runtimeDirectory, checkpointName), "utf8"),
     ) as RunCheckpoint;
-    return value.version === 1 ? value : null;
+    return value.version === 2 ? value : null;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
     throw error;
@@ -95,4 +95,29 @@ export async function releaseHostLock(runtimeDirectory: string, runId: string) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
     throw error;
   }
+}
+
+export async function heartbeatHostLock(
+  runtimeDirectory: string,
+  runId: string,
+  durationMs: number,
+  now = new Date(),
+) {
+  const path = join(runtimeDirectory, hostLockName);
+  const existing = JSON.parse(await readFile(path, "utf8")) as LockRecord;
+  if (existing.runId !== runId) throw new Error("host_lock_not_owned");
+  if (Date.parse(existing.expiresAt) <= now.getTime()) throw new Error("host_lock_expired");
+  const renewed = { runId, expiresAt: new Date(now.getTime() + durationMs).toISOString() };
+  const temporary = join(runtimeDirectory, `${hostLockName}.${randomUUID()}.tmp`);
+  await writeFile(temporary, `${JSON.stringify(renewed)}\n`, {
+    encoding: "utf8",
+    mode: 0o600,
+  });
+  await rename(temporary, path);
+  return renewed;
+}
+
+export async function clearRunState(runtimeDirectory: string, runId: string) {
+  await releaseHostLock(runtimeDirectory, runId);
+  await rm(join(runtimeDirectory, checkpointName), { force: true });
 }

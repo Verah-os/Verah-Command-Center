@@ -9,14 +9,34 @@ export type VerahIssue = {
   labels: string[];
 };
 
+export type VerahPullRequest = {
+  number: number;
+  title: string;
+  url: string;
+  state: "OPEN" | "CLOSED" | "MERGED";
+  isDraft: boolean;
+  headRefName: string;
+  headRefOid: string;
+  updatedAt: string;
+  labels: string[];
+};
+
+export type ContextDocument = {
+  path: string;
+  bytes: number;
+  sha256: string;
+};
+
 export type VerahOsConfig = {
   enabled: boolean;
   killSwitch: boolean;
   repository: "Verah-os/Verah-Command-Center";
   maintainers: ReadonlySet<string>;
   maxDurationMs: number;
+  leaseDurationMs: number;
   maxCorrectionAttempts: 2;
   runtimeDirectory: string;
+  workspaceDirectory: string;
 };
 
 export type SelectionResult =
@@ -25,11 +45,14 @@ export type SelectionResult =
   | { status: "empty" };
 
 export type RunCheckpoint = {
-  version: 1;
+  version: 2;
   runId: string;
   repository: string;
-  issueNumber: number;
-  issueUrl: string;
+  workType: "issue" | "pull_request";
+  issueNumber: number | null;
+  pullRequestNumber: number | null;
+  workTitle: string;
+  workUrl: string;
   baseSha: string;
   branch: string;
   state: "planning" | "implementing" | "testing" | "pr_open" | "blocked";
@@ -58,6 +81,8 @@ export type VerahOsReport = {
   mode: "dry-run" | "continue" | "status";
   status: "selected" | "locked" | "empty" | "resumed" | "stopped";
   issue: Pick<VerahIssue, "number" | "title" | "url"> | null;
+  activePullRequest: Pick<VerahPullRequest, "number" | "title" | "url" | "headRefName"> | null;
+  contextDocuments: ContextDocument[];
   baseSha: string | null;
   branch: string | null;
   requiredChecks: string[];

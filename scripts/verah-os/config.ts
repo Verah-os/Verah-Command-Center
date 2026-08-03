@@ -24,6 +24,21 @@ export function readVerahOsConfig(
     2,
     2,
   ) as 2;
+  const maxDurationMs = boundedInteger(
+    source.VERAH_OS_MAX_DURATION_MS,
+    7_200_000,
+    60_000,
+    14_400_000,
+  );
+  const leaseDurationMs = Math.min(
+    boundedInteger(
+      source.VERAH_OS_LEASE_DURATION_MS,
+      900_000,
+      60_000,
+      1_800_000,
+    ),
+    maxDurationMs,
+  );
 
   return {
     enabled: source.VERAH_OS_UNATTENDED_ENABLED === "true",
@@ -35,13 +50,10 @@ export function readVerahOsConfig(
         .map((login) => login.trim().toLowerCase())
         .filter(Boolean),
     ),
-    maxDurationMs: boundedInteger(
-      source.VERAH_OS_MAX_DURATION_MS,
-      7_200_000,
-      60_000,
-      14_400_000,
-    ),
+    maxDurationMs,
+    leaseDurationMs,
     maxCorrectionAttempts,
     runtimeDirectory: resolve(cwd, ".verah-os"),
+    workspaceDirectory: resolve(cwd),
   };
 }

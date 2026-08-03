@@ -37,6 +37,8 @@ execution report, executive status and handoff.
    itself.
 5. Verify the issue has `codex:authorized` and `codex:ready`. Require
    `codex:auto-merge` before any unattended merge.
+6. Keep the exclusive local lease alive with `pnpm verah:heartbeat` during the
+   cycle. If heartbeat fails, stop all mutations and report the lock loss.
 
 ## Deliver the selected issue
 
@@ -58,7 +60,9 @@ Move the PR to Ready and squash merge only when all conditions in the release
 policy pass, including the explicit `codex:auto-merge` label. Never weaken a
 ruleset or required check. After merge, verify the `main` workflow and Vercel,
 delete only the merged delivery branch, close the issue, clear the operational
-lock and record the final handoff.
+lock and record the final handoff. Run `pnpm verah:complete` only after the
+merged state and post-merge checks are verified; this is the sole normal path
+that clears the local checkpoint and lease.
 
 When the auto-merge label is absent, stop at the reviewed draft PR even if all
 technical checks pass. A recurring cycle may select the next issue only after

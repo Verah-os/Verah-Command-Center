@@ -14,14 +14,23 @@ local fail-safe. Ele não cria novas tabelas e não acessa produção.
 pnpm verah:status    # lê checkpoint e fila
 pnpm verah:dry-run   # seleciona sem mutações
 pnpm verah:continue  # reserva uma issue e grava checkpoint local
+pnpm verah:heartbeat # renova o lease durante uma execução ativa
+pnpm verah:complete  # limpa checkpoint e lease após conclusão verificada
 pnpm verah:stop      # ativa o kill switch local
 pnpm verah:resume    # remove o kill switch local
 ```
 
+O `dry-run` inventaria os PRs abertos e lê ADRs, handoffs e roadmap locais,
+registrando apenas caminhos, tamanhos e hashes. Um PR aberto mais recente é
+retomado antes da seleção de nova issue, evitando trabalho duplicado.
+
 `continue` não implementa código nem faz merge sozinho. Ele prepara uma única
 execução para `$verah-os-unattended`, que reconstrói contexto, entrega, testa,
 abre PR e aplica os gates. O merge unattended exige o label humano adicional
-`codex:auto-merge` e todos os checks definidos na política de release.
+`codex:auto-merge` e todos os checks definidos na política de release. O lease
+permanece ativo entre invocações, bloqueia sobreposição e recebe heartbeat
+enquanto a skill trabalha. Somente `complete`, depois da release validada,
+remove o checkpoint e o lock.
 
 ## Ativação local
 

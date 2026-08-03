@@ -23,7 +23,11 @@ Data: 2026-08-02
 - kill switch fail-safe;
 - budget de duração e limite fixo de duas correções;
 - gates de release com opt-in `codex:auto-merge`;
-- comandos `verah:continue`, `verah:status`, `verah:dry-run`, `verah:stop` e `verah:resume`;
+- comandos `verah:continue`, `verah:status`, `verah:dry-run`, `verah:heartbeat`, `verah:complete`, `verah:stop` e `verah:resume`;
+- leitura auditável de ADRs, handoffs e roadmap, além da detecção de PR aberto
+  antes de qualquer nova issue;
+- lease persistente com heartbeat, bloqueio de sobreposição e retomada após
+  expiração sem duplicar o trabalho existente;
 - skill, políticas, templates, documentação e testes.
 
 Não há migration nova. As tabelas, máquina de estados, locks e budgets do
@@ -31,7 +35,7 @@ Control Plane 001 não foram duplicados.
 
 ## Validação
 
-- 45/45 testes Node aprovados, incluindo 12 do VERAH OS Core;
+- 48/48 testes Node aprovados, incluindo 15 do VERAH OS Core;
 - typecheck aprovado;
 - lint aprovado com um warning preexistente de `Wrench` fora do escopo;
 - Next.js build aprovado;
@@ -47,6 +51,10 @@ Uma tentativa de correção foi usada: o teste de retomada foi ajustado de um
 instante exatamente expirado para um instante dentro da lease. A regra de
 timeout permaneceu fail-closed.
 
+A segunda e última rodada de correção fechou dois gaps encontrados na revisão
+final: o dry-run passou a reconstruir contexto e detectar PRs abertos, e o lock
+passou a permanecer durante toda a execução com lease/heartbeat explícitos.
+
 ## Limitações e riscos
 
 - o bootstrap usa mutex/checkpoint do host e label do GitHub; a RPC do Control
@@ -54,12 +62,13 @@ timeout permaneceu fail-closed.
 - a operação unattended deve permanecer em um único host até existir lock
   canônico implantado;
 - `continue` reserva e registra o ciclo, enquanto a skill executa o trabalho;
-- auto-merge exige label humano específico e todos os checks, mas a Issue #71
-  não recebeu esse label e este PR não deve ser mesclado nesta execução;
+- auto-merge normal exige label humano específico e todos os checks; para o PR
+  #72 há autorização explícita de merge nesta execução, sem bypass de ruleset;
 - nenhuma automação recorrente foi ativada antes de a skill existir na `main`.
 
 ## Próximo passo
 
-Revisar o PR draft da Issue #71 e seus checks. Após eventual merge autorizado,
-instalar/recarregar a skill na cópia ativa do Codex e configurar uma automação
-local inicialmente pausada, começando por um ciclo dry-run.
+Revalidar o PR #72 e seus checks após a correção final. Se todos os gates
+passarem, realizar o squash merge autorizado, instalar/recarregar a skill na
+cópia ativa do Codex e configurar uma automação local inicialmente pausada,
+começando por um ciclo dry-run.

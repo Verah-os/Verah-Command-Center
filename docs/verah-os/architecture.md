@@ -26,7 +26,10 @@ issue autorizada
 
 O checkpoint local contém somente issue, run, branch, SHA, estado, tentativas e
 timestamps. Ele permite retomada no mesmo host, mas não substitui o Control
-Plane. O mutex é criado atomicamente e possui expiração. O label
+Plane. O mutex é criado atomicamente, possui expiração e permanece retido
+durante o ciclo. Heartbeats renovam a lease; uma segunda invocação falha
+fechada enquanto ela estiver vigente. Após expiração, o mesmo checkpoint pode
+ser retomado com uma nova lease dentro do budget total. O label
 `codex:in-progress` impede sobreposição operacional entre ciclos. Um run
 retomado reutiliza seu checkpoint e não reserva outra issue.
 

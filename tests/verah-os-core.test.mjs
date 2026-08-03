@@ -14,6 +14,8 @@ import {
 } from "../scripts/verah-os/policy.ts";
 import {
   acquireHostLock,
+  clearRunState,
+  heartbeatHostLock,
   isStopped,
   readCheckpoint,
   releaseHostLock,
@@ -42,19 +44,25 @@ function config(runtimeDirectory, overrides = {}) {
     repository: "Verah-os/Verah-Command-Center",
     maintainers: new Set(["maintainer"]),
     maxDurationMs: 60_000,
+    leaseDurationMs: 1_000,
     maxCorrectionAttempts: 2,
     runtimeDirectory,
+    workspaceDirectory: process.cwd(),
     ...overrides,
   };
 }
 
 class FakeGitHub {
-  constructor(issues) {
+  constructor(issues, pullRequests = []) {
     this.issues = issues;
+    this.pullRequests = pullRequests;
   }
   mutations = [];
   async listOpenIssues() {
     return structuredClone(this.issues);
+  }
+  async listOpenPullRequests() {
+    return structuredClone(this.pullRequests);
   }
   async mainSha() {
     return "a".repeat(40);
@@ -136,12 +144,42 @@ test("dry-run selects without effects or local checkpoint", async (context) => {
   assert.equal(await readCheckpoint(directory), null);
 });
 
-test("continue reserves once and later resumes the same checkpoint", async (context) => {
+test("dry-run reads operating context and resumes the newest open PR", async (context) => {
+  const directory = await mkdtemp(join(tmpdir(), "verah-os-pr-dry-run-"));
+  context.after(() => rm(directory, { recursive: true, force: true }));
+  const github = new FakeGitHub([issue()], [{
+    number: 70,
+    title: "Quote Intelligence Core",
+    url: "https://github.test/pull/70",
+    state: "OPEN",
+    isDraft: true,
+    headRefName: "feat/quote-intelligence-core",
+    headRefOid: "b".repeat(40),
+    updatedAt: "2026-08-02T13:00:00.000Z",
+    labels: [],
+  }]);
+  const result = await dryRunCycle(
+    config(directory),
+    github,
+  );
+  assert.equal(result.status, "resumed");
+  assert.equal(result.activePullRequest.number, 70);
+  assert.equal(result.branch, "feat/quote-intelligence-core");
+  assert.ok(result.contextDocuments.some((document) => document.path === "docs/verah-os/roadmap.md"));
+  assert.deepEqual(result.repositoryMutations, []);
+  assert.equal(await readCheckpoint(directory), null);
+});
+
+test("continue reserves once, blocks overlap and resumes after lease expiry", async (context) => {
   const directory = await mkdtemp(join(tmpdir(), "verah-os-continue-"));
   context.after(() => rm(directory, { recursive: true, force: true }));
   const github = new FakeGitHub([issue()]);
   const first = await continueCycle(config(directory), github, new Date("2026-08-02T12:00:00.000Z"));
-  const second = await continueCycle(config(directory), github, new Date("2026-08-02T12:00:30.000Z"));
+  await assert.rejects(
+    continueCycle(config(directory), github, new Date("2026-08-02T12:00:00.500Z")),
+    /host_lock_occupied/,
+  );
+  const second = await continueCycle(config(directory), github, new Date("2026-08-02T12:00:02.000Z"));
   assert.equal(first.status, "selected");
   assert.equal(second.status, "resumed");
   assert.equal(first.baseSha, second.baseSha);
@@ -149,6 +187,29 @@ test("continue reserves once and later resumes the same checkpoint", async (cont
   assert.equal((await readCheckpoint(directory)).issueNumber, 90);
   assert.deepEqual(first.productionMutations, []);
   assert.deepEqual(first.remoteDatabaseMutations, []);
+});
+
+test("continue resumes an existing PR without reserving duplicate issue work", async (context) => {
+  const directory = await mkdtemp(join(tmpdir(), "verah-os-pr-continue-"));
+  context.after(() => rm(directory, { recursive: true, force: true }));
+  const github = new FakeGitHub([issue()], [{
+    number: 70,
+    title: "Quote Intelligence Core",
+    url: "https://github.test/pull/70",
+    state: "OPEN",
+    isDraft: true,
+    headRefName: "feat/quote-intelligence-core",
+    headRefOid: "b".repeat(40),
+    updatedAt: "2026-08-02T13:00:00.000Z",
+    labels: [],
+  }]);
+  const result = await continueCycle(config(directory), github, new Date("2026-08-02T12:00:00.000Z"));
+  assert.equal(result.status, "resumed");
+  assert.equal(result.activePullRequest.number, 70);
+  assert.equal(github.mutations.length, 0);
+  const checkpoint = await readCheckpoint(directory);
+  assert.equal(checkpoint.workType, "pull_request");
+  assert.equal(checkpoint.pullRequestNumber, 70);
 });
 
 test("continue rejects an empty or mismatched maintainer allowlist before mutation", async (context) => {
@@ -172,7 +233,7 @@ test("an expired execution budget blocks resume", async (context) => {
   const directory = await mkdtemp(join(tmpdir(), "verah-os-timeout-"));
   context.after(() => rm(directory, { recursive: true, force: true }));
   const github = new FakeGitHub([issue()]);
-  await continueCycle(config(directory), github, new Date("2026-08-02T12:00:00.000Z"));
+  await continueCycle(config(directory, { leaseDurationMs: 180_000 }), github, new Date("2026-08-02T12:00:00.000Z"));
   await assert.rejects(
     continueCycle(config(directory), github, new Date("2026-08-02T12:02:00.000Z")),
     /timeout_exceeded/,
@@ -194,6 +255,26 @@ test("host lock is exclusive and an expired lease is reclaimed", async (context)
   assert.notEqual(reclaimed.runId, first.runId);
   await assert.rejects(releaseHostLock(directory, first.runId), /host_lock_not_owned/);
   await releaseHostLock(directory, reclaimed.runId);
+});
+
+test("heartbeat renews only the owned live lease and completion clears state", async (context) => {
+  const directory = await mkdtemp(join(tmpdir(), "verah-os-heartbeat-"));
+  context.after(() => rm(directory, { recursive: true, force: true }));
+  const now = new Date("2026-08-02T12:00:00.000Z");
+  const lock = await acquireHostLock(directory, 1_000, now);
+  const renewed = await heartbeatHostLock(
+    directory,
+    lock.runId,
+    1_000,
+    new Date("2026-08-02T12:00:00.500Z"),
+  );
+  assert.equal(renewed.expiresAt, "2026-08-02T12:00:01.500Z");
+  await assert.rejects(
+    heartbeatHostLock(directory, "not-owner", 1_000, now),
+    /host_lock_not_owned/,
+  );
+  await clearRunState(directory, lock.runId);
+  await assert.rejects(heartbeatHostLock(directory, lock.runId, 1_000, now), /ENOENT/);
 });
 
 test("kill switch is fail-safe and stop/resume remain local", async (context) => {

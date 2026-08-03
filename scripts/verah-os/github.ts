@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 
-import type { VerahIssue } from "./types.ts";
+import type { VerahIssue, VerahPullRequest } from "./types.ts";
 
 type RawIssue = Omit<VerahIssue, "labels"> & {
   labels: Array<{ name: string }>;
@@ -8,6 +8,7 @@ type RawIssue = Omit<VerahIssue, "labels"> & {
 
 export type GitHubOperations = {
   listOpenIssues(repository: string): Promise<VerahIssue[]>;
+  listOpenPullRequests(repository: string): Promise<VerahPullRequest[]>;
   mainSha(repository: string): Promise<string>;
   currentLogin(): Promise<string>;
   markInProgress(repository: string, issueNumber: number, comment: string): Promise<void>;
@@ -44,6 +45,20 @@ export const githubOperations: GitHubOperations = {
     return issues.map((issue) => ({
       ...issue,
       labels: issue.labels.map((label) => label.name),
+    }));
+  },
+
+  async listOpenPullRequests(repository) {
+    const output = gh([
+      "pr", "list", "--repo", repository, "--state", "open", "--limit", "100",
+      "--json", "number,title,url,state,isDraft,headRefName,headRefOid,updatedAt,labels",
+    ]);
+    const pullRequests = JSON.parse(output || "[]") as Array<
+      Omit<VerahPullRequest, "labels"> & { labels: Array<{ name: string }> }
+    >;
+    return pullRequests.map((pullRequest) => ({
+      ...pullRequest,
+      labels: pullRequest.labels.map((label) => label.name),
     }));
   },
 
