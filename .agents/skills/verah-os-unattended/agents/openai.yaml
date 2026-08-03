@@ -1,0 +1,6 @@
+interface:
+  display_name: "VERAH OS Unattended"
+  short_description: "Run gated VERAH delivery cycles safely"
+  default_prompt: "Use $verah-os-unattended to continue one authorized VERAH OS delivery cycle."
+policy:
+  allow_implicit_invocation: false
