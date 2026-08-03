@@ -211,19 +211,22 @@ select pg_catalog.set_config('request.jwt.claims', '{"role":"authenticated","sub
 
 select public.assess_quote_revision(
   :'provider_one_revision', 'maintenance.synthetic.v1',
-  85, 80, 75, 80, 90, 70, 95, false, 'comparison_ready',
+  85::smallint, 80::smallint, 75::smallint, 80::smallint, 90::smallint,
+  70::smallint, 95::smallint, false, 'comparison_ready',
   '[]', '[]', '["Prazo de peça sujeito a confirmação"]', 'assessment-provider-one'
 ) as provider_one_assessment \gset
 
 select public.assess_quote_revision(
   :'provider_two_revision', 'maintenance.synthetic.v1',
-  90, 85, 80, 90, 85, 90, 95, false, 'comparison_ready',
+  90::smallint, 85::smallint, 80::smallint, 90::smallint, 85::smallint,
+  90::smallint, 95::smallint, false, 'comparison_ready',
   '[]', '[]', '[]', 'assessment-provider-two'
 ) as provider_two_assessment \gset
 
 select public.assess_quote_revision(
   :'provider_two_revision', 'maintenance.synthetic.v1',
-  90, 85, 80, 90, 85, 90, 95, false, 'technically_confirmed',
+  90::smallint, 85::smallint, 80::smallint, 90::smallint, 85::smallint,
+  90::smallint, 95::smallint, false, 'technically_confirmed',
   '[]', '[]', '[]', 'assessment-provider-two-human'
 ) as provider_two_human_assessment \gset
 
