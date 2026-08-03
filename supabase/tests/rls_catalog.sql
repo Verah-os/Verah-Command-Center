@@ -18,11 +18,17 @@ declare
     'service_conversations',
     'service_messages',
     'service_providers',
+    'service_quoteability_rules',
     'service_quote_items',
     'service_quotes',
     'service_request_events',
     'service_requests',
+    'service_taxonomy_entries',
+    'service_taxonomy_related_services',
     'system_settings',
+    'quote_intelligence_assessments',
+    'quote_rule_requirements',
+    'quote_rule_sets',
     'user_profiles',
     'work_orders'
   ];
