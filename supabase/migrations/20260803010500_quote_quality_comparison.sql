@@ -271,9 +271,9 @@ stable
 security definer
 set search_path = ''
 as $$
-  select pg_catalog.coalesce(
-    pg_catalog.nullif(pg_catalog.current_setting('request.jwt.claim.role', true), ''),
-    pg_catalog.nullif(pg_catalog.current_setting('request.jwt.claims', true), '')::jsonb ->> 'role',
+  select coalesce(
+    nullif(pg_catalog.current_setting('request.jwt.claim.role', true), ''),
+    nullif(pg_catalog.current_setting('request.jwt.claims', true), '')::jsonb ->> 'role',
     ''
   ) = 'service_role';
 $$;
@@ -317,8 +317,8 @@ begin
     raise exception 'Only submitted or approved quotes can be revisioned.';
   end if;
 
-  effective_key := pg_catalog.coalesce(
-    pg_catalog.nullif(pg_catalog.btrim(p_idempotency_key), ''),
+  effective_key := coalesce(
+    nullif(pg_catalog.btrim(p_idempotency_key), ''),
     'quote-revision:' || quote_row.id::text || ':' || quote_row.submitted_at::text
   );
 
@@ -334,7 +334,7 @@ begin
     return revision_id;
   end if;
 
-  select pg_catalog.coalesce(
+  select coalesce(
     pg_catalog.jsonb_agg(
       pg_catalog.jsonb_build_object(
         'item_type', item.item_type,
@@ -386,7 +386,7 @@ begin
     'valid_until', quote_row.valid_until
   );
 
-  select pg_catalog.coalesce(pg_catalog.max(existing.revision_number), 0) + 1
+  select coalesce(pg_catalog.max(existing.revision_number), 0) + 1
   into revision_number
   from public.service_quote_revisions as existing
   where existing.quote_id = quote_row.id;
@@ -415,7 +415,7 @@ begin
     ),
     effective_key,
     auth.uid(),
-    pg_catalog.coalesce(quote_row.submitted_at, pg_catalog.now())
+    coalesce(quote_row.submitted_at, pg_catalog.now())
   )
   returning id into revision_id;
 
@@ -485,7 +485,7 @@ as $$
 declare
   operational_role text := (select public.current_verah_role());
   assessment_id uuid;
-  effective_key text := pg_catalog.nullif(pg_catalog.btrim(p_idempotency_key), '');
+  effective_key text := nullif(pg_catalog.btrim(p_idempotency_key), '');
   actor_id uuid := auth.uid();
   confirmed_by uuid;
   confirmed_at timestamptz;
@@ -595,7 +595,7 @@ as $$
 declare
   operational_role text := (select public.current_verah_role());
   comparison_id uuid;
-  effective_key text := pg_catalog.nullif(pg_catalog.btrim(p_idempotency_key), '');
+  effective_key text := nullif(pg_catalog.btrim(p_idempotency_key), '');
   normalized_scope text;
   commercial_scope_value text;
   member_count integer;
@@ -612,7 +612,7 @@ begin
     or pg_catalog.array_length(p_revision_ids, 1) > 26
     or effective_key is null
     or pg_catalog.length(effective_key) > 200
-    or pg_catalog.nullif(pg_catalog.btrim(p_ranking_basis), '') is null
+    or nullif(pg_catalog.btrim(p_ranking_basis), '') is null
     or pg_catalog.lower(pg_catalog.btrim(p_ranking_basis)) in (
       'lowest_price', 'price_only', 'menor_preco'
     ) then
@@ -725,7 +725,7 @@ begin
       'Proposta ' || pg_catalog.chr(64 + revision_row.display_order),
       pg_catalog.jsonb_build_object(
         'commercial_scope', revision_row.commercial_scope,
-        'parts', pg_catalog.coalesce(revision_row.snapshot -> 'items', '[]'::jsonb),
+        'parts', coalesce(revision_row.snapshot -> 'items', '[]'::jsonb),
         'warranty', revision_row.snapshot -> 'warranty_text',
         'price_breakdown', revision_row.snapshot -> 'totals'
       )
@@ -885,7 +885,7 @@ begin
     'scope', comparison_row.commercial_scope,
     'ranking_basis', comparison_row.ranking_basis,
     'published_at', comparison_row.published_at,
-    'proposals', pg_catalog.coalesce(proposals, '[]'::jsonb)
+    'proposals', coalesce(proposals, '[]'::jsonb)
   );
 end;
 $$;
