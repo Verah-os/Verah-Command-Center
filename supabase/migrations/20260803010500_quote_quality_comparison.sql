@@ -801,7 +801,7 @@ begin
     auth.uid(),
     operational_role,
     'app',
-    array['customer', 'operations']::text[],
+    'customer',
     pg_catalog.jsonb_build_object(
       'comparison_set_id', comparison_row.id,
       'member_count', member_count
