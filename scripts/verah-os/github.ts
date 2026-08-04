@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 
-import type { VerahIssue, VerahPullRequest } from "./types.ts";
+import type { ReservationRecord, VerahIssue, VerahPullRequest } from "./types.ts";
 
 type RawIssue = Omit<VerahIssue, "labels"> & {
   labels: Array<{ name: string }>;
@@ -12,9 +12,11 @@ export type GitHubOperations = {
   mainSha(repository: string): Promise<string>;
   currentLogin(): Promise<string>;
   markInProgress(repository: string, issueNumber: number, comment: string): Promise<void>;
+  latestReservation(repository: string, issueNumber: number): Promise<ReservationRecord | null>;
+  remoteBranchSha(repository: string, branch: string): Promise<string | null>;
 };
 
-function gh(arguments_: string[]) {
+function ghResult(arguments_: string[]) {
   const result = spawnSync("gh", arguments_, {
     encoding: "utf8",
     shell: false,
@@ -23,6 +25,11 @@ function gh(arguments_: string[]) {
     maxBuffer: 2 * 1024 * 1024,
   });
   if (result.error) throw new Error(`github_cli_unavailable:${result.error.message}`);
+  return result;
+}
+
+function gh(arguments_: string[]) {
+  const result = ghResult(arguments_);
   if (result.status !== 0) throw new Error(`github_cli_failed:${result.status}`);
   return result.stdout.trim();
 }
@@ -94,5 +101,39 @@ export const githubOperations: GitHubOperations = {
       "--body",
       comment,
     ]);
+  },
+
+  async latestReservation(repository, issueNumber) {
+    const output = gh([
+      "issue", "view", String(issueNumber), "--repo", repository, "--json", "comments",
+    ]);
+    const value = JSON.parse(output) as {
+      comments: Array<{ body: string; createdAt: string; author: { login: string } | null }>;
+    };
+    const prefix = "VERAH OS reserved this issue for one unattended cycle";
+    const comments = value.comments
+      .filter((comment) => comment.body.startsWith(prefix) && comment.author?.login)
+      .sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt));
+    const latest = comments[0];
+    if (!latest?.author) return null;
+    const match = latest.body.match(/\bBase:\s*([a-f0-9]{40})\b/i);
+    if (!match) return null;
+    return {
+      maintainer: latest.author.login.toLowerCase(),
+      baseSha: match[1].toLowerCase(),
+      createdAt: latest.createdAt,
+    };
+  },
+
+  async remoteBranchSha(repository, branch) {
+    const result = ghResult([
+      "api",
+      `repos/${repository}/branches/${encodeURIComponent(branch)}`,
+      "--jq",
+      ".commit.sha",
+    ]);
+    if (result.status === 0) return result.stdout.trim() || null;
+    if (/HTTP 404|Not Found/i.test(result.stderr)) return null;
+    throw new Error(`github_cli_failed:${result.status}`);
   },
 };

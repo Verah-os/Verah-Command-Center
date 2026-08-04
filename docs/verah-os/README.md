@@ -14,6 +14,9 @@ local fail-safe. Ele não cria novas tabelas e não acessa produção.
 pnpm verah:status    # lê checkpoint e fila
 pnpm verah:dry-run   # seleciona sem mutações
 pnpm verah:continue  # reserva uma issue e grava checkpoint local
+pnpm verah:recover   # reconcilia checkpoint, PR ou lock GitHub existente
+pnpm verah:recover:dry-run # simula a recuperação sem mutações
+pnpm verah:health    # saúde do checkpoint, lease e workspace
 pnpm verah:heartbeat # renova o lease durante uma execução ativa
 pnpm verah:complete  # limpa checkpoint e lease após conclusão verificada
 pnpm verah:stop      # ativa o kill switch local
@@ -31,6 +34,9 @@ abre PR e aplica os gates. O merge unattended exige o label humano adicional
 permanece ativo entre invocações, bloqueia sobreposição e recebe heartbeat
 enquanto a skill trabalha. Somente `complete`, depois da release validada,
 remove o checkpoint e o lock.
+
+A recuperação detalhada, os estados executivos e a configuração opcional no
+login do Windows estão em `docs/verah-os/recovery.md`.
 
 ## Ativação local
 

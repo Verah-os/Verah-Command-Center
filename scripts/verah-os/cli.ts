@@ -1,6 +1,6 @@
 import { readVerahOsConfig } from "./config.ts";
 import { githubOperations } from "./github.ts";
-import { completeCycle, continueCycle, dryRunCycle, heartbeatCycle, statusCycle } from "./orchestrator.ts";
+import { completeCycle, continueCycle, dryRunCycle, healthCycle, heartbeatCycle, statusCycle } from "./orchestrator.ts";
 import { resume, stop } from "./state.ts";
 
 async function main() {
@@ -25,13 +25,17 @@ async function main() {
         ? await statusCycle(config, githubOperations)
         : command === "continue"
           ? await continueCycle(config, githubOperations)
+          : command === "recover"
+            ? await continueCycle(config, githubOperations)
+          : command === "health"
+            ? await healthCycle(config)
           : command === "heartbeat"
             ? await heartbeatCycle(config)
             : command === "complete"
               ? await completeCycle(config)
           : null;
 
-  if (!result) throw new Error("usage: continue|status|dry-run|heartbeat|complete|stop|resume");
+  if (!result) throw new Error("usage: continue|recover|health|status|dry-run|heartbeat|complete|stop|resume");
   console.log(JSON.stringify(result, null, 2));
 }
 

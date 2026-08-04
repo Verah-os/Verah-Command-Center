@@ -1,22 +1,46 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, open, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, open, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import type { RunCheckpoint } from "./types.ts";
 
 const checkpointName = "checkpoint.json";
+const checkpointBackupName = "checkpoint.previous.json";
 const hostLockName = "host.lock";
 const stopName = "STOP";
 
+type LegacyCheckpoint = Omit<RunCheckpoint, "version" | "recoveryAttempts" | "lastKnownHeadSha" | "lastKnownRemoteHeadSha" | "lastKnownPullRequestNumber"> & {
+  version: 2;
+};
+
+function normalizeCheckpoint(value: RunCheckpoint | LegacyCheckpoint) {
+  if (value.version === 3) return value;
+  if (value.version !== 2) return null;
+  return {
+    ...value,
+    version: 3 as const,
+    recoveryAttempts: 0,
+    lastKnownHeadSha: null,
+    lastKnownRemoteHeadSha: null,
+    lastKnownPullRequestNumber: value.pullRequestNumber,
+  };
+}
+
+async function readCheckpointFile(path: string) {
+  const value = JSON.parse(await readFile(path, "utf8")) as RunCheckpoint | LegacyCheckpoint;
+  return normalizeCheckpoint(value);
+}
+
 export async function readCheckpoint(runtimeDirectory: string) {
   try {
-    const value = JSON.parse(
-      await readFile(join(runtimeDirectory, checkpointName), "utf8"),
-    ) as RunCheckpoint;
-    return value.version === 2 ? value : null;
+    return await readCheckpointFile(join(runtimeDirectory, checkpointName));
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
-    throw error;
+    try {
+      return await readCheckpointFile(join(runtimeDirectory, checkpointBackupName));
+    } catch {
+      throw new Error("checkpoint_unreadable");
+    }
   }
 }
 
@@ -25,6 +49,14 @@ export async function writeCheckpoint(
   checkpoint: RunCheckpoint,
 ) {
   await mkdir(runtimeDirectory, { recursive: true });
+  try {
+    await copyFile(
+      join(runtimeDirectory, checkpointName),
+      join(runtimeDirectory, checkpointBackupName),
+    );
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+  }
   const temporary = join(runtimeDirectory, `${checkpointName}.${randomUUID()}.tmp`);
   await writeFile(temporary, `${JSON.stringify(checkpoint, null, 2)}\n`, {
     encoding: "utf8",
@@ -56,6 +88,15 @@ export async function resume(runtimeDirectory: string) {
 }
 
 type LockRecord = { runId: string; expiresAt: string };
+
+export async function readHostLock(runtimeDirectory: string) {
+  try {
+    return JSON.parse(await readFile(join(runtimeDirectory, hostLockName), "utf8")) as LockRecord;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+    throw new Error("host_lock_unreadable");
+  }
+}
 
 export async function acquireHostLock(
   runtimeDirectory: string,
@@ -120,4 +161,5 @@ export async function heartbeatHostLock(
 export async function clearRunState(runtimeDirectory: string, runId: string) {
   await releaseHostLock(runtimeDirectory, runId);
   await rm(join(runtimeDirectory, checkpointName), { force: true });
+  await rm(join(runtimeDirectory, checkpointBackupName), { force: true });
 }
