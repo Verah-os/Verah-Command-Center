@@ -1,0 +1,447 @@
+import assert from "node:assert/strict";
+import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import test from "node:test";
+
+import { readDispatcherConfig } from "../scripts/verah-os/dispatcher-config.ts";
+import { checkContext } from "../scripts/verah-os/dispatcher-github.ts";
+import {
+  backoffUntil,
+  budgetDecision,
+  classifyCodexFailure,
+  evaluatePullRequestGate,
+} from "../scripts/verah-os/dispatcher-policy.ts";
+import {
+  acquireDispatcherMutex,
+  dispatcherDirectory,
+  freshDispatcherState,
+  readDispatcherState,
+  releaseDispatcherMutex,
+  requestDispatcherStop,
+  writeDispatcherState,
+} from "../scripts/verah-os/dispatcher-state.ts";
+import { dispatcherStatus, runDispatcherLoop, runDispatcherOnce } from "../scripts/verah-os/dispatcher.ts";
+import { invokeCodex } from "../scripts/verah-os/codex-runner.ts";
+
+const sha = "a".repeat(40);
+
+test("GitHub workflow jobs use the stable required-check context", () => {
+  assert.equal(checkContext({ workflowName: "CI", name: "Application" }), "CI / Application");
+  assert.equal(checkContext({ context: "Vercel" }), "Vercel");
+});
+
+function issue(number, overrides = {}) {
+  return {
+    number,
+    title: `Issue ${number}`,
+    body: "## Objetivo\nEntregar.\n## Escopo\nLocal.\n## Criterios de aceite\nTestado.",
+    url: `https://github.test/issues/${number}`,
+    state: "OPEN",
+    createdAt: `2026-08-0${Math.min(number, 9)}T10:00:00.000Z`,
+    updatedAt: "2026-08-04T10:00:00.000Z",
+    labels: ["codex:authorized", "codex:ready"],
+    ...overrides,
+  };
+}
+
+function core(runtimeDirectory, overrides = {}) {
+  return {
+    enabled: true,
+    killSwitch: false,
+    repository: "Verah-os/Verah-Command-Center",
+    maintainers: new Set(["maintainer"]),
+    maxDurationMs: 60_000,
+    leaseDurationMs: 60_000,
+    maxCorrectionAttempts: 2,
+    runtimeDirectory,
+    workspaceDirectory: process.cwd(),
+    ...overrides,
+  };
+}
+
+function dispatcher(runtimeDirectory, overrides = {}) {
+  return {
+    enabled: true,
+    dryRun: false,
+    runtimeDirectory,
+    workspaceDirectory: process.cwd(),
+    pollIntervalMs: 10,
+    heartbeatIntervalMs: 10_000,
+    watchdogTimeoutMs: 60_000,
+    windowDurationMs: 300_000,
+    maxCyclesPerWindow: 2,
+    maxInvocationsPerWindow: 4,
+    maxInvocationDurationMs: 60_000,
+    reserveInvocations: 1,
+    maxReportedTokensPerWindow: 100_000,
+    baseBackoffMs: 1_000,
+    maxBackoffMs: 8_000,
+    codexCommand: "codex",
+    codexArguments: ["exec", "--sandbox", "workspace-write", "--ask-for-approval", "never", "--json"],
+    ...overrides,
+  };
+}
+
+class FakeGitHub {
+  constructor(issues = [], pullRequests = []) {
+    this.issues = issues;
+    this.pullRequests = pullRequests;
+  }
+  async listOpenIssues() { return structuredClone(this.issues); }
+  async listOpenPullRequests() { return structuredClone(this.pullRequests); }
+  async mainSha() { return sha; }
+  async currentLogin() { return "maintainer"; }
+  async markInProgress() { throw new Error("unexpected_github_mutation"); }
+  async latestReservation() { return null; }
+  async remoteBranchSha() { return null; }
+}
+
+function gate(overrides = {}) {
+  return {
+    number: 100,
+    state: "OPEN",
+    isDraft: true,
+    mergeable: "MERGEABLE",
+    mergeStateStatus: "CLEAN",
+    reviewDecision: null,
+    behindBy: 0,
+    unresolvedThreads: 0,
+    checks: {
+      "CI / Application": "success",
+      "CI / Database authorization": "success",
+      "CI / Required": "success",
+      Vercel: "success",
+    },
+    ...overrides,
+  };
+}
+
+function operations(github, overrides = {}) {
+  return {
+    github,
+    dispatcherGitHub: { async inspectPullRequest() { return gate(); } },
+    async invoke() { return { status: "success", exitCode: 0, reportedTokens: 100 }; },
+    ...overrides,
+  };
+}
+
+test("dispatcher defaults are disabled, dry-run and reject unsafe Codex flags", async (context) => {
+  const directory = await mkdtemp(join(tmpdir(), "verah-dispatcher-config-"));
+  context.after(() => rm(directory, { recursive: true, force: true }));
+  const value = await readDispatcherConfig(core(directory), {});
+  assert.equal(value.enabled, false);
+  assert.equal(value.dryRun, true);
+  assert.deepEqual(value.codexArguments.slice(0, 3), ["exec", "--sandbox", "workspace-write"]);
+  await assert.rejects(
+    readDispatcherConfig(core(directory), { VERAH_OS_CODEX_ARGUMENTS_JSON: '["exec","--yolo"]' }),
+    /arguments_unsafe/,
+  );
+  await assert.rejects(
+    readDispatcherConfig(core(directory), { VERAH_OS_CODEX_ARGUMENTS_JSON: '["exec","--json"]' }),
+    /arguments_incomplete/,
+  );
+  await assert.rejects(
+    readDispatcherConfig(core(directory), {
+      VERAH_OS_CODEX_ARGUMENTS_JSON: '["exec","--sandbox","workspace-write","--ask-for-approval","never","--json","--ask-for-approval","on-request"]',
+    }),
+    /arguments_incomplete/,
+  );
+  await assert.rejects(
+    readDispatcherConfig(core(directory), { VERAH_OS_CODEX_COMMAND: "powershell.exe" }),
+    /command_not_allowed/,
+  );
+});
+
+test("PR gates fail closed for conflicts, CI, review and release readiness", () => {
+  assert.deepEqual(evaluatePullRequestGate(gate({ mergeable: "CONFLICTING" })), {
+    action: "pause", reason: "conflict", until: null,
+  });
+  assert.deepEqual(evaluatePullRequestGate(gate({ checks: { ...gate().checks, Vercel: "pending" } })), {
+    action: "pause", reason: "ci_pending", until: null,
+  });
+  assert.deepEqual(evaluatePullRequestGate(gate({ checks: { ...gate().checks, "CI / Required": "failure" } })), {
+    action: "invoke", reason: "correct_pr",
+  });
+  assert.deepEqual(evaluatePullRequestGate(gate({ reviewDecision: "CHANGES_REQUESTED" })), {
+    action: "invoke", reason: "address_review",
+  });
+  assert.deepEqual(evaluatePullRequestGate(gate()), { action: "invoke", reason: "release_pr" });
+  assert.deepEqual(evaluatePullRequestGate(gate({ isDraft: false })), {
+    action: "pause", reason: "human_review", until: null,
+  });
+});
+
+test("quota, authentication and rate limits are classified without retaining output", () => {
+  assert.equal(classifyCodexFailure("HTTP 429 rate limit"), "rate_limit");
+  assert.equal(classifyCodexFailure("insufficient credits quota"), "quota");
+  assert.equal(classifyCodexFailure("401 authentication required"), "authentication");
+  assert.equal(classifyCodexFailure("ordinary failure"), "failure");
+  const until = backoffUntil(
+    { ...freshDispatcherState(new Date("2026-08-04T10:00:00Z")), consecutiveFailures: 2 },
+    dispatcher("unused"),
+    new Date("2026-08-04T10:00:00Z"),
+  );
+  assert.equal(until, "2026-08-04T10:00:04.000Z");
+});
+
+test("Codex adapter uses a direct child process and consumes only structured usage", async (context) => {
+  const directory = await mkdtemp(join(tmpdir(), "verah-dispatcher-runner-"));
+  context.after(() => rm(directory, { recursive: true, force: true }));
+  const fixture = join(directory, "fake-codex.mjs");
+  await writeFile(fixture, 'console.log(JSON.stringify({usage:{input_tokens:40,output_tokens:2,cached_input_tokens:8}}));\n');
+  const result = await invokeCodex(dispatcher(directory, {
+    codexCommand: process.execPath,
+    codexArguments: [fixture],
+  }));
+  assert.deepEqual(result, { status: "success", exitCode: 0, reportedTokens: 50 });
+});
+
+test("reserved invocation capacity prevents a new cycle but remains available to a PR", () => {
+  const state = { ...freshDispatcherState(), invocations: 3 };
+  assert.equal(budgetDecision(state, dispatcher("unused"), true)?.action, "pause");
+  assert.equal(budgetDecision(state, dispatcher("unused"), false), null);
+});
+
+test("two synthetic issues chain one at a time without external mutations", async (context) => {
+  const directory = await mkdtemp(join(tmpdir(), "verah-dispatcher-chain-"));
+  context.after(() => rm(directory, { recursive: true, force: true }));
+  const github = new FakeGitHub([issue(1)]);
+  const invoked = [];
+  const fake = operations(github, {
+    async invoke() {
+      invoked.push(github.issues[0].number);
+      github.issues = invoked.length === 1 ? [issue(2)] : [];
+      return { status: "success", exitCode: 0, reportedTokens: 500 };
+    },
+  });
+  const first = await runDispatcherOnce(core(directory), dispatcher(directory), fake);
+  const second = await runDispatcherOnce(core(directory), dispatcher(directory), fake);
+  assert.deepEqual(invoked, [1, 2]);
+  assert.equal(first.decision.reason, "start_issue");
+  assert.equal(second.decision.reason, "start_issue");
+  const state = await readDispatcherState(directory);
+  assert.equal(state.cyclesStarted, 2);
+  assert.equal(state.invocations, 2);
+  assert.equal(state.reportedTokens, 1_000);
+});
+
+test("dry-run describes the next invocation without invoking or consuming budget", async (context) => {
+  const directory = await mkdtemp(join(tmpdir(), "verah-dispatcher-dry-"));
+  context.after(() => rm(directory, { recursive: true, force: true }));
+  let invocations = 0;
+  const result = await runDispatcherOnce(
+    core(directory),
+    dispatcher(directory, { enabled: false, dryRun: true }),
+    operations(new FakeGitHub([issue(1)]), { async invoke() { invocations += 1; throw new Error("unexpected"); } }),
+  );
+  assert.equal(result.invoked, false);
+  assert.equal(invocations, 0);
+  assert.equal((await readDispatcherState(directory)).invocations, 0);
+});
+
+test("an open failing PR consumes correction reserve and blocks new issue selection", async (context) => {
+  const directory = await mkdtemp(join(tmpdir(), "verah-dispatcher-ci-"));
+  context.after(() => rm(directory, { recursive: true, force: true }));
+  const pr = {
+    number: 100, title: "PR", url: "https://github.test/pull/100", state: "OPEN",
+    isDraft: true, headRefName: "feat/current", headRefOid: sha,
+    updatedAt: "2026-08-04T10:00:00.000Z", labels: [],
+  };
+  const github = new FakeGitHub([issue(2)], [pr]);
+  await writeFile(join(directory, "checkpoint.json"), JSON.stringify({
+    version: 3, runId: "run", repository: "Verah-os/Verah-Command-Center",
+    workType: "issue", issueNumber: 2, pullRequestNumber: 100, workTitle: "Issue 2",
+    workUrl: "https://github.test/issues/2", baseSha: sha, branch: "feat/current",
+    state: "pr_open", correctionAttempts: 0, recoveryAttempts: 0,
+    lastKnownHeadSha: sha, lastKnownRemoteHeadSha: sha, lastKnownPullRequestNumber: 100,
+    startedAt: "2026-08-04T10:00:00.000Z", updatedAt: "2026-08-04T10:00:00.000Z",
+  }));
+  let invoked = 0;
+  const result = await runDispatcherOnce(core(directory), dispatcher(directory), operations(github, {
+    dispatcherGitHub: {
+      async inspectPullRequest() {
+        return gate({ checks: { ...gate().checks, "CI / Required": "failure" } });
+      },
+    },
+    async invoke() { invoked += 1; return { status: "success", exitCode: 0, reportedTokens: 0 }; },
+  }));
+  assert.equal(result.decision.reason, "correct_pr");
+  assert.equal(result.activeIssueNumber, 2);
+  assert.equal(result.activePullRequestNumber, 100);
+  assert.equal(invoked, 1);
+});
+
+test("pending review and CI do not invoke Codex or select another issue", async (context) => {
+  const directory = await mkdtemp(join(tmpdir(), "verah-dispatcher-review-"));
+  context.after(() => rm(directory, { recursive: true, force: true }));
+  const pr = {
+    number: 100, title: "PR", url: "https://github.test/pull/100", state: "OPEN",
+    isDraft: true, headRefName: "feat/current", headRefOid: sha,
+    updatedAt: "2026-08-04T10:00:00.000Z", labels: [],
+  };
+  let invoked = 0;
+  await writeFile(join(directory, "checkpoint.json"), JSON.stringify({
+    version: 3, runId: "run", repository: "Verah-os/Verah-Command-Center",
+    workType: "issue", issueNumber: 2, pullRequestNumber: 100, workTitle: "Issue 2",
+    workUrl: "https://github.test/issues/2", baseSha: sha, branch: "feat/current",
+    state: "pr_open", correctionAttempts: 0, recoveryAttempts: 0,
+    lastKnownHeadSha: sha, lastKnownRemoteHeadSha: sha, lastKnownPullRequestNumber: 100,
+    startedAt: "2026-08-04T10:00:00.000Z", updatedAt: "2026-08-04T10:00:00.000Z",
+  }));
+  const result = await runDispatcherOnce(core(directory), dispatcher(directory), operations(
+    new FakeGitHub([issue(2)], [pr]),
+    {
+      dispatcherGitHub: { async inspectPullRequest() { return gate({ reviewDecision: "REVIEW_REQUIRED" }); } },
+      async invoke() { invoked += 1; throw new Error("unexpected"); },
+    },
+  ));
+  assert.equal(result.pauseReason, "review_pending");
+  assert.equal(invoked, 0);
+});
+
+test("an unrelated open PR blocks dispatch and cannot be adopted without a checkpoint", async (context) => {
+  const directory = await mkdtemp(join(tmpdir(), "verah-dispatcher-unowned-pr-"));
+  context.after(() => rm(directory, { recursive: true, force: true }));
+  const pr = {
+    number: 101, title: "Unowned PR", url: "https://github.test/pull/101", state: "OPEN",
+    isDraft: true, headRefName: "feat/unowned", headRefOid: sha,
+    updatedAt: "2026-08-04T10:00:00.000Z", labels: [],
+  };
+  let inspected = 0;
+  let invoked = 0;
+  const result = await runDispatcherOnce(core(directory), dispatcher(directory), operations(
+    new FakeGitHub([issue(3)], [pr]),
+    {
+      dispatcherGitHub: { async inspectPullRequest() { inspected += 1; return gate(); } },
+      async invoke() { invoked += 1; throw new Error("unexpected"); },
+    },
+  ));
+  assert.equal(result.pauseReason, "human_review");
+  assert.equal(result.activePullRequestNumber, 101);
+  assert.equal(inspected, 0);
+  assert.equal(invoked, 0);
+});
+
+test("revoked issue authorization stops an existing checkpoint before invocation", async (context) => {
+  const directory = await mkdtemp(join(tmpdir(), "verah-dispatcher-revoked-"));
+  context.after(() => rm(directory, { recursive: true, force: true }));
+  await writeFile(join(directory, "checkpoint.json"), JSON.stringify({
+    version: 3, runId: "run", repository: "Verah-os/Verah-Command-Center",
+    workType: "issue", issueNumber: 2, pullRequestNumber: null, workTitle: "Issue 2",
+    workUrl: "https://github.test/issues/2", baseSha: sha, branch: "feat/current",
+    state: "implementing", correctionAttempts: 0, recoveryAttempts: 0,
+    lastKnownHeadSha: sha, lastKnownRemoteHeadSha: null, lastKnownPullRequestNumber: null,
+    startedAt: "2026-08-04T10:00:00.000Z", updatedAt: "2026-08-04T10:00:00.000Z",
+  }));
+  let invoked = 0;
+  const result = await runDispatcherOnce(core(directory), dispatcher(directory), operations(
+    new FakeGitHub([issue(2, { labels: ["codex:ready"] })]),
+    { async invoke() { invoked += 1; throw new Error("unexpected"); } },
+  ));
+  assert.equal(result.pauseReason, "human_review");
+  assert.equal(invoked, 0);
+});
+
+test("two completed correction invocations force a human gate", async (context) => {
+  const directory = await mkdtemp(join(tmpdir(), "verah-dispatcher-corrections-"));
+  context.after(() => rm(directory, { recursive: true, force: true }));
+  const pr = {
+    number: 100, title: "PR", url: "https://github.test/pull/100", state: "OPEN",
+    isDraft: true, headRefName: "feat/current", headRefOid: sha,
+    updatedAt: "2026-08-04T10:00:00.000Z", labels: [],
+  };
+  await writeDispatcherState(directory, { ...freshDispatcherState(), correctionInvocations: 2 });
+  await writeFile(join(directory, "checkpoint.json"), JSON.stringify({
+    version: 3, runId: "run", repository: "Verah-os/Verah-Command-Center",
+    workType: "issue", issueNumber: 2, pullRequestNumber: 100, workTitle: "Issue 2",
+    workUrl: "https://github.test/issues/2", baseSha: sha, branch: "feat/current",
+    state: "pr_open", correctionAttempts: 0, recoveryAttempts: 0,
+    lastKnownHeadSha: sha, lastKnownRemoteHeadSha: sha, lastKnownPullRequestNumber: 100,
+    startedAt: "2026-08-04T10:00:00.000Z", updatedAt: "2026-08-04T10:00:00.000Z",
+  }));
+  let invoked = 0;
+  const result = await runDispatcherOnce(core(directory), dispatcher(directory), operations(
+    new FakeGitHub([issue(2)], [pr]),
+    {
+      dispatcherGitHub: {
+        async inspectPullRequest() {
+          return gate({ checks: { ...gate().checks, "CI / Required": "failure" } });
+        },
+      },
+      async invoke() { invoked += 1; throw new Error("unexpected"); },
+    },
+  ));
+  assert.equal(result.pauseReason, "human_review");
+  assert.equal(invoked, 0);
+});
+
+test("rate limit pauses with progressive backoff and no consumption loop", async (context) => {
+  const directory = await mkdtemp(join(tmpdir(), "verah-dispatcher-rate-"));
+  context.after(() => rm(directory, { recursive: true, force: true }));
+  const now = new Date("2026-08-04T10:00:00.000Z");
+  const fake = operations(new FakeGitHub([issue(1)]), {
+    async invoke() { return { status: "rate_limit", exitCode: 1, reportedTokens: 0 }; },
+  });
+  const first = await runDispatcherOnce(core(directory), dispatcher(directory), fake, now);
+  const second = await runDispatcherOnce(
+    core(directory), dispatcher(directory), fake, new Date("2026-08-04T10:00:00.500Z"),
+  );
+  assert.equal(first.pauseReason, "rate_limit");
+  assert.equal(first.nextAttemptAt, "2026-08-04T10:00:02.000Z");
+  assert.equal(second.invoked, false);
+  assert.equal(second.invocations, 1);
+});
+
+test("kill switch and dispatcher STOP fail closed", async (context) => {
+  const directory = await mkdtemp(join(tmpdir(), "verah-dispatcher-stop-"));
+  context.after(() => rm(directory, { recursive: true, force: true }));
+  const killed = await runDispatcherOnce(
+    core(directory, { killSwitch: true }), dispatcher(directory), operations(new FakeGitHub([issue(1)])),
+  );
+  assert.equal(killed.pauseReason, "kill_switch");
+  await requestDispatcherStop(directory);
+  const stopped = await runDispatcherOnce(
+    core(directory), dispatcher(directory), operations(new FakeGitHub([issue(1)])),
+  );
+  assert.equal(stopped.pauseReason, "stopped");
+});
+
+test("a dead dispatcher mutex is recovered and concurrent ownership is rejected", async (context) => {
+  const directory = await mkdtemp(join(tmpdir(), "verah-dispatcher-mutex-"));
+  context.after(() => rm(directory, { recursive: true, force: true }));
+  await mkdir(dispatcherDirectory(directory), { recursive: true });
+  await writeFile(join(dispatcherDirectory(directory), "mutex.lock"), JSON.stringify({ owner: "dead", pid: 2_147_483_647 }));
+  const owner = await acquireDispatcherMutex(directory);
+  await assert.rejects(acquireDispatcherMutex(directory), /already_running/);
+  await releaseDispatcherMutex(directory, owner);
+});
+
+test("clean shutdown preserves state and reports a healthy local-only status", async (context) => {
+  const directory = await mkdtemp(join(tmpdir(), "verah-dispatcher-shutdown-"));
+  context.after(() => rm(directory, { recursive: true, force: true }));
+  await requestDispatcherStop(directory);
+  await runDispatcherLoop(core(directory), dispatcher(directory), operations(new FakeGitHub()));
+  const state = await readDispatcherState(directory);
+  const status = await dispatcherStatus(dispatcher(directory));
+  assert.equal(state.status, "idle");
+  assert.equal(state.lastOutcome, "clean_shutdown");
+  assert.deepEqual(status.productionMutations, []);
+  assert.deepEqual(status.remoteDatabaseMutations, []);
+});
+
+test("dispatcher sources never contain remote database commands or unsafe sandbox bypass", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const files = [
+    "../scripts/verah-os/codex-runner.ts",
+    "../scripts/verah-os/dispatcher.ts",
+    "../scripts/verah-os/dispatcher-cli.ts",
+    "../scripts/verah-os/windows-dispatcher.ps1",
+  ];
+  for (const file of files) {
+    const content = await readFile(new URL(file, import.meta.url), "utf8");
+    assert.doesNotMatch(content, /spawn(?:Sync)?\([^)]*supabase/i);
+    assert.doesNotMatch(content, /danger-full-access/i);
+    assert.doesNotMatch(content, /--yolo/i);
+  }
+});
