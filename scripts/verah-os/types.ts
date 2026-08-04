@@ -39,13 +39,20 @@ export type VerahOsConfig = {
   workspaceDirectory: string;
 };
 
+export type ExecutionStatus =
+  | "running"
+  | "interrupted"
+  | "recovering"
+  | "blocked"
+  | "idle";
+
 export type SelectionResult =
   | { status: "selected"; issue: VerahIssue }
   | { status: "locked"; issue: VerahIssue }
   | { status: "empty" };
 
 export type RunCheckpoint = {
-  version: 2;
+  version: 3;
   runId: string;
   repository: string;
   workType: "issue" | "pull_request";
@@ -57,8 +64,25 @@ export type RunCheckpoint = {
   branch: string;
   state: "planning" | "implementing" | "testing" | "pr_open" | "blocked";
   correctionAttempts: number;
+  recoveryAttempts: number;
+  lastKnownHeadSha: string | null;
+  lastKnownRemoteHeadSha: string | null;
+  lastKnownPullRequestNumber: number | null;
   startedAt: string;
   updatedAt: string;
+};
+
+export type ReservationRecord = {
+  maintainer: string;
+  baseSha: string;
+  createdAt: string;
+};
+
+export type WorkspaceSnapshot = {
+  currentBranch: string | null;
+  headSha: string | null;
+  selectedBranchSha: string | null;
+  clean: boolean;
 };
 
 export type ReleaseSnapshot = {
@@ -87,6 +111,7 @@ export type VerahOsReport = {
   branch: string | null;
   requiredChecks: string[];
   correctionBudget: number;
+  executionStatus: ExecutionStatus;
   repositoryMutations: string[];
   productionMutations: [];
   remoteDatabaseMutations: [];
