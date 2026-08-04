@@ -21,6 +21,10 @@ pnpm verah:heartbeat # renova o lease durante uma execução ativa
 pnpm verah:complete  # limpa checkpoint e lease após conclusão verificada
 pnpm verah:stop      # ativa o kill switch local
 pnpm verah:resume    # remove o kill switch local
+pnpm verah:dispatcher:once   # reconcilia uma decisão do dispatcher
+pnpm verah:dispatcher:start  # inicia o dispatcher local em background
+pnpm verah:dispatcher:status # mostra status e budget sanitizados
+pnpm verah:dispatcher:stop   # solicita encerramento limpo
 ```
 
 O `dry-run` inventaria os PRs abertos e lê ADRs, handoffs e roadmap locais,
@@ -37,6 +41,9 @@ remove o checkpoint e o lock.
 
 A recuperação detalhada, os estados executivos e a configuração opcional no
 login do Windows estão em `docs/verah-os/recovery.md`.
+
+O dispatcher contínuo, seu dry-run obrigatório, budgets, watchdog, instalação
+e rollback estão em `docs/verah-os/dispatcher.md`.
 
 ## Ativação local
 

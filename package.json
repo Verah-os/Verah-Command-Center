@@ -24,6 +24,10 @@
     "verah:complete": "node --experimental-strip-types scripts/verah-os/cli.ts complete",
     "verah:stop": "node --experimental-strip-types scripts/verah-os/cli.ts stop",
     "verah:resume": "node --experimental-strip-types scripts/verah-os/cli.ts resume",
+    "verah:dispatcher:start": "node --experimental-strip-types scripts/verah-os/dispatcher-cli.ts start",
+    "verah:dispatcher:stop": "node --experimental-strip-types scripts/verah-os/dispatcher-cli.ts stop",
+    "verah:dispatcher:status": "node --experimental-strip-types scripts/verah-os/dispatcher-cli.ts status",
+    "verah:dispatcher:once": "node --experimental-strip-types scripts/verah-os/dispatcher-cli.ts once",
     "ci:application": "pnpm test && pnpm typecheck && pnpm lint && pnpm build",
     "ci:database": "bash scripts/ci/test-database.sh"
   },
