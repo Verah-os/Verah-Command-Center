@@ -145,10 +145,32 @@ export async function continueCycle(
       throw new Error("verah_os_timeout_exceeded");
     }
     const renewed = await acquireHostLock(config.runtimeDirectory, config.leaseDurationMs, now);
+    const [pullRequests, remoteHeadSha, snapshot] = await Promise.all([
+      github.listOpenPullRequests(config.repository),
+      github.remoteBranchSha(config.repository, existing.branch),
+      workspace.inspect(config.workspaceDirectory, existing.branch),
+    ]);
+    const matchingPullRequest = pullRequests.find(
+      (pullRequest) => pullRequest.headRefName === existing.branch,
+    ) ?? null;
     const resumed = {
       ...existing,
       runId: renewed.runId,
+      workType: matchingPullRequest ? "pull_request" as const : existing.workType,
+      pullRequestNumber: matchingPullRequest?.number ?? existing.pullRequestNumber,
+      workTitle: matchingPullRequest?.title ?? existing.workTitle,
+      workUrl: matchingPullRequest?.url ?? existing.workUrl,
+      state: matchingPullRequest
+        ? "pr_open" as const
+        : remoteHeadSha
+          ? "testing" as const
+          : snapshot.selectedBranchSha
+            ? "implementing" as const
+            : existing.state,
       recoveryAttempts: existing.recoveryAttempts + 1,
+      lastKnownHeadSha: snapshot.selectedBranchSha ?? snapshot.headSha,
+      lastKnownRemoteHeadSha: matchingPullRequest?.headRefOid ?? remoteHeadSha,
+      lastKnownPullRequestNumber: matchingPullRequest?.number ?? existing.lastKnownPullRequestNumber,
       updatedAt: now.toISOString(),
     };
     await writeCheckpoint(config.runtimeDirectory, resumed);

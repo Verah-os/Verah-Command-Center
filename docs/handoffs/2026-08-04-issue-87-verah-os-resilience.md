@@ -18,8 +18,8 @@
 
 ## Validação
 
-- testes focados do VERAH OS: 22/22 aprovados;
-- suíte Node completa: 63/63 aprovada;
+- testes focados do VERAH OS: 23/23 aprovados;
+- suíte Node completa: 64/64 aprovada;
 - typecheck: aprovado;
 - lint: aprovado, com um warning preexistente de `Wrench`;
 - Next.js build: aprovado;
@@ -34,6 +34,8 @@ Não há migration, schema ou mudança de banco nesta entrega; replay SQL local 
 - recuperação de lock exige autorização vigente, owner correspondente, worktree limpo e budget válido;
 - múltiplas máquinas, continuidade com o computador desligado e serviços externos pagos permanecem fora do escopo;
 - inicialização no Windows executa somente dry-run e depende de configuração manual, sem secrets persistidos.
+
+Duas correções foram necessárias: ajuste do timestamp do fixture de budget e reconciliação explícita de PR aberto após commit/push. O budget automático de correções está encerrado para este ciclo.
 
 ## Segurança e próximo passo
 

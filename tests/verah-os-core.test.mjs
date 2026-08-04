@@ -236,6 +236,45 @@ test("continue resumes an existing PR without reserving duplicate issue work", a
   assert.equal(checkpoint.pullRequestNumber, 70);
 });
 
+test("checkpoint recovery reconciles a PR opened after commit and push", async (context) => {
+  const directory = await mkdtemp(join(tmpdir(), "verah-os-checkpoint-pr-"));
+  context.after(() => rm(directory, { recursive: true, force: true }));
+  const selectedIssue = issue();
+  const github = new FakeGitHub([selectedIssue]);
+  await continueCycle(
+    config(directory),
+    github,
+    new Date("2026-08-02T12:00:00.000Z"),
+    fakeWorkspace(),
+  );
+  const branch = branchName(selectedIssue);
+  github.remoteSha = "d".repeat(40);
+  github.pullRequests = [{
+    number: 88,
+    title: "Resilient recovery",
+    url: "https://github.test/pull/88",
+    state: "OPEN",
+    isDraft: true,
+    headRefName: branch,
+    headRefOid: "d".repeat(40),
+    updatedAt: "2026-08-02T12:00:01.000Z",
+    labels: [],
+  }];
+  const result = await continueCycle(
+    config(directory),
+    github,
+    new Date("2026-08-02T12:00:02.000Z"),
+    fakeWorkspace({ currentBranch: branch, selectedBranchSha: "d".repeat(40) }),
+  );
+  const checkpoint = await readCheckpoint(directory);
+  assert.equal(result.status, "resumed");
+  assert.equal(result.activePullRequest.number, 88);
+  assert.equal(checkpoint.workType, "pull_request");
+  assert.equal(checkpoint.state, "pr_open");
+  assert.equal(checkpoint.lastKnownPullRequestNumber, 88);
+  assert.equal(github.mutations.length, 1);
+});
+
 test("continue reconstructs an interrupted GitHub lock before local mutation", async (context) => {
   const directory = await mkdtemp(join(tmpdir(), "verah-os-recover-before-"));
   context.after(() => rm(directory, { recursive: true, force: true }));
