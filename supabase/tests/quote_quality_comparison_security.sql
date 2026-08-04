@@ -296,6 +296,7 @@ $$;
 
 select public.publish_quote_comparison_set(:'comparison_id') as published_comparison \gset
 select public.publish_quote_comparison_set(:'comparison_id');
+select pg_catalog.set_config('quote_quality_test.comparison_id', :'comparison_id', true);
 
 select quote_quality_test.expect_error(
   pg_catalog.format('update public.service_quote_revisions set revision_number = 99 where id = %L', :'provider_one_revision')
@@ -319,9 +320,7 @@ begin
     raise exception 'Customer can directly read internal comparison tables';
   end if;
 
-  select id into resolved_comparison_id
-  from public.quote_comparison_sets
-  where idempotency_key = 'comparison-valid';
+  resolved_comparison_id := pg_catalog.current_setting('quote_quality_test.comparison_id')::uuid;
   customer_payload := public.get_published_quote_comparison(resolved_comparison_id);
   if pg_catalog.jsonb_array_length(customer_payload -> 'proposals') <> 2
     or customer_payload::text ~* '(provider_id|trade_name|technical_notes|created_by|human_confirmed_by|Synthetic Provider)' then
@@ -380,6 +379,7 @@ select pg_catalog.set_config('request.jwt.claim.sub', 'a3333333-3333-4333-8333-3
 select pg_catalog.set_config('request.jwt.claims', '{"role":"authenticated","sub":"a3333333-3333-4333-8333-333333333333"}', true);
 select public.create_service_quote_revision('a7777777-7777-4777-8777-777777777773', 'approval-revision-one') as approval_revision_one \gset
 select public.create_service_quote_revision('a7777777-7777-4777-8777-777777777773', 'approval-revision-two') as approval_revision_two \gset
+select pg_catalog.set_config('quote_quality_test.approval_revision_two', :'approval_revision_two', true);
 
 select pg_catalog.set_config('request.jwt.claim.sub', 'a1111111-1111-4111-8111-111111111111', true);
 select pg_catalog.set_config('request.jwt.claims', '{"role":"authenticated","sub":"a1111111-1111-4111-8111-111111111111"}', true);
@@ -400,10 +400,7 @@ begin
     select 1 from public.service_quotes
     where id = 'a7777777-7777-4777-8777-777777777773'
       and status = 'approved'
-      and approved_revision_id = (
-        select id from public.service_quote_revisions
-        where idempotency_key = 'approval-revision-two'
-      )
+      and approved_revision_id = pg_catalog.current_setting('quote_quality_test.approval_revision_two')::uuid
       and total_amount = 300
   ) then
     raise exception 'Approval did not reference the latest revision or changed totals';
