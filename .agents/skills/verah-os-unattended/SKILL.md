@@ -27,7 +27,10 @@ execution report, executive status and handoff.
 
 ## Start a cycle
 
-1. Require an explicit `$verah-os-unattended` invocation.
+1. Require an explicit `$verah-os-unattended` invocation, or an invocation by
+   the enabled local dispatcher after its operator completed the mandatory
+   dry-run. Dispatcher invocation never replaces the issue authorization
+   labels and still authorizes exactly one bounded cycle.
 2. Run `pnpm verah:health`, `pnpm verah:status`, then `pnpm verah:dry-run`.
 3. Fail closed when the local kill switch is active, unattended mode is not
    enabled, the repository differs, another issue is in progress, or scope is
@@ -67,6 +70,12 @@ that clears the local checkpoint and lease.
 When the auto-merge label is absent, stop at the reviewed draft PR even if all
 technical checks pass. A recurring cycle may select the next issue only after
 the prior issue is completed and its lock is cleared.
+
+The continuous dispatcher may invoke this Skill again only after reconciling
+checkpoint, PR, CI, review and labels. It pauses on conflict, pending CI,
+pending review, quota, rate limit, authentication failure, exhausted budget or
+kill switch. Its activation is local and reversible; it adds no production or
+remote database permission.
 
 ## Permanent prohibitions
 

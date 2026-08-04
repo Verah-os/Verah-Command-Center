@@ -23,13 +23,12 @@ Estados executivos:
 
 ## Windows
 
-Para recuperação assistida no login, crie opcionalmente uma tarefa do Agendador de Tarefas no usuário atual que execute, no diretório do repositório:
-
-```text
-pnpm verah:recover:dry-run
-```
-
-Não armazene tokens ou variáveis sensíveis na tarefa. Não configure `continue`, merge ou comandos de produção no login. Depois de reiniciar, revise `verah:health` e invoque `$verah-os-unattended` para qualquer mutação.
+O dispatcher contínuo oferece instalação opcional de duas tarefas no usuário
+atual: início no login e watchdog. Ambas executam somente
+`pnpm verah:dispatcher:start`, sem credenciais ou variáveis na linha de comando.
+O dispatcher continua desabilitado e em dry-run por padrão e preserva todos os
+gates da Skill. Consulte `docs/verah-os/dispatcher.md` para instalar, validar e
+remover. Não configure comandos de produção no login.
 
 ## Energia, tampa, Docker e rede
 
