@@ -24,14 +24,17 @@ issue autorizada
 
 ## Estado e idempotência
 
-O checkpoint local contém somente issue, run, branch, SHA, estado, tentativas e
-timestamps. Ele permite retomada no mesmo host, mas não substitui o Control
+O checkpoint local contém somente issue, run, branch, SHA, estado, tentativas,
+heads observados e timestamps. Escritas atômicas preservam o snapshot anterior.
+Ele permite retomada no mesmo host, mas não substitui o Control
 Plane. O mutex é criado atomicamente, possui expiração e permanece retido
 durante o ciclo. Heartbeats renovam a lease; uma segunda invocação falha
 fechada enquanto ela estiver vigente. Após expiração, o mesmo checkpoint pode
 ser retomado com uma nova lease dentro do budget total. O label
-`codex:in-progress` impede sobreposição operacional entre ciclos. Um run
-retomado reutiliza seu checkpoint e não reserva outra issue.
+`codex:in-progress` impede sobreposição operacional entre ciclos. Se o
+checkpoint se perder, a reserva do GitHub só é reconciliada quando pertence ao
+mantenedor autenticado e o workspace está limpo. Um run retomado reutiliza seu
+checkpoint e não reserva outra issue.
 
 ## Limite do bootstrap
 

@@ -28,13 +28,13 @@ execution report, executive status and handoff.
 ## Start a cycle
 
 1. Require an explicit `$verah-os-unattended` invocation.
-2. Run `pnpm verah:status`, then `pnpm verah:dry-run`.
+2. Run `pnpm verah:health`, `pnpm verah:status`, then `pnpm verah:dry-run`.
 3. Fail closed when the local kill switch is active, unattended mode is not
    enabled, the repository differs, another issue is in progress, or scope is
    incomplete.
-4. Run `pnpm verah:continue` only after those checks. It reserves one issue and
-   records a local resumable checkpoint; it never implements or merges by
-   itself.
+4. Run `pnpm verah:continue` only after those checks. It first reconciles a
+   checkpoint, open PR or owned GitHub lock, then reserves new work only when
+   none exists. It never implements or merges by itself.
 5. Verify the issue has `codex:authorized` and `codex:ready`. Require
    `codex:auto-merge` before any unattended merge.
 6. Keep the exclusive local lease alive with `pnpm verah:heartbeat` during the
