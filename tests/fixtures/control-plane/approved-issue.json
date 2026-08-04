@@ -1,0 +1,16 @@
+{
+  "eventId": "synthetic.issue.67.delivery.1",
+  "action": "labeled",
+  "repository": "Verah-os/Verah-Command-Center",
+  "issue": {
+    "number": 67,
+    "title": "Control Plane 001 — dry-run",
+    "body": "## Objetivo\nProduzir um plano auditável sem executar comandos.\n\n## Escopo\n- Validar intake\n- Gerar relatório\n\n## Critérios de aceite\n- Nenhum efeito externo\n- Um único work item\n\n## Restrições\n- Não criar branch\n- Não acessar produção",
+    "updatedAt": "2026-07-31T20:00:00.000Z"
+  },
+  "approval": {
+    "decision": "approved",
+    "maintainer": "verah-maintainer",
+    "decidedAt": "2026-07-31T20:01:00.000Z"
+  }
+}

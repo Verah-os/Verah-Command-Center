@@ -246,6 +246,11 @@ export default async function ConciergePage({
                         {request.referenceCode}
                       </p>
                       <p className="mt-2 font-semibold text-slate-900">{request.customerName}</p>
+                      {request.origin === "whatsapp" && (
+                        <span className="mt-2 inline-flex rounded-full border border-teal-200 bg-teal-50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-teal-800">
+                          Origem WhatsApp
+                        </span>
+                      )}
                       <p className="text-xs text-muted-foreground">
                         {formatter.format(new Date(request.createdAt))}
                       </p>

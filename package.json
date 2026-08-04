@@ -14,6 +14,13 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "test": "node --experimental-strip-types --test tests/*.test.mjs",
+    "verah:continue": "node --experimental-strip-types scripts/verah-os/cli.ts continue",
+    "verah:status": "node --experimental-strip-types scripts/verah-os/cli.ts status",
+    "verah:dry-run": "node --experimental-strip-types scripts/verah-os/cli.ts dry-run",
+    "verah:heartbeat": "node --experimental-strip-types scripts/verah-os/cli.ts heartbeat",
+    "verah:complete": "node --experimental-strip-types scripts/verah-os/cli.ts complete",
+    "verah:stop": "node --experimental-strip-types scripts/verah-os/cli.ts stop",
+    "verah:resume": "node --experimental-strip-types scripts/verah-os/cli.ts resume",
     "ci:application": "pnpm test && pnpm typecheck && pnpm lint && pnpm build",
     "ci:database": "bash scripts/ci/test-database.sh"
   },
