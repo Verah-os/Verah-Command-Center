@@ -26,7 +26,7 @@ import type {
 } from "./dispatcher-types.ts";
 import type { GitHubOperations } from "./github.ts";
 import { githubOperations } from "./github.ts";
-import { dryRunCycle, heartbeatCycle } from "./orchestrator.ts";
+import { continueCycle, dryRunCycle, heartbeatCycle } from "./orchestrator.ts";
 import { isStopped, readCheckpoint } from "./state.ts";
 import type { VerahOsConfig } from "./types.ts";
 
@@ -234,6 +234,9 @@ export async function runDispatcherOnce(
         lastOutcome: `dry_run:${evaluated.decision.reason}`,
       }, "dispatcher_dry_run", evaluated.decision.reason);
       return { ...publicStatus(state, config), decision: evaluated.decision, invoked: false };
+    }
+    if (isNewIssue) {
+      await continueCycle(core, operations.github, now);
     }
     state = await persist(config, {
       ...state,
