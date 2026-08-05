@@ -79,7 +79,7 @@ function dispatcher(runtimeDirectory, overrides = {}) {
     baseBackoffMs: 1_000,
     maxBackoffMs: 8_000,
     codexCommand: "codex",
-    codexArguments: ["exec", "--sandbox", "workspace-write", "--ask-for-approval", "never", "--json"],
+    codexArguments: ["--ask-for-approval", "never", "exec", "--sandbox", "workspace-write", "--json"],
     ...overrides,
   };
 }
@@ -133,7 +133,14 @@ test("dispatcher defaults are disabled, dry-run and reject unsafe Codex flags", 
   const value = await readDispatcherConfig(core(directory), {});
   assert.equal(value.enabled, false);
   assert.equal(value.dryRun, true);
-  assert.deepEqual(value.codexArguments.slice(0, 3), ["exec", "--sandbox", "workspace-write"]);
+  assert.deepEqual(value.codexArguments, [
+    "--ask-for-approval",
+    "never",
+    "exec",
+    "--sandbox",
+    "workspace-write",
+    "--json",
+  ]);
   await assert.rejects(
     readDispatcherConfig(core(directory), { VERAH_OS_CODEX_ARGUMENTS_JSON: '["exec","--yolo"]' }),
     /arguments_unsafe/,
@@ -144,7 +151,7 @@ test("dispatcher defaults are disabled, dry-run and reject unsafe Codex flags", 
   );
   await assert.rejects(
     readDispatcherConfig(core(directory), {
-      VERAH_OS_CODEX_ARGUMENTS_JSON: '["exec","--sandbox","workspace-write","--ask-for-approval","never","--json","--ask-for-approval","on-request"]',
+      VERAH_OS_CODEX_ARGUMENTS_JSON: '["--ask-for-approval","never","exec","--sandbox","workspace-write","--json","--ask-for-approval","on-request"]',
     }),
     /arguments_incomplete/,
   );

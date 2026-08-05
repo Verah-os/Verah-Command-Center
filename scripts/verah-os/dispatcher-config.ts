@@ -47,7 +47,7 @@ async function readLocalConfig(runtimeDirectory: string): Promise<LocalConfig> {
 }
 
 function safeArguments(value: unknown) {
-  const canonical = ["exec", "--sandbox", "workspace-write", "--ask-for-approval", "never", "--json"];
+  const canonical = ["--ask-for-approval", "never", "exec", "--sandbox", "workspace-write", "--json"];
   if (!Array.isArray(value) || !value.every((item) => typeof item === "string")) {
     return canonical;
   }
