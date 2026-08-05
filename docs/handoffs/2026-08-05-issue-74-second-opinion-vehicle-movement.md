@@ -8,7 +8,8 @@
 - Architecture decisions: ADR 006 binds every case to the latest immutable quote revision and eligibility assessment, restricts outcomes and movement codes to non-diagnostic values, and denies automated critical decisions
 - Validation evidence: focused tests 4/4; complete Node suite 88/88; typecheck, lint and Next.js build passed; one pre-existing unused-import lint warning remains; isolated local Supabase validation passed with a full clean replay using `--no-seed`, incremental replay, the complete SQL authorization and concurrency matrix, and schema lint with no errors
 - Automatic correction budget: 2/2 used. The implementation now uses deterministic event sequence numbers for same-transaction ordering and unambiguous local provider identifiers in the movement-guidance projection.
-- Current locks and labels: Issue #74 retains `codex:authorized`, `codex:ready` and `codex:in-progress` until the remote checks finish; `codex:auto-merge` is absent
+- Remote validation: PR #94 passed Application, Database authorization, Required and Vercel; Supabase Preview was skipped as expected.
+- Current locks and labels: Issue #74 retains `codex:authorized`, `codex:ready` and `codex:awaiting-review`; the execution lock `codex:in-progress` and `codex:auto-merge` are absent
 - Deliberate limitations: no UI, diagnosis, automatic provider selection, towing/dispatch, external integration, real message, payment or financial change
 - External credentials/costs: none
 - Production and remote migrations: not accessed
