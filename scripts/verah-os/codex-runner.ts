@@ -1,4 +1,6 @@
 import { spawn } from "node:child_process";
+import { access } from "node:fs/promises";
+import { delimiter, dirname, extname, isAbsolute, join, resolve } from "node:path";
 
 import type { CodexInvocationResult, DispatcherConfig } from "./dispatcher-types.ts";
 import { classifyCodexFailure } from "./dispatcher-policy.ts";
@@ -34,9 +36,58 @@ function reportedTokens(line: string) {
   }
 }
 
+async function available(path: string) {
+  try {
+    await access(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function resolveWindowsCommand(
+  command: string,
+  workspaceDirectory: string,
+  environment: NodeJS.ProcessEnv,
+) {
+  const hasDirectory = dirname(command) !== ".";
+  const roots = hasDirectory
+    ? [isAbsolute(command) ? "" : workspaceDirectory]
+    : String(environment.PATH ?? "").split(delimiter).map((item) => item.replace(/^"|"$/g, ""));
+  const names = extname(command) ? [command] : [`${command}.cmd`, `${command}.exe`, command];
+  for (const root of roots) {
+    for (const name of names) {
+      const candidate = root ? resolve(root, name) : name;
+      if (await available(candidate)) return candidate;
+    }
+  }
+  throw new Error("dispatcher_codex_command_unavailable");
+}
+
+export async function resolveCodexProcess(
+  config: DispatcherConfig,
+  arguments_: string[],
+  environment: NodeJS.ProcessEnv,
+  platform = process.platform,
+) {
+  if (platform !== "win32") return { command: config.codexCommand, arguments_ };
+  const command = await resolveWindowsCommand(
+    config.codexCommand,
+    config.workspaceDirectory,
+    environment,
+  );
+  if (extname(command).toLowerCase() !== ".cmd") return { command, arguments_ };
+  const entrypoint = join(dirname(command), "node_modules", "@openai", "codex", "bin", "codex.js");
+  if (!await available(entrypoint)) {
+    throw new Error("dispatcher_codex_windows_entrypoint_unavailable");
+  }
+  return { command: process.execPath, arguments_: [entrypoint, ...arguments_] };
+}
+
 export async function invokeCodex(
   config: DispatcherConfig,
   signal?: AbortSignal,
+  platform = process.platform,
 ): Promise<CodexInvocationResult> {
   const arguments_ = [
     ...config.codexArguments,
@@ -44,15 +95,29 @@ export async function invokeCodex(
     config.workspaceDirectory,
     DISPATCHER_PROMPT,
   ];
+  const environment = childEnvironment();
+  let invocation;
+  try {
+    invocation = await resolveCodexProcess(config, arguments_, environment, platform);
+  } catch {
+    return { status: "failure", exitCode: null, reportedTokens: 0 };
+  }
   return await new Promise((resolve) => {
-    const child = spawn(config.codexCommand, arguments_, {
-      cwd: config.workspaceDirectory,
-      env: childEnvironment(),
-      shell: false,
-      windowsHide: true,
-      stdio: ["ignore", "pipe", "pipe"],
-      signal,
-    });
+    let child;
+    try {
+      child = spawn(invocation.command, invocation.arguments_, {
+        cwd: config.workspaceDirectory,
+        env: environment,
+        shell: false,
+        windowsHide: true,
+        stdio: ["ignore", "pipe", "pipe"],
+        signal,
+      });
+    } catch (error) {
+      const status = error instanceof Error ? classifyCodexFailure(error.message) : "failure";
+      resolve({ status, exitCode: null, reportedTokens: 0 });
+      return;
+    }
     let diagnostic = "";
     let tokens = 0;
     let lineBuffer = "";

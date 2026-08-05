@@ -252,19 +252,30 @@ export async function runDispatcherOnce(
     }, "dispatcher_invocation_started", evaluated.decision.reason);
     const controller = new AbortController();
     let heartbeatFailure: Error | null = null;
-    const heartbeat = setInterval(async () => {
-      try {
-        if (await isDispatcherStopped(config.runtimeDirectory)) controller.abort();
-        const checkpoint = await readCheckpoint(core.runtimeDirectory);
-        if (checkpoint) await heartbeatCycle(core);
-        state = await persist(config, { ...state, heartbeatAt: new Date().toISOString() }, "dispatcher_heartbeat");
-      } catch (error) {
-        heartbeatFailure = error as Error;
-        controller.abort();
-      }
+    let heartbeatInFlight: Promise<void> | null = null;
+    const heartbeat = setInterval(() => {
+      if (heartbeatInFlight) return;
+      heartbeatInFlight = (async () => {
+        try {
+          if (await isDispatcherStopped(config.runtimeDirectory)) controller.abort();
+          const checkpoint = await readCheckpoint(core.runtimeDirectory);
+          if (checkpoint) await heartbeatCycle(core);
+          state = await persist(config, { ...state, heartbeatAt: new Date().toISOString() }, "dispatcher_heartbeat");
+        } catch (error) {
+          heartbeatFailure = error as Error;
+          controller.abort();
+        }
+      })().finally(() => {
+        heartbeatInFlight = null;
+      });
     }, config.heartbeatIntervalMs);
-    const result = await operations.invoke(config, controller.signal);
-    clearInterval(heartbeat);
+    let result;
+    try {
+      result = await operations.invoke(config, controller.signal);
+    } finally {
+      clearInterval(heartbeat);
+      await heartbeatInFlight;
+    }
     if (heartbeatFailure) throw heartbeatFailure;
     const failed = result.status !== "success";
     const rateLimited = ["rate_limit", "quota", "authentication"].includes(result.status);

@@ -3,6 +3,7 @@ import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+import { setTimeout as delay } from "node:timers/promises";
 
 import { readDispatcherConfig } from "../scripts/verah-os/dispatcher-config.ts";
 import { checkContext } from "../scripts/verah-os/dispatcher-github.ts";
@@ -195,6 +196,42 @@ test("Codex adapter uses a direct child process and consumes only structured usa
     codexArguments: [fixture],
   }));
   assert.deepEqual(result, { status: "success", exitCode: 0, reportedTokens: 50 });
+});
+
+test("Windows Codex adapter resolves the npm cmd shim without enabling a shell", async (context) => {
+  const directory = await mkdtemp(join(tmpdir(), "verah-dispatcher-windows-runner-"));
+  context.after(() => rm(directory, { recursive: true, force: true }));
+  const entrypointDirectory = join(directory, "node_modules", "@openai", "codex", "bin");
+  await mkdir(entrypointDirectory, { recursive: true });
+  const command = join(directory, "codex.cmd");
+  await writeFile(command, "@echo off\n");
+  await writeFile(
+    join(entrypointDirectory, "codex.js"),
+    'console.log(JSON.stringify({usage:{input_tokens:5,output_tokens:3,cached_input_tokens:2}}));\n',
+  );
+  const result = await invokeCodex(dispatcher(directory, {
+    codexCommand: command,
+    codexArguments: [],
+  }), undefined, "win32");
+  assert.deepEqual(result, { status: "success", exitCode: 0, reportedTokens: 10 });
+});
+
+test("a thrown invocation always clears the dispatcher heartbeat", async (context) => {
+  const directory = await mkdtemp(join(tmpdir(), "verah-dispatcher-heartbeat-cleanup-"));
+  context.after(() => rm(directory, { recursive: true, force: true }));
+  await assert.rejects(
+    runDispatcherOnce(
+      core(directory),
+      dispatcher(directory, { heartbeatIntervalMs: 5 }),
+      operations(new FakeGitHub([issue(1)]), {
+        async invoke() { throw new Error("synthetic_spawn_failure"); },
+      }),
+    ),
+    /synthetic_spawn_failure/,
+  );
+  const settled = await readDispatcherState(directory);
+  await delay(30);
+  assert.equal((await readDispatcherState(directory)).updatedAt, settled.updatedAt);
 });
 
 test("reserved invocation capacity prevents a new cycle but remains available to a PR", () => {
@@ -443,5 +480,6 @@ test("dispatcher sources never contain remote database commands or unsafe sandbo
     assert.doesNotMatch(content, /spawn(?:Sync)?\([^)]*supabase/i);
     assert.doesNotMatch(content, /danger-full-access/i);
     assert.doesNotMatch(content, /--yolo/i);
+    assert.doesNotMatch(content, /shell:\s*true/i);
   }
 });
