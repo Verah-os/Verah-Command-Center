@@ -7,6 +7,8 @@ import { classifyCodexFailure } from "./dispatcher-policy.ts";
 
 export const DISPATCHER_PROMPT = [
   "Use $verah-os-unattended to continue the currently selected VERAH OS checkpoint.",
+  "The dispatcher parent already reserved new work and owns authenticated GitHub CLI operations; do not reserve a second issue.",
+  "If GitHub CLI credentials are unavailable inside the sandbox, read the checkpoint directly and use the connected GitHub tools for repository reads and authenticated publication.",
   "Work only within the written GitHub issue scope and reconcile existing branch, PR, CI and labels before mutation.",
   "Never access production, mutate a remote database, run db push or migration repair, re-enable production deploys, send real messages, make payments, change rulesets or bypass gates.",
   "Use at most two correction attempts. Preserve the human merge gate unless codex:auto-merge is explicitly present and every release gate passes.",
@@ -29,8 +31,10 @@ function reportedTokens(line: string) {
       | Record<string, unknown>
       | undefined;
     if (!usage) return 0;
-    return ["input_tokens", "output_tokens", "cached_input_tokens"]
-      .reduce((sum, key) => sum + (Number(usage[key]) || 0), 0);
+    const input = Number(usage.input_tokens) || 0;
+    const cached = Number(usage.cached_input_tokens) || 0;
+    const output = Number(usage.output_tokens) || 0;
+    return Math.max(0, input - cached) + output;
   } catch {
     return 0;
   }

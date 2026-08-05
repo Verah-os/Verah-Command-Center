@@ -32,12 +32,20 @@ execution report, executive status and handoff.
    dry-run. Dispatcher invocation never replaces the issue authorization
    labels and still authorizes exactly one bounded cycle.
 2. Run `pnpm verah:health`, `pnpm verah:status`, then `pnpm verah:dry-run`.
+   When invoked by the local dispatcher, it has already reserved the selected
+   issue and written the checkpoint from its authenticated parent process. If
+   these commands fail only because Windows credential storage is unavailable
+   in the Codex sandbox, inspect `.verah-os/checkpoint.json` directly, verify
+   the issue and labels with the connected GitHub tools, and continue that
+   checkpoint. Do not reserve another issue or write a replacement checkpoint.
 3. Fail closed when the local kill switch is active, unattended mode is not
    enabled, the repository differs, another issue is in progress, or scope is
    incomplete.
 4. Run `pnpm verah:continue` only after those checks. It first reconciles a
    checkpoint, open PR or owned GitHub lock, then reserves new work only when
-   none exists. It never implements or merges by itself.
+   none exists. It never implements or merges by itself. A dispatcher child
+   may skip this command only for the credential-storage failure described
+   above because its parent has already completed the same reconciliation.
 5. Verify the issue has `codex:authorized` and `codex:ready`. Require
    `codex:auto-merge` before any unattended merge.
 6. Keep the exclusive local lease alive with `pnpm verah:heartbeat` during the
@@ -54,7 +62,11 @@ execution report, executive status and handoff.
    database replay with `--no-seed`, SQL matrices and schema lint.
 7. Permit at most two code-correction attempts after completed failed runs.
 8. Review the complete diff, secrets, generated artifacts and divergence.
-9. Push the isolated branch and open one draft PR.
+9. Push the isolated branch and open one draft PR. If the sandbox cannot access
+   Windows Git credentials, publish the reviewed local commit through the
+   connected GitHub Git-data tools: create blobs and a tree on the recorded
+   base SHA, create the commit, create or fast-forward the recorded branch,
+   then open the draft PR. Never pass or persist a token in the child process.
 10. Update the PR description and a sanitized handoff with actual evidence.
 
 ## Release gate

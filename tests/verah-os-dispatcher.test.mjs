@@ -24,6 +24,7 @@ import {
 } from "../scripts/verah-os/dispatcher-state.ts";
 import { dispatcherStatus, runDispatcherLoop, runDispatcherOnce } from "../scripts/verah-os/dispatcher.ts";
 import { invokeCodex } from "../scripts/verah-os/codex-runner.ts";
+import { clearRunState, readCheckpoint } from "../scripts/verah-os/state.ts";
 
 const sha = "a".repeat(40);
 
@@ -93,7 +94,12 @@ class FakeGitHub {
   async listOpenPullRequests() { return structuredClone(this.pullRequests); }
   async mainSha() { return sha; }
   async currentLogin() { return "maintainer"; }
-  async markInProgress() { throw new Error("unexpected_github_mutation"); }
+  async markInProgress(_repository, issueNumber) {
+    const selected = this.issues.find((candidate) => candidate.number === issueNumber);
+    if (selected && !selected.labels.includes("codex:in-progress")) {
+      selected.labels.push("codex:in-progress");
+    }
+  }
   async latestReservation() { return null; }
   async remoteBranchSha() { return null; }
 }
@@ -136,6 +142,8 @@ test("dispatcher defaults are disabled, dry-run and reject unsafe Codex flags", 
   assert.deepEqual(value.codexArguments, [
     "--ask-for-approval",
     "never",
+    "-c",
+    "sandbox_workspace_write.network_access=true",
     "exec",
     "--sandbox",
     "workspace-write",
@@ -151,7 +159,7 @@ test("dispatcher defaults are disabled, dry-run and reject unsafe Codex flags", 
   );
   await assert.rejects(
     readDispatcherConfig(core(directory), {
-      VERAH_OS_CODEX_ARGUMENTS_JSON: '["--ask-for-approval","never","exec","--sandbox","workspace-write","--json","--ask-for-approval","on-request"]',
+      VERAH_OS_CODEX_ARGUMENTS_JSON: '["--ask-for-approval","never","-c","sandbox_workspace_write.network_access=true","exec","--sandbox","workspace-write","--json","--ask-for-approval","on-request"]',
     }),
     /arguments_incomplete/,
   );
@@ -202,7 +210,7 @@ test("Codex adapter uses a direct child process and consumes only structured usa
     codexCommand: process.execPath,
     codexArguments: [fixture],
   }));
-  assert.deepEqual(result, { status: "success", exitCode: 0, reportedTokens: 50 });
+  assert.deepEqual(result, { status: "success", exitCode: 0, reportedTokens: 34 });
 });
 
 test("Windows Codex adapter resolves the npm cmd shim without enabling a shell", async (context) => {
@@ -220,7 +228,7 @@ test("Windows Codex adapter resolves the npm cmd shim without enabling a shell",
     codexCommand: command,
     codexArguments: [],
   }), undefined, "win32");
-  assert.deepEqual(result, { status: "success", exitCode: 0, reportedTokens: 10 });
+  assert.deepEqual(result, { status: "success", exitCode: 0, reportedTokens: 6 });
 });
 
 test("a thrown invocation always clears the dispatcher heartbeat", async (context) => {
@@ -247,14 +255,16 @@ test("reserved invocation capacity prevents a new cycle but remains available to
   assert.equal(budgetDecision(state, dispatcher("unused"), false), null);
 });
 
-test("two synthetic issues chain one at a time without external mutations", async (context) => {
+test("dispatcher parent reserves each synthetic issue before invoking Codex", async (context) => {
   const directory = await mkdtemp(join(tmpdir(), "verah-dispatcher-chain-"));
   context.after(() => rm(directory, { recursive: true, force: true }));
   const github = new FakeGitHub([issue(1)]);
   const invoked = [];
   const fake = operations(github, {
     async invoke() {
-      invoked.push(github.issues[0].number);
+      const checkpoint = await readCheckpoint(directory);
+      invoked.push(checkpoint.issueNumber);
+      await clearRunState(directory, checkpoint.runId);
       github.issues = invoked.length === 1 ? [issue(2)] : [];
       return { status: "success", exitCode: 0, reportedTokens: 500 };
     },
