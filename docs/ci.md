@@ -81,6 +81,11 @@ O script:
     intake inteligente, concorrência e schema lint;
 18. remove containers e volumes locais mesmo quando algum passo falha.
 
+A trilha também executa os contratos de segunda opinião e movimentação após a
+matriz de qualidade de propostas: estados, revisão obsoleta, RLS, projeções por
+audiência, confirmação humana e duas solicitações concorrentes com a mesma
+chave idempotente.
+
 O arquivo `supabase/seed.sql` nunca é aplicado na CI. Todos os resets usam
 obrigatoriamente `--no-seed`.
 

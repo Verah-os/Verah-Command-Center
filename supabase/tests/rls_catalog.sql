@@ -32,8 +32,11 @@ declare
     'quote_quality_assessments',
     'quote_rule_requirements',
     'quote_rule_sets',
+    'second_opinion_events',
+    'second_opinion_requests',
     'service_quote_revisions',
     'user_profiles',
+    'vehicle_movement_guidance',
     'work_orders'
   ];
   actual_table_count integer;
