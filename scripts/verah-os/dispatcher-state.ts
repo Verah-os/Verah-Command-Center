@@ -1,11 +1,12 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, open, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, open, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import type { DispatcherState } from "./dispatcher-types.ts";
 
 const directoryName = "dispatcher";
 const stateName = "state.json";
+const stateBackupName = "state.previous.json";
 const mutexName = "mutex.lock";
 const stopName = "STOP";
 
@@ -15,17 +16,19 @@ export function dispatcherDirectory(runtimeDirectory: string) {
 
 export function freshDispatcherState(now = new Date()): DispatcherState {
   return {
-    version: 1,
+    version: 2,
     status: "idle",
     pid: null,
     windowStartedAt: now.toISOString(),
     cyclesStarted: 0,
     invocations: 0,
     reportedTokens: 0,
+    featureInvocations: 0,
     consecutiveFailures: 0,
     correctionInvocations: 0,
     activeIssueNumber: null,
     activePullRequestNumber: null,
+    queue: null,
     activeInvocationStartedAt: null,
     heartbeatAt: null,
     nextAttemptAt: null,
@@ -36,21 +39,39 @@ export function freshDispatcherState(now = new Date()): DispatcherState {
 }
 
 export async function readDispatcherState(runtimeDirectory: string) {
+  type LegacyState = Omit<DispatcherState, "version" | "featureInvocations" | "queue"> & {
+    version: 1;
+  };
+  const normalize = (value: DispatcherState | LegacyState): DispatcherState => {
+    if (value.version === 2) return value;
+    if (value.version === 1) {
+      return { ...value, version: 2, featureInvocations: 0, queue: null };
+    }
+    throw new Error("dispatcher_state_version_unsupported");
+  };
+  const read = async (name: string) => normalize(JSON.parse(
+    await readFile(join(dispatcherDirectory(runtimeDirectory), name), "utf8"),
+  ) as DispatcherState | LegacyState);
   try {
-    const parsed = JSON.parse(
-      await readFile(join(dispatcherDirectory(runtimeDirectory), stateName), "utf8"),
-    ) as DispatcherState;
-    if (parsed.version !== 1) throw new Error("dispatcher_state_version_unsupported");
-    return parsed;
+    return await read(stateName);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
-    throw new Error("dispatcher_state_unreadable");
+    try {
+      return await read(stateBackupName);
+    } catch {
+      throw new Error("dispatcher_state_unreadable");
+    }
   }
 }
 
 export async function writeDispatcherState(runtimeDirectory: string, state: DispatcherState) {
   const directory = dispatcherDirectory(runtimeDirectory);
   await mkdir(directory, { recursive: true });
+  try {
+    await copyFile(join(directory, stateName), join(directory, stateBackupName));
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+  }
   const temporary = join(directory, `${stateName}.${randomUUID()}.tmp`);
   await writeFile(temporary, `${JSON.stringify(state, null, 2)}\n`, {
     encoding: "utf8",

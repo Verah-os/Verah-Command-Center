@@ -12,6 +12,28 @@ export type DispatcherPauseReason =
   | "review_pending"
   | "stopped";
 
+export type DispatcherRunStatus =
+  | "idle"
+  | "queued"
+  | "resuming"
+  | "running"
+  | "paused"
+  | "waiting_budget"
+  | "waiting_quota"
+  | "waiting_rate_limit"
+  | "waiting_authentication"
+  | "stopping";
+
+export type DispatcherQueueItem = {
+  issueNumber: number | null;
+  pullRequestNumber: number | null;
+  branch: string;
+  baseSha: string;
+  checkpointRunId: string;
+  phase: "reserved" | "active" | "pull_request";
+  reservedAt: string;
+};
+
 export type DispatcherConfig = {
   enabled: boolean;
   dryRun: boolean;
@@ -26,6 +48,7 @@ export type DispatcherConfig = {
   maxInvocationDurationMs: number;
   reserveInvocations: number;
   maxReportedTokensPerWindow: number;
+  reserveReportedTokens: number;
   baseBackoffMs: number;
   maxBackoffMs: number;
   codexCommand: string;
@@ -33,17 +56,19 @@ export type DispatcherConfig = {
 };
 
 export type DispatcherState = {
-  version: 1;
-  status: "idle" | "running" | "paused" | "stopping";
+  version: 2;
+  status: DispatcherRunStatus;
   pid: number | null;
   windowStartedAt: string;
   cyclesStarted: number;
   invocations: number;
   reportedTokens: number;
+  featureInvocations: number;
   consecutiveFailures: number;
   correctionInvocations: number;
   activeIssueNumber: number | null;
   activePullRequestNumber: number | null;
+  queue: DispatcherQueueItem | null;
   activeInvocationStartedAt: string | null;
   heartbeatAt: string | null;
   nextAttemptAt: string | null;

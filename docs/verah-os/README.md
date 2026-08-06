@@ -45,6 +45,11 @@ login do Windows estão em `docs/verah-os/recovery.md`.
 O dispatcher contínuo, seu dry-run obrigatório, budgets, watchdog, instalação
 e rollback estão em `docs/verah-os/dispatcher.md`.
 
+O dispatcher reserva a próxima Issue antes de pausar por falta de capacidade e
+persiste uma fila local de um item vinculada ao checkpoint. Budget, quota e
+rate limit possuem estados e `nextAttemptAt` explícitos; a retomada reutiliza a
+mesma Issue, branch e PR, mantendo capacidade separada para correções.
+
 ## Ativação local
 
 O padrão é seguro: unattended desabilitado e kill switch ativo. Para uma

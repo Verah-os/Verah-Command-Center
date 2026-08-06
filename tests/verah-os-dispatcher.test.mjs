@@ -23,7 +23,7 @@ import {
   writeDispatcherState,
 } from "../scripts/verah-os/dispatcher-state.ts";
 import { dispatcherStatus, runDispatcherLoop, runDispatcherOnce } from "../scripts/verah-os/dispatcher.ts";
-import { invokeCodex } from "../scripts/verah-os/codex-runner.ts";
+import { invokeCodex, reportedTokens } from "../scripts/verah-os/codex-runner.ts";
 import { clearRunState, readCheckpoint } from "../scripts/verah-os/state.ts";
 
 const sha = "a".repeat(40);
@@ -77,6 +77,7 @@ function dispatcher(runtimeDirectory, overrides = {}) {
     maxInvocationDurationMs: 60_000,
     reserveInvocations: 1,
     maxReportedTokensPerWindow: 100_000,
+    reserveReportedTokens: 25_000,
     baseBackoffMs: 1_000,
     maxBackoffMs: 8_000,
     codexCommand: "codex",
@@ -211,6 +212,13 @@ test("Codex adapter uses a direct child process and consumes only structured usa
     codexArguments: [fixture],
   }));
   assert.deepEqual(result, { status: "success", exitCode: 0, reportedTokens: 34 });
+  assert.equal(reportedTokens(JSON.stringify({
+    usage: {
+      input_tokens: 80,
+      output_tokens: 5,
+      input_tokens_details: { cached_tokens: 60 },
+    },
+  })), 25);
 });
 
 test("Windows Codex adapter resolves the npm cmd shim without enabling a shell", async (context) => {
@@ -253,6 +261,55 @@ test("reserved invocation capacity prevents a new cycle but remains available to
   const state = { ...freshDispatcherState(), invocations: 3 };
   assert.equal(budgetDecision(state, dispatcher("unused"), true)?.action, "pause");
   assert.equal(budgetDecision(state, dispatcher("unused"), false), null);
+});
+
+test("token capacity reserved for the current PR blocks only a new feature", () => {
+  const state = { ...freshDispatcherState(), reportedTokens: 80_000 };
+  assert.equal(budgetDecision(state, dispatcher("unused"), true)?.reason, "budget");
+  assert.equal(budgetDecision(state, dispatcher("unused"), false), null);
+});
+
+test("a new issue is queued atomically before a budget pause and resumes after renewal", async (context) => {
+  const directory = await mkdtemp(join(tmpdir(), "verah-dispatcher-queued-budget-"));
+  context.after(() => rm(directory, { recursive: true, force: true }));
+  const now = new Date("2026-08-04T10:00:00.000Z");
+  await writeDispatcherState(directory, {
+    ...freshDispatcherState(now),
+    invocations: 3,
+  });
+  const github = new FakeGitHub([issue(1)]);
+  let invocations = 0;
+  const fake = operations(github, {
+    async invoke() {
+      invocations += 1;
+      return { status: "success", exitCode: 0, reportedTokens: 25 };
+    },
+  });
+  const resumableCore = core(directory, { maxDurationMs: 600_000 });
+  const paused = await runDispatcherOnce(resumableCore, dispatcher(directory), fake, now);
+  const queued = await readDispatcherState(directory);
+  const checkpoint = await readCheckpoint(directory);
+  assert.equal(paused.status, "waiting_budget");
+  assert.equal(paused.invoked, false);
+  assert.equal(invocations, 0);
+  assert.equal(checkpoint.issueNumber, 1);
+  assert.equal(queued.queue.issueNumber, 1);
+  assert.equal(queued.queue.phase, "reserved");
+  assert.equal(queued.cyclesStarted, 1);
+  assert.equal(github.issues[0].labels.includes("codex:in-progress"), true);
+
+  const resumed = await runDispatcherOnce(
+    resumableCore,
+    dispatcher(directory),
+    fake,
+    new Date("2026-08-04T10:05:00.001Z"),
+  );
+  assert.equal(resumed.decision.reason, "continue_issue");
+  assert.equal(resumed.invoked, true);
+  assert.equal(invocations, 1);
+  assert.equal(resumed.queue.issueNumber, 1);
+  assert.equal(resumed.queue.phase, "active");
+  assert.equal(resumed.budget.correctionInvocationsReserved, 1);
 });
 
 test("dispatcher parent reserves each synthetic issue before invoking Codex", async (context) => {
@@ -434,17 +491,53 @@ test("rate limit pauses with progressive backoff and no consumption loop", async
   const directory = await mkdtemp(join(tmpdir(), "verah-dispatcher-rate-"));
   context.after(() => rm(directory, { recursive: true, force: true }));
   const now = new Date("2026-08-04T10:00:00.000Z");
+  let attempts = 0;
   const fake = operations(new FakeGitHub([issue(1)]), {
-    async invoke() { return { status: "rate_limit", exitCode: 1, reportedTokens: 0 }; },
+    async invoke() {
+      attempts += 1;
+      return attempts === 1
+        ? { status: "rate_limit", exitCode: 1, reportedTokens: 0 }
+        : { status: "success", exitCode: 0, reportedTokens: 10 };
+    },
   });
   const first = await runDispatcherOnce(core(directory), dispatcher(directory), fake, now);
   const second = await runDispatcherOnce(
     core(directory), dispatcher(directory), fake, new Date("2026-08-04T10:00:00.500Z"),
   );
   assert.equal(first.pauseReason, "rate_limit");
+  assert.equal(first.status, "waiting_rate_limit");
   assert.equal(first.nextAttemptAt, "2026-08-04T10:00:02.000Z");
   assert.equal(second.invoked, false);
   assert.equal(second.invocations, 1);
+  const resumed = await runDispatcherOnce(
+    core(directory), dispatcher(directory), fake, new Date("2026-08-04T10:00:02.001Z"),
+  );
+  assert.equal(resumed.invoked, true);
+  assert.equal(attempts, 2);
+});
+
+test("quota pauses preserve the queued checkpoint until the retry window", async (context) => {
+  const directory = await mkdtemp(join(tmpdir(), "verah-dispatcher-quota-"));
+  context.after(() => rm(directory, { recursive: true, force: true }));
+  const now = new Date("2026-08-04T10:00:00.000Z");
+  let attempts = 0;
+  const github = new FakeGitHub([issue(1)]);
+  const fake = operations(github, {
+    async invoke() {
+      attempts += 1;
+      return { status: "quota", exitCode: 1, reportedTokens: 12 };
+    },
+  });
+  const first = await runDispatcherOnce(core(directory), dispatcher(directory), fake, now);
+  const second = await runDispatcherOnce(
+    core(directory), dispatcher(directory), fake, new Date("2026-08-04T10:00:00.500Z"),
+  );
+  assert.equal(first.status, "waiting_quota");
+  assert.equal(first.queue.issueNumber, 1);
+  assert.equal(first.reportedTokens, 12);
+  assert.equal(second.invoked, false);
+  assert.equal(attempts, 1);
+  assert.equal((await readCheckpoint(directory)).issueNumber, 1);
 });
 
 test("kill switch and dispatcher STOP fail closed", async (context) => {

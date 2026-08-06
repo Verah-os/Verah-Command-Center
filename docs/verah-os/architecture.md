@@ -36,6 +36,13 @@ checkpoint se perder, a reserva do GitHub só é reconciliada quando pertence ao
 mantenedor autenticado e o workspace está limpo. Um run retomado reutiliza seu
 checkpoint e não reserva outra issue.
 
+O dispatcher mantém, em arquivo atômico separado, apenas a projeção operacional
+do item já reservado e do budget da janela. Essa fila de um item aponta para o
+checkpoint canônico; não cria work item nem máquina de estados de domínio. A
+reserva ocorre antes da decisão de budget, e o mesmo vínculo sobrevive a
+`waiting_budget`, quota, rate limit e reinícios. Capacidade de invocações e
+tokens permanece reservada ao PR corrente.
+
 ## Limite do bootstrap
 
 Como a migration do Control Plane não é aplicada por esta entrega, o comando
