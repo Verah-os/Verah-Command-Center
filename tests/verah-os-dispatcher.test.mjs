@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
+import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -24,7 +25,15 @@ import {
 } from "../scripts/verah-os/dispatcher-state.ts";
 import { dispatcherStatus, runDispatcherLoop, runDispatcherOnce } from "../scripts/verah-os/dispatcher.ts";
 import { invokeCodex, reportedTokens } from "../scripts/verah-os/codex-runner.ts";
-import { clearRunState, readCheckpoint } from "../scripts/verah-os/state.ts";
+import { heartbeatCycle } from "../scripts/verah-os/orchestrator.ts";
+import {
+  acquireHostLock,
+  clearRunState,
+  readCheckpoint,
+  readHostLock,
+  writeCheckpoint,
+} from "../scripts/verah-os/state.ts";
+import { workspaceOperations } from "../scripts/verah-os/workspace.ts";
 
 const sha = "a".repeat(40);
 
@@ -129,9 +138,61 @@ function operations(github, overrides = {}) {
   return {
     github,
     dispatcherGitHub: { async inspectPullRequest() { return gate(); } },
+    workspace: {
+      async inspect(_directory, selectedBranch) {
+        return { currentBranch: selectedBranch, headSha: sha, selectedBranchSha: sha, clean: true };
+      },
+      async ensureIssueBranch(_directory, selectedBranch) {
+        return {
+          currentBranch: selectedBranch,
+          headSha: sha,
+          selectedBranchSha: sha,
+          clean: true,
+          recovered: false,
+          backupRef: null,
+        };
+      },
+    },
     async invoke() { return { status: "success", exitCode: 0, reportedTokens: 100 }; },
     ...overrides,
   };
+}
+
+function runGit(directory, arguments_) {
+  const result = spawnSync("git", arguments_, { cwd: directory, encoding: "utf8", shell: false });
+  if (result.status !== 0) throw new Error(result.stderr || `git ${arguments_[0]} failed`);
+  return result.stdout.trim();
+}
+
+async function createCheckpoint(directory, now, overrides = {}) {
+  const lock = await acquireHostLock(directory, 60_000, now);
+  const checkpoint = {
+    version: 4,
+    runId: lock.runId,
+    repository: "Verah-os/Verah-Command-Center",
+    workType: "issue",
+    issueNumber: 1,
+    pullRequestNumber: null,
+    workTitle: "Issue 1",
+    workUrl: "https://github.test/issues/1",
+    baseSha: sha,
+    branch: "feat/1",
+    state: "testing",
+    correctionAttempts: 0,
+    recoveryAttempts: 0,
+    lastKnownHeadSha: sha,
+    lastKnownRemoteHeadSha: null,
+    lastKnownPullRequestNumber: null,
+    leaseExpiresAt: lock.expiresAt,
+    pauseReason: null,
+    nextAttemptAt: null,
+    workspace: null,
+    startedAt: now.toISOString(),
+    updatedAt: now.toISOString(),
+    ...overrides,
+  };
+  await writeCheckpoint(directory, checkpoint);
+  return checkpoint;
 }
 
 test("dispatcher defaults are disabled, dry-run and reject unsafe Codex flags", async (context) => {
@@ -538,6 +599,138 @@ test("quota pauses preserve the queued checkpoint until the retry window", async
   assert.equal(second.invoked, false);
   assert.equal(attempts, 1);
   assert.equal((await readCheckpoint(directory)).issueNumber, 1);
+});
+
+test("budget pause during testing atomically records lease, branch and working state", async (context) => {
+  const directory = await mkdtemp(join(tmpdir(), "verah-dispatcher-testing-budget-"));
+  context.after(() => rm(directory, { recursive: true, force: true }));
+  const now = new Date("2026-08-04T10:00:00.000Z");
+  await createCheckpoint(directory, now);
+  await writeDispatcherState(directory, {
+    ...freshDispatcherState(now),
+    invocations: 4,
+  });
+  const result = await runDispatcherOnce(
+    core(directory, { maxDurationMs: 600_000 }),
+    dispatcher(directory),
+    operations(new FakeGitHub([issue(1)])),
+    now,
+  );
+  const checkpoint = await readCheckpoint(directory);
+  const state = await readDispatcherState(directory);
+  assert.equal(result.status, "waiting_budget");
+  assert.equal(checkpoint.state, "testing");
+  assert.equal(checkpoint.pauseReason, "budget");
+  assert.equal(checkpoint.nextAttemptAt, "2026-08-04T10:05:00.000Z");
+  assert.equal(checkpoint.workspace.currentBranch, "feat/1");
+  assert.equal(checkpoint.leaseExpiresAt, (await readHostLock(directory)).expiresAt);
+  assert.equal(state.queue.pauseReason, "budget");
+  assert.equal(state.queue.workingState.currentBranch, "feat/1");
+});
+
+test("lease expiry during heartbeat is recovered explicitly without human_review", async (context) => {
+  const directory = await mkdtemp(join(tmpdir(), "verah-dispatcher-expired-heartbeat-"));
+  context.after(() => rm(directory, { recursive: true, force: true }));
+  const started = new Date("2026-08-04T10:00:00.000Z");
+  const checkpoint = await createCheckpoint(directory, started);
+  const recovered = await heartbeatCycle(
+    core(directory),
+    new Date("2026-08-04T10:01:00.001Z"),
+    operations(new FakeGitHub()).workspace,
+  );
+  const updated = await readCheckpoint(directory);
+  assert.equal(recovered.status, "recovered");
+  assert.equal(recovered.reason, "host_lock_expired");
+  assert.notEqual(recovered.runId, checkpoint.runId);
+  assert.equal(updated.runId, recovered.runId);
+  assert.equal(updated.pauseReason, "host_lock_expired");
+  assert.equal(updated.recoveryAttempts, 1);
+});
+
+test("dirty work on a previous issue branch is backed up and moved to the checkpoint branch", async (context) => {
+  const directory = await mkdtemp(join(tmpdir(), "verah-dispatcher-dirty-branch-"));
+  context.after(() => rm(directory, { recursive: true, force: true }));
+  runGit(directory, ["init", "-b", "main"]);
+  runGit(directory, ["config", "user.email", "verah@example.test"]);
+  runGit(directory, ["config", "user.name", "VERAH Test"]);
+  await writeFile(join(directory, "base.txt"), "base\n");
+  runGit(directory, ["add", "base.txt"]);
+  runGit(directory, ["commit", "-m", "base"]);
+  const baseSha = runGit(directory, ["rev-parse", "HEAD"]);
+  runGit(directory, ["switch", "-c", "feat/74-previous"]);
+  await writeFile(join(directory, "issue-95.txt"), "preserve me\n");
+
+  const recovered = await workspaceOperations.ensureIssueBranch(
+    directory,
+    "feat/95-current",
+    baseSha,
+  );
+  assert.equal(recovered.currentBranch, "feat/95-current");
+  assert.equal(recovered.recovered, true);
+  assert.match(recovered.backupRef, /^[a-f0-9]{40}$/);
+  assert.match(await readFile(join(directory, "issue-95.txt"), "utf8"), /^preserve me\r?\n$/);
+  assert.match(runGit(directory, ["stash", "list", "-n", "1"]), /VERAH OS automatic recovery/);
+});
+
+test("resume switches a clean checkout to the checkpoint branch before continuing", async (context) => {
+  const directory = await mkdtemp(join(tmpdir(), "verah-dispatcher-clean-branch-"));
+  context.after(() => rm(directory, { recursive: true, force: true }));
+  runGit(directory, ["init", "-b", "main"]);
+  runGit(directory, ["config", "user.email", "verah@example.test"]);
+  runGit(directory, ["config", "user.name", "VERAH Test"]);
+  await writeFile(join(directory, "base.txt"), "base\n");
+  runGit(directory, ["add", "base.txt"]);
+  runGit(directory, ["commit", "-m", "base"]);
+  const baseSha = runGit(directory, ["rev-parse", "HEAD"]);
+  runGit(directory, ["switch", "-c", "feat/74-previous"]);
+  const recovered = await workspaceOperations.ensureIssueBranch(
+    directory,
+    "feat/95-current",
+    baseSha,
+  );
+  assert.equal(recovered.currentBranch, "feat/95-current");
+  assert.equal(recovered.clean, true);
+  assert.equal(recovered.recovered, true);
+  assert.equal(recovered.backupRef, null);
+});
+
+test("a merged PR completes its checkpoint and releases the next issue in the same cycle", async (context) => {
+  const directory = await mkdtemp(join(tmpdir(), "verah-dispatcher-merged-release-"));
+  context.after(() => rm(directory, { recursive: true, force: true }));
+  const now = new Date("2026-08-04T10:00:00.000Z");
+  await createCheckpoint(directory, now, {
+    workType: "pull_request",
+    pullRequestNumber: 100,
+    state: "pr_open",
+    lastKnownPullRequestNumber: 100,
+  });
+  await writeDispatcherState(directory, {
+    ...freshDispatcherState(now),
+    activeIssueNumber: 1,
+    activePullRequestNumber: 100,
+  });
+  const invoked = [];
+  const github = new FakeGitHub([issue(2)]);
+  const result = await runDispatcherOnce(
+    core(directory, { maxDurationMs: 600_000 }),
+    dispatcher(directory),
+    operations(github, {
+      dispatcherGitHub: {
+        async inspectPullRequest() { return gate({ number: 100, state: "MERGED", isDraft: false }); },
+      },
+      async invoke() {
+        const checkpoint = await readCheckpoint(directory);
+        invoked.push(checkpoint.issueNumber);
+        await clearRunState(directory, checkpoint.runId);
+        return { status: "success", exitCode: 0, reportedTokens: 0 };
+      },
+    }),
+    now,
+  );
+  assert.equal(result.decision.reason, "start_issue");
+  assert.deepEqual(invoked, [2]);
+  assert.equal(github.issues[0].labels.includes("codex:in-progress"), true);
+  assert.equal((await readCheckpoint(directory)), null);
 });
 
 test("kill switch and dispatcher STOP fail closed", async (context) => {

@@ -52,7 +52,7 @@ export type SelectionResult =
   | { status: "empty" };
 
 export type RunCheckpoint = {
-  version: 3;
+  version: 4;
   runId: string;
   repository: string;
   workType: "issue" | "pull_request";
@@ -68,6 +68,10 @@ export type RunCheckpoint = {
   lastKnownHeadSha: string | null;
   lastKnownRemoteHeadSha: string | null;
   lastKnownPullRequestNumber: number | null;
+  leaseExpiresAt: string | null;
+  pauseReason: string | null;
+  nextAttemptAt: string | null;
+  workspace: WorkspaceRecoverySnapshot | null;
   startedAt: string;
   updatedAt: string;
 };
@@ -83,6 +87,11 @@ export type WorkspaceSnapshot = {
   headSha: string | null;
   selectedBranchSha: string | null;
   clean: boolean;
+};
+
+export type WorkspaceRecoverySnapshot = WorkspaceSnapshot & {
+  recovered: boolean;
+  backupRef: string | null;
 };
 
 export type ReleaseSnapshot = {

@@ -27,6 +27,13 @@ Esses estados preservam o item de fila, `nextAttemptAt`, consumo da janela e
 capacidade de correção reservada. Após a janela ou o backoff expirar, o loop
 retoma o mesmo checkpoint; não execute `continue` manualmente nem remova locks.
 
+O checkpoint v4 inclui expiração do lease, branch/head observado, limpeza do
+worktree, motivo da pausa e `nextAttemptAt`. Em resume, o branch do checkpoint
+é reconstruído a partir do SHA base quando ausente. Se mudanças da Issue ativa
+estiverem no branch anterior, um stash por SHA preserva o backup antes da troca
+e da reaplicação. `host_lock_expired` e lock ausente são estados recuperáveis;
+owner divergente continua falhando fechado.
+
 ## Windows
 
 O dispatcher contínuo oferece instalação opcional de duas tarefas no usuário
@@ -51,9 +58,11 @@ Os arquivos locais ficam em `.verah-os/`, ignorados pelo Git. `audit.jsonl` cont
 ## Diagnóstico
 
 - `checkpoint_unreadable`: preserve os arquivos locais e pare; não recrie trabalho;
+- `host_lock_expired`: o dispatcher reconstrói o lease e continua o checkpoint;
 - `host_lock_occupied`: aguarde a expiração ou o processo proprietário;
 - owner divergente: mantenha a Issue bloqueada e peça revisão humana;
-- worktree sujo: preserve as mudanças e resolva sua origem antes de recuperar;
+- worktree sujo no branch anterior: o dispatcher cria backup por SHA e move o
+  working state somente para o branch do checkpoint;
 - budget vencido: inicie outro ciclo somente com nova autorização.
 
 Produção, migrations remotas, `db push`, `migration repair`, mensagens reais, pagamentos e alterações de ruleset continuam proibidos.

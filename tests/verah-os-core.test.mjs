@@ -86,14 +86,23 @@ class FakeGitHub {
 }
 
 function fakeWorkspace(overrides = {}) {
+  const snapshot = (selectedBranch) => ({
+    currentBranch: selectedBranch,
+    headSha: "a".repeat(40),
+    selectedBranchSha: null,
+    clean: true,
+    ...overrides,
+  });
   return {
-    async inspect() {
+    async inspect(_directory, selectedBranch) {
+      return snapshot(selectedBranch);
+    },
+    async ensureIssueBranch(_directory, selectedBranch) {
       return {
-        currentBranch: "main",
-        headSha: "a".repeat(40),
-        selectedBranchSha: null,
-        clean: true,
-        ...overrides,
+        ...snapshot(selectedBranch),
+        currentBranch: selectedBranch,
+        recovered: true,
+        backupRef: null,
       };
     },
   };
@@ -198,13 +207,18 @@ test("continue reserves once, blocks overlap and resumes after lease expiry", as
   const directory = await mkdtemp(join(tmpdir(), "verah-os-continue-"));
   context.after(() => rm(directory, { recursive: true, force: true }));
   const github = new FakeGitHub([issue()]);
-  const first = await continueCycle(config(directory), github, new Date("2026-08-02T12:00:00.000Z"));
-  await assert.rejects(
-    continueCycle(config(directory), github, new Date("2026-08-02T12:00:00.500Z")),
-    /host_lock_occupied/,
+  const workspace = fakeWorkspace();
+  const first = await continueCycle(
+    config(directory), github, new Date("2026-08-02T12:00:00.000Z"), workspace,
   );
-  const second = await continueCycle(config(directory), github, new Date("2026-08-02T12:00:02.000Z"));
+  const renewed = await continueCycle(
+    config(directory), github, new Date("2026-08-02T12:00:00.500Z"), workspace,
+  );
+  const second = await continueCycle(
+    config(directory), github, new Date("2026-08-02T12:00:02.000Z"), workspace,
+  );
   assert.equal(first.status, "selected");
+  assert.equal(renewed.status, "resumed");
   assert.equal(second.status, "resumed");
   assert.equal(first.baseSha, second.baseSha);
   assert.equal(github.mutations.length, 1);
@@ -227,7 +241,9 @@ test("continue resumes an existing PR without reserving duplicate issue work", a
     updatedAt: "2026-08-02T13:00:00.000Z",
     labels: [],
   }]);
-  const result = await continueCycle(config(directory), github, new Date("2026-08-02T12:00:00.000Z"));
+  const result = await continueCycle(
+    config(directory), github, new Date("2026-08-02T12:00:00.000Z"), fakeWorkspace(),
+  );
   assert.equal(result.status, "resumed");
   assert.equal(result.activePullRequest.number, 70);
   assert.equal(github.mutations.length, 0);
@@ -394,9 +410,16 @@ test("an expired execution budget blocks resume", async (context) => {
   const directory = await mkdtemp(join(tmpdir(), "verah-os-timeout-"));
   context.after(() => rm(directory, { recursive: true, force: true }));
   const github = new FakeGitHub([issue()]);
-  await continueCycle(config(directory, { leaseDurationMs: 180_000 }), github, new Date("2026-08-02T12:00:00.000Z"));
+  await continueCycle(
+    config(directory, { leaseDurationMs: 180_000 }),
+    github,
+    new Date("2026-08-02T12:00:00.000Z"),
+    fakeWorkspace(),
+  );
   await assert.rejects(
-    continueCycle(config(directory), github, new Date("2026-08-02T12:02:00.000Z")),
+    continueCycle(
+      config(directory), github, new Date("2026-08-02T12:02:00.000Z"), fakeWorkspace(),
+    ),
     /timeout_exceeded/,
   );
   assert.equal(github.mutations.length, 1);
@@ -446,6 +469,7 @@ test("status and health distinguish running, interrupted and idle", async (conte
     config(directory, { leaseDurationMs: 60_000 }),
     github,
     new Date(),
+    fakeWorkspace(),
   );
   assert.equal(started.executionStatus, "running");
   const recoveryDryRun = await dryRunCycle(config(directory), github);

@@ -16,7 +16,7 @@ export function dispatcherDirectory(runtimeDirectory: string) {
 
 export function freshDispatcherState(now = new Date()): DispatcherState {
   return {
-    version: 2,
+    version: 3,
     status: "idle",
     pid: null,
     windowStartedAt: now.toISOString(),
@@ -39,19 +39,36 @@ export function freshDispatcherState(now = new Date()): DispatcherState {
 }
 
 export async function readDispatcherState(runtimeDirectory: string) {
-  type LegacyState = Omit<DispatcherState, "version" | "featureInvocations" | "queue"> & {
+  type LegacyStateV1 = Omit<DispatcherState, "version" | "featureInvocations" | "queue"> & {
     version: 1;
   };
-  const normalize = (value: DispatcherState | LegacyState): DispatcherState => {
-    if (value.version === 2) return value;
+  type LegacyStateV2 = Omit<DispatcherState, "version" | "queue"> & {
+    version: 2;
+    queue: null | Omit<NonNullable<DispatcherState["queue"]>, "leaseExpiresAt" | "pauseReason" | "nextAttemptAt" | "workingState">;
+  };
+  const normalize = (value: DispatcherState | LegacyStateV1 | LegacyStateV2): DispatcherState => {
+    if (value.version === 3) return value;
+    if (value.version === 2) {
+      return {
+        ...value,
+        version: 3,
+        queue: value.queue ? {
+          ...value.queue,
+          leaseExpiresAt: null,
+          pauseReason: value.pauseReason,
+          nextAttemptAt: value.nextAttemptAt,
+          workingState: null,
+        } : null,
+      };
+    }
     if (value.version === 1) {
-      return { ...value, version: 2, featureInvocations: 0, queue: null };
+      return { ...value, version: 3, featureInvocations: 0, queue: null };
     }
     throw new Error("dispatcher_state_version_unsupported");
   };
   const read = async (name: string) => normalize(JSON.parse(
     await readFile(join(dispatcherDirectory(runtimeDirectory), name), "utf8"),
-  ) as DispatcherState | LegacyState);
+  ) as DispatcherState | LegacyStateV1 | LegacyStateV2);
   try {
     return await read(stateName);
   } catch (error) {
