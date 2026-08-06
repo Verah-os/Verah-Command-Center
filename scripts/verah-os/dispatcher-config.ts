@@ -115,10 +115,18 @@ export async function readDispatcherConfig(
     throw new Error("dispatcher_codex_command_not_allowed");
   }
   const pollIntervalMs = bounded(from("VERAH_OS_DISPATCHER_POLL_MS", "pollIntervalMs"), 300_000, 10_000, 3_600_000);
-  const heartbeatIntervalMs = bounded(from("VERAH_OS_DISPATCHER_HEARTBEAT_MS", "heartbeatIntervalMs"), 60_000, 10_000, 300_000);
+  const heartbeatIntervalMs = bounded(
+    from("VERAH_OS_DISPATCHER_HEARTBEAT_MS", "heartbeatIntervalMs"),
+    Math.min(60_000, Math.max(10_000, Math.floor(core.leaseDurationMs / 3))),
+    10_000,
+    300_000,
+  );
   const watchdogTimeoutMs = bounded(from("VERAH_OS_DISPATCHER_WATCHDOG_MS", "watchdogTimeoutMs"), 900_000, 60_000, 3_600_000);
   if (pollIntervalMs >= watchdogTimeoutMs || heartbeatIntervalMs >= watchdogTimeoutMs) {
     throw new Error("dispatcher_watchdog_interval_invalid");
+  }
+  if (heartbeatIntervalMs >= core.leaseDurationMs) {
+    throw new Error("dispatcher_lease_interval_invalid");
   }
   return {
     enabled: bool(from("VERAH_OS_DISPATCHER_ENABLED", "enabled"), false),

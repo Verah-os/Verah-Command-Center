@@ -53,8 +53,8 @@ variações e configurações inseguras falham fechadas.
 ## Fila e budget persistentes
 
 Em modo mutável, a Issue é reservada pelo fluxo canônico antes de o dispatcher
-avaliar o budget da invocação. O estado v2 persiste atomicamente a Issue, branch,
-SHA base, run do checkpoint, fase e PR opcional. Assim, `waiting_budget`,
+avaliar o budget da invocação. O estado v3 persiste atomicamente a Issue, branch,
+SHA base, run e lease do checkpoint, working state, fase e PR opcional. Assim, `waiting_budget`,
 `waiting_quota` e `waiting_rate_limit` mantêm a mesma fila durante reinício do
 processo, reinício do Windows, watchdog ou expiração da janela.
 
@@ -63,6 +63,18 @@ reservada. `reserveInvocations` e `reserveReportedTokens` pertencem ao trabalho
 corrente: uma nova feature espera sem consumir a reserva de correção do PR.
 Tokens são entrada não cacheada mais saída reportadas pelo Codex CLI; entrada
 cacheada não é recontada.
+
+Antes de invocar o Codex, o pai valida o branch do checkpoint. Um checkout
+limpo é trocado para o branch correto; mudanças interrompidas em um branch
+anterior são guardadas em um stash identificado por SHA, reaplicadas no branch
+do checkpoint e mantidas no stash como backup recuperável. O lease recebe
+heartbeat durante a invocação e durante esperas de CI, budget e backoff.
+
+`host_lock_expired` é recuperável: o dispatcher adquire um novo lease, atualiza
+o run do checkpoint e registra `recovering` antes de continuar. Quando o PR do
+checkpoint aparece como `MERGED`, o pai conclui o ciclo, libera o lock e avalia
+a próxima Issue no mesmo polling; `pnpm verah:complete` continua disponível
+somente como comando operacional manual de compatibilidade.
 
 ## Dry-run obrigatório
 
@@ -96,6 +108,7 @@ resultado categorizado.
 - `paused:ci_pending`: aguarda checks;
 - `paused:review_pending`: aguarda revisão humana;
 - `paused:human_review`: gate de release/merge ou limite de correções;
+- `recovering:host_lock_expired|workspace_recovery`: reconciliação automática;
 - `paused:rate_limit|quota|authentication`: backoff sem loop de consumo;
 - `paused:budget`: janela esgotada, preservando reserva de correção;
 - `paused:kill_switch|stopped`: nenhuma invocação permitida.

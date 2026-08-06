@@ -9,25 +9,36 @@ const checkpointBackupName = "checkpoint.previous.json";
 const hostLockName = "host.lock";
 const stopName = "STOP";
 
-type LegacyCheckpoint = Omit<RunCheckpoint, "version" | "recoveryAttempts" | "lastKnownHeadSha" | "lastKnownRemoteHeadSha" | "lastKnownPullRequestNumber"> & {
+type LegacyCheckpointV3 = Omit<RunCheckpoint, "version" | "leaseExpiresAt" | "pauseReason" | "nextAttemptAt" | "workspace"> & {
+  version: 3;
+};
+
+type LegacyCheckpointV2 = Omit<LegacyCheckpointV3, "version" | "recoveryAttempts" | "lastKnownHeadSha" | "lastKnownRemoteHeadSha" | "lastKnownPullRequestNumber"> & {
   version: 2;
 };
 
-function normalizeCheckpoint(value: RunCheckpoint | LegacyCheckpoint) {
-  if (value.version === 3) return value;
-  if (value.version !== 2) return null;
-  return {
+function normalizeCheckpoint(value: RunCheckpoint | LegacyCheckpointV3 | LegacyCheckpointV2) {
+  if (value.version === 4) return value;
+  const version3: LegacyCheckpointV3 = value.version === 3 ? value : {
     ...value,
-    version: 3 as const,
+    version: 3,
     recoveryAttempts: 0,
     lastKnownHeadSha: null,
     lastKnownRemoteHeadSha: null,
     lastKnownPullRequestNumber: value.pullRequestNumber,
   };
+  return {
+    ...version3,
+    version: 4 as const,
+    leaseExpiresAt: null,
+    pauseReason: null,
+    nextAttemptAt: null,
+    workspace: null,
+  };
 }
 
 async function readCheckpointFile(path: string) {
-  const value = JSON.parse(await readFile(path, "utf8")) as RunCheckpoint | LegacyCheckpoint;
+  const value = JSON.parse(await readFile(path, "utf8")) as RunCheckpoint | LegacyCheckpointV3 | LegacyCheckpointV2;
   return normalizeCheckpoint(value);
 }
 

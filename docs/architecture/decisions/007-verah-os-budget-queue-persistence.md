@@ -14,13 +14,19 @@ genérica.
 
 ## Decisão
 
-O estado atômico do dispatcher passa à versão 2 e contém um único item de fila:
+O estado atômico do dispatcher passa à versão 3 e contém um único item de fila:
 Issue, branch, SHA base, run do checkpoint, PR opcional, fase e horário da
 reserva. Para uma execução mutável, o pai primeiro chama a reserva canônica do
 VERAH OS, que grava checkpoint, lease e lock do GitHub; em seguida persiste o
 mesmo vínculo na fila antes de avaliar capacidade para invocar o Codex. Uma
 falha entre essas duas escritas é reconciliada pelo checkpoint, que continua
 tendo precedência.
+
+O checkpoint v4 inclui o lease observado, motivo/horário da pausa e snapshot
+do working state. Antes de qualquer invocação mutável, o branch atual deve ser
+o branch do checkpoint. Divergência limpa é corrigida por switch; divergência
+suja recebe stash recuperável por SHA, switch e reaplicação. Nenhum filho pode
+começar trabalho de uma Issue nova no branch da Issue anterior.
 
 Os estados sanitizados incluem `queued`, `waiting_budget`, `waiting_quota`,
 `waiting_rate_limit`, `waiting_authentication` e `resuming`. `nextAttemptAt`,
@@ -38,10 +44,15 @@ o contexto de entrada marcado como cacheado pelo CLI é subtraído.
 - `state.previous.json` preserva o snapshot anterior e o leitor migra v1 para
   v2 sem selecionar novo trabalho;
 - checkpoint ou PR existente sempre vence a descoberta da fila;
+- heartbeat cobre execução do Codex, testes, polling e backoff;
+- lease expirado/ausente é reconstruído como `host_lock_expired`, sem virar
+  `human_review`; owner divergente permanece bloqueante;
 - backoff persistido impede loops após reinício do processo ou do Windows;
 - mutex com PID morto continua recuperável sem encerrar um PID vivo;
 - branch, PR revisado ou PR mesclado são reconciliados antes de qualquer nova
   invocação.
+- PR mesclado conclui checkpoint e lock automaticamente e libera a próxima
+  Issue no mesmo ciclo.
 
 ## Consequências e limites
 
