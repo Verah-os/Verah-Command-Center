@@ -141,20 +141,44 @@ export async function continueCycle(
 
   const existing = await readCheckpoint(config.runtimeDirectory);
   if (existing) {
-    if (Date.parse(existing.startedAt) + config.maxDurationMs <= now.getTime()) {
+    if (
+      existing.pullRequestNumber === null &&
+      Date.parse(existing.startedAt) + config.maxDurationMs <= now.getTime()
+    ) {
       throw new Error("verah_os_timeout_exceeded");
     }
-    const renewed = await acquireHostLock(config.runtimeDirectory, config.leaseDurationMs, now);
-    const [pullRequests, remoteHeadSha, snapshot] = await Promise.all([
+    const currentLock = await readHostLock(config.runtimeDirectory);
+    let renewed;
+    if (currentLock?.runId === existing.runId) {
+      try {
+        renewed = await heartbeatHostLock(
+          config.runtimeDirectory,
+          existing.runId,
+          config.leaseDurationMs,
+          now,
+        );
+      } catch (error) {
+        if ((error as Error).message !== "host_lock_expired") throw error;
+        renewed = await acquireHostLock(config.runtimeDirectory, config.leaseDurationMs, now);
+      }
+    } else {
+      renewed = await acquireHostLock(config.runtimeDirectory, config.leaseDurationMs, now);
+    }
+    const recoveredWorkspace = await workspace.ensureIssueBranch(
+      config.workspaceDirectory,
+      existing.branch,
+      existing.baseSha,
+    );
+    const [pullRequests, remoteHeadSha] = await Promise.all([
       github.listOpenPullRequests(config.repository),
       github.remoteBranchSha(config.repository, existing.branch),
-      workspace.inspect(config.workspaceDirectory, existing.branch),
     ]);
     const matchingPullRequest = pullRequests.find(
       (pullRequest) => pullRequest.headRefName === existing.branch,
     ) ?? null;
     const resumed = {
       ...existing,
+      version: 4 as const,
       runId: renewed.runId,
       workType: matchingPullRequest ? "pull_request" as const : existing.workType,
       pullRequestNumber: matchingPullRequest?.number ?? existing.pullRequestNumber,
@@ -164,13 +188,17 @@ export async function continueCycle(
         ? "pr_open" as const
         : remoteHeadSha
           ? "testing" as const
-          : snapshot.selectedBranchSha
+          : recoveredWorkspace.selectedBranchSha
             ? "implementing" as const
             : existing.state,
       recoveryAttempts: existing.recoveryAttempts + 1,
-      lastKnownHeadSha: snapshot.selectedBranchSha ?? snapshot.headSha,
+      lastKnownHeadSha: recoveredWorkspace.selectedBranchSha ?? recoveredWorkspace.headSha,
       lastKnownRemoteHeadSha: matchingPullRequest?.headRefOid ?? remoteHeadSha,
       lastKnownPullRequestNumber: matchingPullRequest?.number ?? existing.lastKnownPullRequestNumber,
+      leaseExpiresAt: renewed.expiresAt,
+      pauseReason: null,
+      nextAttemptAt: null,
+      workspace: recoveredWorkspace,
       updatedAt: now.toISOString(),
     };
     await writeCheckpoint(config.runtimeDirectory, resumed);
@@ -209,7 +237,7 @@ export async function continueCycle(
     const baseSha = await github.mainSha(config.repository);
     if (activePullRequest) {
       const checkpoint: RunCheckpoint = {
-        version: 3,
+        version: 4,
         runId: lock.runId,
         repository: config.repository,
         workType: "pull_request",
@@ -225,6 +253,14 @@ export async function continueCycle(
         lastKnownHeadSha: activePullRequest.headRefOid,
         lastKnownRemoteHeadSha: activePullRequest.headRefOid,
         lastKnownPullRequestNumber: activePullRequest.number,
+        leaseExpiresAt: lock.expiresAt,
+        pauseReason: null,
+        nextAttemptAt: null,
+        workspace: await workspace.ensureIssueBranch(
+          config.workspaceDirectory,
+          activePullRequest.headRefName,
+          baseSha,
+        ),
         startedAt: now.toISOString(),
         updatedAt: now.toISOString(),
       };
@@ -280,20 +316,12 @@ export async function continueCycle(
         });
       }
       const branch = branchName(selection.issue);
-      const [snapshot, remoteHeadSha] = await Promise.all([
-        workspace.inspect(config.workspaceDirectory, branch),
+      const [recoveredWorkspace, remoteHeadSha] = await Promise.all([
+        workspace.ensureIssueBranch(config.workspaceDirectory, branch, reservation.baseSha),
         github.remoteBranchSha(config.repository, branch),
       ]);
-      if (!snapshot.clean) {
-        return report("continue", "locked", {
-          issue: selection.issue,
-          branch,
-          executionStatus: "blocked",
-          nextAction: "The workspace has uncommitted changes; recovery failed closed.",
-        });
-      }
       const checkpoint: RunCheckpoint = {
-        version: 3,
+        version: 4,
         runId: lock.runId,
         repository: config.repository,
         workType: "issue",
@@ -303,12 +331,16 @@ export async function continueCycle(
         workUrl: selection.issue.url,
         baseSha: reservation.baseSha,
         branch,
-        state: remoteHeadSha ? "testing" : snapshot.selectedBranchSha ? "implementing" : "planning",
+        state: remoteHeadSha ? "testing" : recoveredWorkspace.selectedBranchSha ? "implementing" : "planning",
         correctionAttempts: 0,
         recoveryAttempts: 1,
-        lastKnownHeadSha: snapshot.selectedBranchSha,
+        lastKnownHeadSha: recoveredWorkspace.selectedBranchSha,
         lastKnownRemoteHeadSha: remoteHeadSha,
         lastKnownPullRequestNumber: null,
+        leaseExpiresAt: lock.expiresAt,
+        pauseReason: null,
+        nextAttemptAt: null,
+        workspace: recoveredWorkspace,
         startedAt: reservation.createdAt,
         updatedAt: now.toISOString(),
       };
@@ -332,8 +364,15 @@ export async function continueCycle(
     }
 
     const branch = branchName(selection.issue);
+    const beforeReservation = await workspace.inspect(config.workspaceDirectory, branch);
+    if (!beforeReservation.clean) throw new Error("workspace_dirty_before_reservation");
+    const selectedWorkspace = await workspace.ensureIssueBranch(
+      config.workspaceDirectory,
+      branch,
+      baseSha,
+    );
     const checkpoint: RunCheckpoint = {
-      version: 3,
+      version: 4,
       runId: lock.runId,
       repository: config.repository,
       workType: "issue",
@@ -349,6 +388,10 @@ export async function continueCycle(
       lastKnownHeadSha: null,
       lastKnownRemoteHeadSha: null,
       lastKnownPullRequestNumber: null,
+      leaseExpiresAt: lock.expiresAt,
+      pauseReason: null,
+      nextAttemptAt: null,
+      workspace: selectedWorkspace,
       startedAt: now.toISOString(),
       updatedAt: now.toISOString(),
     };
@@ -382,28 +425,64 @@ export async function continueCycle(
   }
 }
 
-export async function heartbeatCycle(config: VerahOsConfig, now = new Date()) {
+export async function heartbeatCycle(
+  config: VerahOsConfig,
+  now = new Date(),
+  workspace: WorkspaceOperations = workspaceOperations,
+) {
   const checkpoint = await readCheckpoint(config.runtimeDirectory);
   if (!checkpoint) throw new Error("verah_os_checkpoint_missing");
   if (config.killSwitch || (await isStopped(config.runtimeDirectory))) {
     throw new Error("verah_os_kill_switch_active");
   }
-  const lease = await heartbeatHostLock(
-    config.runtimeDirectory,
-    checkpoint.runId,
-    config.leaseDurationMs,
-    now,
+  const snapshot = await workspace.ensureIssueBranch(
+    config.workspaceDirectory,
+    checkpoint.branch,
+    checkpoint.baseSha,
   );
-  await writeCheckpoint(config.runtimeDirectory, { ...checkpoint, updatedAt: now.toISOString() });
+  let lease;
+  let recovered = false;
+  try {
+    lease = await heartbeatHostLock(
+      config.runtimeDirectory,
+      checkpoint.runId,
+      config.leaseDurationMs,
+      now,
+    );
+  } catch (error) {
+    if (
+      (error as Error).message !== "host_lock_expired" &&
+      (error as NodeJS.ErrnoException).code !== "ENOENT"
+    ) throw error;
+    lease = await acquireHostLock(config.runtimeDirectory, config.leaseDurationMs, now);
+    recovered = true;
+  }
+  const updated = {
+    ...checkpoint,
+    version: 4 as const,
+    runId: lease.runId,
+    recoveryAttempts: checkpoint.recoveryAttempts + (recovered ? 1 : 0),
+    leaseExpiresAt: lease.expiresAt,
+    pauseReason: recovered ? "host_lock_expired" : checkpoint.pauseReason,
+    workspace: snapshot,
+    updatedAt: now.toISOString(),
+  };
+  await writeCheckpoint(config.runtimeDirectory, updated);
   await appendAuditEvent(config.runtimeDirectory, {
-    event: "heartbeat",
+    event: recovered ? "host_lock_recovered" : "heartbeat",
     at: now.toISOString(),
     issueNumber: checkpoint.issueNumber,
     pullRequestNumber: checkpoint.pullRequestNumber,
     branch: checkpoint.branch,
     state: checkpoint.state,
   });
-  return { status: "heartbeat", runId: checkpoint.runId, expiresAt: lease.expiresAt };
+  return {
+    status: recovered ? "recovered" as const : "heartbeat" as const,
+    reason: recovered ? "host_lock_expired" as const : null,
+    runId: lease.runId,
+    expiresAt: lease.expiresAt,
+    workspace: snapshot,
+  };
 }
 
 export async function completeCycle(config: VerahOsConfig) {

@@ -5,17 +5,20 @@ export type DispatcherPauseReason =
   | "ci_pending"
   | "conflict"
   | "human_review"
+  | "host_lock_expired"
   | "kill_switch"
   | "no_work"
   | "quota"
   | "rate_limit"
   | "review_pending"
+  | "workspace_recovery"
   | "stopped";
 
 export type DispatcherRunStatus =
   | "idle"
   | "queued"
   | "resuming"
+  | "recovering"
   | "running"
   | "paused"
   | "waiting_budget"
@@ -32,6 +35,16 @@ export type DispatcherQueueItem = {
   checkpointRunId: string;
   phase: "reserved" | "active" | "pull_request";
   reservedAt: string;
+  leaseExpiresAt: string | null;
+  pauseReason: DispatcherPauseReason | null;
+  nextAttemptAt: string | null;
+  workingState: {
+    currentBranch: string | null;
+    headSha: string | null;
+    clean: boolean;
+    recovered: boolean;
+    backupRef: string | null;
+  } | null;
 };
 
 export type DispatcherConfig = {
@@ -56,7 +69,7 @@ export type DispatcherConfig = {
 };
 
 export type DispatcherState = {
-  version: 2;
+  version: 3;
   status: DispatcherRunStatus;
   pid: number | null;
   windowStartedAt: string;
