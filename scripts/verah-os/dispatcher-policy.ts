@@ -19,6 +19,7 @@ export function resetWindowIfExpired(
     cyclesStarted: 0,
     invocations: 0,
     reportedTokens: 0,
+    featureInvocations: 0,
     consecutiveFailures: 0,
     correctionInvocations: 0,
     nextAttemptAt: null,
@@ -74,18 +75,23 @@ export function budgetDecision(
   config: DispatcherConfig,
   isNewIssue: boolean,
   now = new Date(),
-): DispatcherDecision | null {
+  alreadyReserved = false,
+): Extract<DispatcherDecision, { action: "pause" }> | null {
   if (state.nextAttemptAt && Date.parse(state.nextAttemptAt) > now.getTime()) {
     return { action: "pause", reason: state.pauseReason ?? "budget", until: state.nextAttemptAt };
   }
   if (state.reportedTokens >= config.maxReportedTokensPerWindow) {
     return { action: "pause", reason: "budget", until: new Date(Date.parse(state.windowStartedAt) + config.windowDurationMs).toISOString() };
   }
+  const remainingTokens = config.maxReportedTokensPerWindow - state.reportedTokens;
+  if (isNewIssue && remainingTokens <= config.reserveReportedTokens) {
+    return { action: "pause", reason: "budget", until: new Date(Date.parse(state.windowStartedAt) + config.windowDurationMs).toISOString() };
+  }
   const remaining = config.maxInvocationsPerWindow - state.invocations;
   if (remaining <= 0 || (isNewIssue && remaining <= config.reserveInvocations)) {
     return { action: "pause", reason: "budget", until: new Date(Date.parse(state.windowStartedAt) + config.windowDurationMs).toISOString() };
   }
-  if (isNewIssue && state.cyclesStarted >= config.maxCyclesPerWindow) {
+  if (isNewIssue && !alreadyReserved && state.cyclesStarted >= config.maxCyclesPerWindow) {
     return { action: "pause", reason: "budget", until: new Date(Date.parse(state.windowStartedAt) + config.windowDurationMs).toISOString() };
   }
   return null;

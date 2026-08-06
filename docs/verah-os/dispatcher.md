@@ -36,6 +36,7 @@ Crie, sem versionar, `.verah-os/dispatcher.config.json`:
   "maxCyclesPerWindow": 2,
   "maxInvocationsPerWindow": 4,
   "reserveInvocations": 1,
+  "reserveReportedTokens": 25000,
   "windowDurationMs": 28800000,
   "pollIntervalMs": 300000,
   "baseBackoffMs": 60000,
@@ -48,6 +49,20 @@ O arquivo aceita somente campos operacionais. Variáveis com prefixo
 `VERAH_OS_DISPATCHER_` têm precedência. Os argumentos podem ser confirmados por
 `VERAH_OS_CODEX_ARGUMENTS_JSON`, mas somente a sequência canônica é aceita;
 variações e configurações inseguras falham fechadas.
+
+## Fila e budget persistentes
+
+Em modo mutável, a Issue é reservada pelo fluxo canônico antes de o dispatcher
+avaliar o budget da invocação. O estado v2 persiste atomicamente a Issue, branch,
+SHA base, run do checkpoint, fase e PR opcional. Assim, `waiting_budget`,
+`waiting_quota` e `waiting_rate_limit` mantêm a mesma fila durante reinício do
+processo, reinício do Windows, watchdog ou expiração da janela.
+
+O status inclui `nextAttemptAt`, consumo e saldo da janela e capacidade
+reservada. `reserveInvocations` e `reserveReportedTokens` pertencem ao trabalho
+corrente: uma nova feature espera sem consumir a reserva de correção do PR.
+Tokens são entrada não cacheada mais saída reportadas pelo Codex CLI; entrada
+cacheada não é recontada.
 
 ## Dry-run obrigatório
 
@@ -111,6 +126,12 @@ powershell -ExecutionPolicy Bypass -File scripts/verah-os/windows-dispatcher.ps1
 Isso preserva `.verah-os/`, checkpoint e evidências. Para impedir qualquer
 retomada, mantenha o kill switch global ativo. Não apague mutex ou checkpoint
 manualmente.
+
+Para rollback de uma versão do dispatcher, solicite `stop`, confirme que o
+processo terminou, restaure o código anterior e mantenha `.verah-os/` intacto.
+O leitor preserva o snapshot anterior do estado, mas a fila, checkpoint, mutex
+e labels não devem ser removidos à mão. Faça a reconciliação em dry-run antes
+de retomar.
 
 ## Diagnóstico
 

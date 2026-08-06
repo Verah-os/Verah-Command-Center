@@ -1,14 +1,16 @@
 # Status executivo do VERAH OS
 
-Atualizado em 4 de agosto de 2026.
+Atualizado em 5 de agosto de 2026.
 
-- `main`: `c6776f2249a56840889e55977d28d77e1e1d8bc1`.
+- `main`: `216d2899160a6e1942f06eb16027beedbeb6778a`.
 - Control Plane 001: integrado pelo PR #68; migration apenas versionada.
 - VERAH OS unattended: integrado pelo PR #72; Issue #71 encerrada.
 - Quote Intelligence Core: integrado pelo PR #70.
 - Quote Quality & Comparison: integrado pelo PR #86.
-- Issue ativa: #87 — VERAH OS Resilience.
-- PR ativo: será aberto em draft após a validação local da Issue #87.
+- Second Opinion & Vehicle Movement: integrado pelo PR #94.
+- Issue ativa: #95 — VERAH OS Budget Manager & Queue Persistence.
+- PR ativo: branch `feat/95-p0-verah-os-budget-manager-queue-persistence` em
+  entrega por draft PR.
 - Skill supervisionada: `verah-autonomous-delivery` preservada.
 - Skill unattended: `verah-os-unattended` instalada localmente.
 - Automação recorrente: desativada enquanto a recuperação local é validada;
@@ -30,6 +32,10 @@ Atualizado em 4 de agosto de 2026.
 - `recovering`: reconciliação local/GitHub em andamento;
 - `blocked`: gate de segurança impede continuidade;
 - `idle`: nenhum ciclo ativo.
+
+O dispatcher v2 acrescenta `queued`, `waiting_budget`, `waiting_quota`,
+`waiting_rate_limit`, `waiting_authentication` e `resuming`, preservando o item
+reservado, o backoff e a capacidade de correção durante reinícios.
 
 ## Funcionalidades disponíveis para teste
 

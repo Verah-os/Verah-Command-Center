@@ -24,7 +24,7 @@ function childEnvironment() {
   return environment;
 }
 
-function reportedTokens(line: string) {
+export function reportedTokens(line: string) {
   try {
     const parsed = JSON.parse(line) as Record<string, unknown>;
     const usage = (parsed.usage ?? (parsed.turn as Record<string, unknown> | undefined)?.usage) as
@@ -32,7 +32,8 @@ function reportedTokens(line: string) {
       | undefined;
     if (!usage) return 0;
     const input = Number(usage.input_tokens) || 0;
-    const cached = Number(usage.cached_input_tokens) || 0;
+    const inputDetails = usage.input_tokens_details as Record<string, unknown> | undefined;
+    const cached = Number(usage.cached_input_tokens ?? inputDetails?.cached_tokens) || 0;
     const output = Number(usage.output_tokens) || 0;
     return Math.max(0, input - cached) + output;
   } catch {

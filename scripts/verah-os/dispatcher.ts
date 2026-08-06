@@ -22,12 +22,14 @@ import type {
   CodexInvocationResult,
   DispatcherConfig,
   DispatcherDecision,
+  DispatcherPauseReason,
   DispatcherState,
+  DispatcherRunStatus,
 } from "./dispatcher-types.ts";
 import type { GitHubOperations } from "./github.ts";
 import { githubOperations } from "./github.ts";
 import { continueCycle, dryRunCycle, heartbeatCycle } from "./orchestrator.ts";
-import { isStopped, readCheckpoint } from "./state.ts";
+import { isStopped, readCheckpoint, readHostLock } from "./state.ts";
 import type { VerahOsConfig } from "./types.ts";
 
 export type DispatcherOperations = {
@@ -44,6 +46,9 @@ const defaultOperations: DispatcherOperations = {
 
 function publicStatus(state: DispatcherState, config: DispatcherConfig) {
   const heartbeatAgeMs = state.heartbeatAt ? Math.max(0, Date.now() - Date.parse(state.heartbeatAt)) : null;
+  const windowEndsAt = new Date(Date.parse(state.windowStartedAt) + config.windowDurationMs).toISOString();
+  const remainingInvocations = Math.max(0, config.maxInvocationsPerWindow - state.invocations);
+  const remainingReportedTokens = Math.max(0, config.maxReportedTokensPerWindow - state.reportedTokens);
   return {
     status: state.status,
     enabled: config.enabled,
@@ -54,7 +59,19 @@ function publicStatus(state: DispatcherState, config: DispatcherConfig) {
     cyclesStarted: state.cyclesStarted,
     invocations: state.invocations,
     reportedTokens: state.reportedTokens,
+    featureInvocations: state.featureInvocations,
     correctionInvocations: state.correctionInvocations,
+    queue: state.queue,
+    budget: {
+      windowStartedAt: state.windowStartedAt,
+      windowEndsAt,
+      invocationsUsed: state.invocations,
+      invocationsRemaining: remainingInvocations,
+      reportedTokensUsed: state.reportedTokens,
+      reportedTokensRemaining: remainingReportedTokens,
+      correctionInvocationsReserved: Math.min(config.reserveInvocations, remainingInvocations),
+      correctionTokensReserved: Math.min(config.reserveReportedTokens, remainingReportedTokens),
+    },
     pauseReason: state.pauseReason,
     nextAttemptAt: state.nextAttemptAt,
     heartbeatAgeMs,
@@ -63,6 +80,14 @@ function publicStatus(state: DispatcherState, config: DispatcherConfig) {
     productionMutations: [],
     remoteDatabaseMutations: [],
   };
+}
+
+function waitingStatus(reason: DispatcherPauseReason | CodexInvocationResult["status"]): DispatcherRunStatus {
+  if (reason === "budget") return "waiting_budget";
+  if (reason === "quota") return "waiting_quota";
+  if (reason === "rate_limit") return "waiting_rate_limit";
+  if (reason === "authentication") return "waiting_authentication";
+  return "paused";
 }
 
 async function persist(
@@ -82,6 +107,27 @@ async function persist(
     detail,
   });
   return next;
+}
+
+async function maintainQueuedLease(
+  core: VerahOsConfig,
+  config: DispatcherConfig,
+  state: DispatcherState,
+  operations: DispatcherOperations,
+  now: Date,
+) {
+  if (!config.enabled || config.dryRun || !state.queue) return;
+  const checkpoint = await readCheckpoint(core.runtimeDirectory);
+  if (!checkpoint) return;
+  const lock = await readHostLock(core.runtimeDirectory);
+  if (
+    lock?.runId === checkpoint.runId &&
+    Date.parse(lock.expiresAt) > now.getTime()
+  ) {
+    await heartbeatCycle(core, now);
+    return;
+  }
+  await continueCycle(core, operations.github, now);
 }
 
 async function decide(
@@ -105,7 +151,7 @@ async function decide(
     )[0];
     return {
       decision: { action: "pause", reason: "human_review", until: null },
-      state: { ...state, activeIssueNumber: null, activePullRequestNumber: active.number },
+      state: { ...state, activeIssueNumber: null, activePullRequestNumber: active.number, queue: null },
     };
   }
   const matching = checkpoint?.pullRequestNumber
@@ -117,6 +163,17 @@ async function decide(
     ...state,
     activeIssueNumber: checkpoint?.issueNumber ?? null,
     activePullRequestNumber: typeof matching === "number" ? matching : matching?.number ?? null,
+    queue: checkpoint
+      ? {
+          issueNumber: checkpoint.issueNumber ?? state.queue?.issueNumber ?? null,
+          pullRequestNumber: typeof matching === "number" ? matching : matching?.number ?? null,
+          branch: checkpoint.branch,
+          baseSha: checkpoint.baseSha,
+          checkpointRunId: checkpoint.runId,
+          phase: matching ? "pull_request" as const : state.queue?.phase ?? "active" as const,
+          reservedAt: state.queue?.reservedAt ?? checkpoint.startedAt,
+        }
+      : null,
   };
   if (matching) {
     const gate = await operations.dispatcherGitHub.inspectPullRequest(core.repository, matching);
@@ -134,7 +191,8 @@ async function decide(
         state: withActive,
       };
     }
-    const budget = budgetDecision(withActive, config, false, now);
+    const reserved = withActive.queue?.phase === "reserved";
+    const budget = budgetDecision(withActive, config, reserved, now, reserved);
     if (budget) return { decision: budget, state: withActive };
     let decision = evaluatePullRequestGate(gate);
     if (
@@ -176,7 +234,8 @@ async function decide(
         state: withActive,
       };
     }
-    const budget = budgetDecision(withActive, config, false, now);
+    const reserved = withActive.queue?.phase === "reserved";
+    const budget = budgetDecision(withActive, config, reserved, now, reserved);
     return {
       decision: budget ?? { action: "invoke", reason: "continue_issue" },
       state: withActive,
@@ -185,7 +244,7 @@ async function decide(
   const queue = await dryRunCycle(core, operations.github);
   if (queue.status === "selected" && queue.issue) {
     const selected = { ...withActive, activeIssueNumber: queue.issue.number };
-    const budget = budgetDecision(selected, config, true, now);
+    const budget = config.dryRun || !config.enabled ? budgetDecision(selected, config, true, now) : null;
     return { decision: budget ?? { action: "invoke", reason: "start_issue" }, state: selected };
   }
   if (queue.status === "locked" || queue.status === "resumed") {
@@ -209,12 +268,13 @@ export async function runDispatcherOnce(
       config,
       now,
     );
+    await maintainQueuedLease(core, config, state, operations, now);
     const evaluated = await decide(core, config, state, operations, now);
     state = evaluated.state;
     if (evaluated.decision.action === "pause") {
       state = await persist(config, {
         ...state,
-        status: "paused",
+        status: waitingStatus(evaluated.decision.reason),
         pid: runnerPid,
         pauseReason: evaluated.decision.reason,
         nextAttemptAt: evaluated.decision.until,
@@ -236,19 +296,56 @@ export async function runDispatcherOnce(
       return { ...publicStatus(state, config), decision: evaluated.decision, invoked: false };
     }
     if (isNewIssue) {
-      await continueCycle(core, operations.github, now);
+      const reservation = await continueCycle(core, operations.github, now);
+      const checkpoint = await readCheckpoint(core.runtimeDirectory);
+      if (!checkpoint?.issueNumber || !reservation.branch || !reservation.baseSha) {
+        throw new Error("dispatcher_reservation_incomplete");
+      }
+      state = await persist(config, {
+        ...state,
+        status: "queued",
+        cyclesStarted: state.cyclesStarted + 1,
+        activeIssueNumber: checkpoint.issueNumber,
+        activePullRequestNumber: checkpoint.pullRequestNumber,
+        queue: {
+          issueNumber: checkpoint.issueNumber,
+          pullRequestNumber: checkpoint.pullRequestNumber,
+          branch: checkpoint.branch,
+          baseSha: checkpoint.baseSha,
+          checkpointRunId: checkpoint.runId,
+          phase: "reserved",
+          reservedAt: checkpoint.startedAt,
+        },
+        heartbeatAt: now.toISOString(),
+        lastOutcome: "queued:reserved",
+      }, "dispatcher_issue_queued", "reserved");
+      const budget = budgetDecision(state, config, true, now, true);
+      if (budget) {
+        state = await persist(config, {
+          ...state,
+          status: waitingStatus(budget.reason),
+          pauseReason: budget.reason,
+          nextAttemptAt: budget.until,
+          lastOutcome: `paused:${budget.reason}`,
+        }, "dispatcher_paused", budget.reason);
+        return { ...publicStatus(state, config), decision: budget, invoked: false };
+      }
     }
+    const featureInvocation = isNewIssue || (
+      evaluated.decision.reason === "continue_issue" && state.queue?.phase === "reserved"
+    );
     state = await persist(config, {
       ...state,
-      status: "running",
+      status: isNewIssue ? "running" : "resuming",
       pid: process.pid,
       pauseReason: null,
       nextAttemptAt: null,
       invocations: state.invocations + 1,
-      cyclesStarted: state.cyclesStarted + (isNewIssue ? 1 : 0),
+      featureInvocations: state.featureInvocations + (featureInvocation ? 1 : 0),
       correctionInvocations: isNewIssue ? 0 : state.correctionInvocations + (
         ["address_review", "correct_pr"].includes(evaluated.decision.reason) ? 1 : 0
       ),
+      queue: state.queue ? { ...state.queue, phase: "active" } : null,
       activeInvocationStartedAt: now.toISOString(),
       heartbeatAt: now.toISOString(),
       lastOutcome: `invoking:${evaluated.decision.reason}`,
@@ -284,7 +381,11 @@ export async function runDispatcherOnce(
     const rateLimited = ["rate_limit", "quota", "authentication"].includes(result.status);
     const updated = {
       ...state,
-      status: failed ? "paused" as const : "idle" as const,
+      status: rateLimited
+        ? waitingStatus(result.status)
+        : failed
+          ? "paused" as const
+          : "idle" as const,
       pid: runnerPid,
       activeInvocationStartedAt: null,
       reportedTokens: state.reportedTokens + result.reportedTokens,

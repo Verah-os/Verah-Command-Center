@@ -16,6 +16,7 @@ type LocalConfig = Partial<Record<
   | "maxInvocationDurationMs"
   | "reserveInvocations"
   | "maxReportedTokensPerWindow"
+  | "reserveReportedTokens"
   | "baseBackoffMs"
   | "maxBackoffMs"
   | "codexCommand",
@@ -84,6 +85,12 @@ export async function readDispatcherConfig(
   const maxInvocationsPerWindow = bounded(
     from("VERAH_OS_DISPATCHER_MAX_INVOCATIONS", "maxInvocationsPerWindow"), 4, 1, 20,
   );
+  const maxReportedTokensPerWindow = bounded(
+    from("VERAH_OS_DISPATCHER_MAX_REPORTED_TOKENS", "maxReportedTokensPerWindow"),
+    250_000,
+    1_000,
+    2_000_000,
+  );
   const reserveInvocations = bounded(
     from("VERAH_OS_DISPATCHER_RESERVE_INVOCATIONS", "reserveInvocations"), 1, 1,
     Math.max(1, maxInvocationsPerWindow - 1),
@@ -126,7 +133,13 @@ export async function readDispatcherConfig(
     maxInvocationsPerWindow,
     maxInvocationDurationMs: bounded(from("VERAH_OS_DISPATCHER_INVOCATION_TIMEOUT_MS", "maxInvocationDurationMs"), 7_200_000, 60_000, 14_400_000),
     reserveInvocations,
-    maxReportedTokensPerWindow: bounded(from("VERAH_OS_DISPATCHER_MAX_REPORTED_TOKENS", "maxReportedTokensPerWindow"), 250_000, 1_000, 2_000_000),
+    maxReportedTokensPerWindow,
+    reserveReportedTokens: bounded(
+      from("VERAH_OS_DISPATCHER_RESERVE_REPORTED_TOKENS", "reserveReportedTokens"),
+      Math.min(25_000, Math.max(1_000, Math.floor(maxReportedTokensPerWindow / 4))),
+      1_000,
+      Math.max(1_000, maxReportedTokensPerWindow - 1),
+    ),
     baseBackoffMs,
     maxBackoffMs,
     codexCommand,

@@ -21,6 +21,12 @@ Estados executivos:
 - `blocked`: kill switch, owner divergente, worktree sujo, budget vencido ou estado inválido;
 - `idle`: nenhum ciclo ativo.
 
+O status do dispatcher detalha ainda `queued`, `waiting_budget`,
+`waiting_quota`, `waiting_rate_limit`, `waiting_authentication` e `resuming`.
+Esses estados preservam o item de fila, `nextAttemptAt`, consumo da janela e
+capacidade de correção reservada. Após a janela ou o backoff expirar, o loop
+retoma o mesmo checkpoint; não execute `continue` manualmente nem remova locks.
+
 ## Windows
 
 O dispatcher contínuo oferece instalação opcional de duas tarefas no usuário
