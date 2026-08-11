@@ -1,9 +1,11 @@
 import { spawn } from "node:child_process";
-import { access } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { access, mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { delimiter, dirname, extname, isAbsolute, join, resolve } from "node:path";
 
 import type { CodexInvocationResult, DispatcherConfig } from "./dispatcher-types.ts";
 import { classifyCodexFailure } from "./dispatcher-policy.ts";
+import { readCheckpoint } from "./state.ts";
 
 export const DISPATCHER_PROMPT = [
   "Use $verah-os-unattended to continue the currently selected VERAH OS checkpoint.",
@@ -12,7 +14,92 @@ export const DISPATCHER_PROMPT = [
   "Work only within the written GitHub issue scope and reconcile existing branch, PR, CI and labels before mutation.",
   "Never access production, mutate a remote database, run db push or migration repair, re-enable production deploys, send real messages, make payments, change rulesets or bypass gates.",
   "Use at most two correction attempts. Preserve the human merge gate unless codex:auto-merge is explicitly present and every release gate passes.",
+  "Before returning, persist concrete progress in the checkpoint and working tree; finish with a commit and Draft PR whenever the authorized scope is complete.",
 ].join(" ");
+
+export const DISPATCHER_RESUME_PROMPT = [
+  "Continue the same VERAH OS checkpoint from this existing Codex session.",
+  "Do not rediscover completed work or reread broad repository context; inspect the current diff and latest validation evidence, then perform only the remaining authorized steps.",
+  "Do not rerun already-passed full validations unless code changed after them or a new failure requires it.",
+  "When the scope is complete, commit, push, open or update the Draft PR, persist the checkpoint, and stop.",
+  "Keep all prior production, remote database, messaging, payment, credential, approval, and human merge restrictions.",
+].join(" ");
+
+type CodexSession = {
+  version: 1;
+  checkpointRunId: string;
+  threadId: string;
+  updatedAt: string;
+};
+
+const codexSessionName = "codex-session.json";
+const codexThreadIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function safeThreadId(value: unknown): value is string {
+  return typeof value === "string" && codexThreadIdPattern.test(value);
+}
+
+function codexSessionPath(runtimeDirectory: string) {
+  return join(runtimeDirectory, "dispatcher", codexSessionName);
+}
+
+export function threadIdFromEvent(line: string) {
+  try {
+    const event = JSON.parse(line) as Record<string, unknown>;
+    return event.type === "thread.started" && safeThreadId(event.thread_id)
+      ? event.thread_id
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+async function readCodexSession(runtimeDirectory: string, checkpointRunId: string) {
+  try {
+    const session = JSON.parse(
+      await readFile(codexSessionPath(runtimeDirectory), "utf8"),
+    ) as CodexSession;
+    return session.version === 1 && session.checkpointRunId === checkpointRunId && safeThreadId(session.threadId)
+      ? session
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+async function writeCodexSession(
+  runtimeDirectory: string,
+  checkpointRunId: string,
+  threadId: string,
+) {
+  const directory = join(runtimeDirectory, "dispatcher");
+  await mkdir(directory, { recursive: true });
+  const target = codexSessionPath(runtimeDirectory);
+  const temporary = join(directory, `${codexSessionName}.${randomUUID()}.tmp`);
+  const session: CodexSession = {
+    version: 1,
+    checkpointRunId,
+    threadId,
+    updatedAt: new Date().toISOString(),
+  };
+  await writeFile(temporary, `${JSON.stringify(session, null, 2)}\n`, {
+    encoding: "utf8",
+    mode: 0o600,
+  });
+  await rename(temporary, target);
+}
+
+export function buildCodexArguments(config: DispatcherConfig, threadId: string | null) {
+  if (threadId) {
+    return [...config.codexArguments, "resume", threadId, DISPATCHER_RESUME_PROMPT];
+  }
+  return [
+    ...config.codexArguments,
+    "--cd",
+    config.workspaceDirectory,
+    DISPATCHER_PROMPT,
+  ];
+}
 
 function childEnvironment() {
   const environment = { ...process.env };
@@ -94,12 +181,12 @@ export async function invokeCodex(
   signal?: AbortSignal,
   platform = process.platform,
 ): Promise<CodexInvocationResult> {
-  const arguments_ = [
-    ...config.codexArguments,
-    "--cd",
-    config.workspaceDirectory,
-    DISPATCHER_PROMPT,
-  ];
+  const checkpoint = await readCheckpoint(config.runtimeDirectory).catch(() => null);
+  const checkpointRunId = checkpoint?.runId ?? null;
+  const existingSession = checkpointRunId
+    ? await readCodexSession(config.runtimeDirectory, checkpointRunId)
+    : null;
+  const arguments_ = buildCodexArguments(config, existingSession?.threadId ?? null);
   const environment = childEnvironment();
   let invocation;
   try {
@@ -126,36 +213,49 @@ export async function invokeCodex(
     let diagnostic = "";
     let tokens = 0;
     let lineBuffer = "";
+    let capturedThreadId = existingSession?.threadId ?? null;
+    let sessionPersistence = Promise.resolve();
     const timer = setTimeout(() => child.kill(), config.maxInvocationDurationMs);
+    const consumeLine = (line: string) => {
+      tokens = Math.max(tokens, reportedTokens(line));
+      const threadId = threadIdFromEvent(line);
+      if (!threadId || !checkpointRunId || threadId === capturedThreadId) return;
+      capturedThreadId = threadId;
+      sessionPersistence = sessionPersistence
+        .then(() => writeCodexSession(config.runtimeDirectory, checkpointRunId, threadId))
+        .catch(() => undefined);
+    };
     child.stdout.on("data", (chunk: Buffer) => {
       lineBuffer += chunk.toString("utf8");
       const lines = lineBuffer.split(/\r?\n/);
       lineBuffer = lines.pop() ?? "";
-      for (const line of lines) tokens = Math.max(tokens, reportedTokens(line));
+      for (const line of lines) consumeLine(line);
     });
     child.stderr.on("data", (chunk: Buffer) => {
       diagnostic = `${diagnostic}${chunk.toString("utf8")}`.slice(-16_384);
     });
     let settled = false;
-    const finish = (result: CodexInvocationResult) => {
+    const finish = async (result: CodexInvocationResult) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
-      resolve(result);
+      if (lineBuffer) consumeLine(lineBuffer);
+      await sessionPersistence;
+      resolve({ ...result, reportedTokens: tokens });
     };
     child.on("error", (error) => {
       const message = error.name === "AbortError" ? "stopped" : classifyCodexFailure(error.message);
-      finish({ status: message, exitCode: null, reportedTokens: tokens });
+      void finish({ status: message, exitCode: null, reportedTokens: tokens });
     });
     child.on("close", (code, closeSignal) => {
       if (signal?.aborted) {
-        finish({ status: "stopped", exitCode: code, reportedTokens: tokens });
+        void finish({ status: "stopped", exitCode: code, reportedTokens: tokens });
       } else if (closeSignal || code === null) {
-        finish({ status: "timeout", exitCode: code, reportedTokens: tokens });
+        void finish({ status: "timeout", exitCode: code, reportedTokens: tokens });
       } else if (code === 0) {
-        finish({ status: "success", exitCode: code, reportedTokens: tokens });
+        void finish({ status: "success", exitCode: code, reportedTokens: tokens });
       } else {
-        finish({ status: classifyCodexFailure(diagnostic), exitCode: code, reportedTokens: tokens });
+        void finish({ status: classifyCodexFailure(diagnostic), exitCode: code, reportedTokens: tokens });
       }
     });
   });

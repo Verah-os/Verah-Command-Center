@@ -24,7 +24,13 @@ import {
   writeDispatcherState,
 } from "../scripts/verah-os/dispatcher-state.ts";
 import { dispatcherStatus, runDispatcherLoop, runDispatcherOnce } from "../scripts/verah-os/dispatcher.ts";
-import { invokeCodex, reportedTokens } from "../scripts/verah-os/codex-runner.ts";
+import {
+  DISPATCHER_RESUME_PROMPT,
+  buildCodexArguments,
+  invokeCodex,
+  reportedTokens,
+  threadIdFromEvent,
+} from "../scripts/verah-os/codex-runner.ts";
 import { heartbeatCycle } from "../scripts/verah-os/orchestrator.ts";
 import {
   acquireHostLock,
@@ -280,6 +286,56 @@ test("Codex adapter uses a direct child process and consumes only structured usa
       input_tokens_details: { cached_tokens: 60 },
     },
   })), 25);
+});
+
+test("Codex adapter persists and resumes the session only for the same checkpoint", async (context) => {
+  const directory = await mkdtemp(join(tmpdir(), "verah-dispatcher-session-"));
+  context.after(() => rm(directory, { recursive: true, force: true }));
+  const fixture = join(directory, "fake-codex-session.mjs");
+  const argumentsFile = join(directory, "arguments.jsonl");
+  const threadId = "11111111-1111-4111-8111-111111111111";
+  await writeFile(fixture, [
+    'import { appendFileSync } from "node:fs";',
+    'appendFileSync(process.argv[2], `${JSON.stringify(process.argv.slice(3))}\\n`);',
+    `console.log(JSON.stringify({type:"thread.started",thread_id:"${threadId}"}));`,
+    'console.log(JSON.stringify({type:"turn.completed",usage:{input_tokens:20,output_tokens:2,cached_input_tokens:10}}));',
+  ].join("\n"));
+  const checkpoint = await createCheckpoint(directory, new Date("2026-08-11T12:00:00.000Z"));
+  const config = dispatcher(directory, {
+    codexCommand: process.execPath,
+    codexArguments: [fixture, argumentsFile],
+  });
+
+  await invokeCodex(config);
+  await invokeCodex(config);
+  await writeCheckpoint(directory, { ...checkpoint, runId: "different-checkpoint" });
+  await invokeCodex(config);
+
+  const invocations = (await readFile(argumentsFile, "utf8"))
+    .trim()
+    .split(/\r?\n/)
+    .map((line) => JSON.parse(line));
+  assert.equal(invocations[0].includes("resume"), false);
+  assert.deepEqual(invocations[1].slice(-3), ["resume", threadId, DISPATCHER_RESUME_PROMPT]);
+  assert.equal(invocations[2].includes("resume"), false);
+  const session = JSON.parse(
+    await readFile(join(directory, "dispatcher", "codex-session.json"), "utf8"),
+  );
+  assert.equal(session.checkpointRunId, "different-checkpoint");
+  assert.equal(session.threadId, threadId);
+});
+
+test("Codex resume arguments stay scoped to the existing session", () => {
+  const config = dispatcher("runtime", { workspaceDirectory: "workspace" });
+  const threadId = "11111111-1111-4111-8111-111111111111";
+  assert.equal(buildCodexArguments(config, null).includes("--cd"), true);
+  assert.deepEqual(
+    buildCodexArguments(config, threadId).slice(-3),
+    ["resume", threadId, DISPATCHER_RESUME_PROMPT],
+  );
+  assert.equal(threadIdFromEvent(JSON.stringify({ type: "thread.started", thread_id: threadId })), threadId);
+  assert.equal(threadIdFromEvent(JSON.stringify({ type: "thread.started", thread_id: "--last" })), null);
+  assert.equal(threadIdFromEvent("not-json"), null);
 });
 
 test("Windows Codex adapter resolves the npm cmd shim without enabling a shell", async (context) => {
