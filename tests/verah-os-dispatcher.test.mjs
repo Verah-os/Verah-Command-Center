@@ -273,7 +273,7 @@ test("Codex adapter uses a direct child process and consumes only structured usa
   const directory = await mkdtemp(join(tmpdir(), "verah-dispatcher-runner-"));
   context.after(() => rm(directory, { recursive: true, force: true }));
   const fixture = join(directory, "fake-codex.mjs");
-  await writeFile(fixture, 'console.log(JSON.stringify({usage:{input_tokens:40,output_tokens:2,cached_input_tokens:8}}));\n');
+  await writeFile(fixture, 'process.stdout.write(JSON.stringify({usage:{input_tokens:40,output_tokens:2,cached_input_tokens:8}}));\n');
   const result = await invokeCodex(dispatcher(directory, {
     codexCommand: process.execPath,
     codexArguments: [fixture],
