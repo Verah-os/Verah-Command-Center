@@ -308,7 +308,17 @@ test("Codex adapter persists and resumes the session only for the same checkpoin
 
   await invokeCodex(config);
   await invokeCodex(config);
-  await writeCheckpoint(directory, { ...checkpoint, runId: "different-checkpoint" });
+  await writeCheckpoint(directory, { ...checkpoint, runId: "recovered-lease" });
+  await invokeCodex(config);
+  await writeCheckpoint(directory, {
+    ...checkpoint,
+    runId: "different-checkpoint",
+    issueNumber: 2,
+    workTitle: "Issue 2",
+    workUrl: "https://github.test/issues/2",
+    branch: "feat/2",
+    startedAt: "2026-08-11T13:00:00.000Z",
+  });
   await invokeCodex(config);
 
   const invocations = (await readFile(argumentsFile, "utf8"))
@@ -317,11 +327,12 @@ test("Codex adapter persists and resumes the session only for the same checkpoin
     .map((line) => JSON.parse(line));
   assert.equal(invocations[0].includes("resume"), false);
   assert.deepEqual(invocations[1].slice(-3), ["resume", threadId, DISPATCHER_RESUME_PROMPT]);
-  assert.equal(invocations[2].includes("resume"), false);
+  assert.deepEqual(invocations[2].slice(-3), ["resume", threadId, DISPATCHER_RESUME_PROMPT]);
+  assert.equal(invocations[3].includes("resume"), false);
   const session = JSON.parse(
     await readFile(join(directory, "dispatcher", "codex-session.json"), "utf8"),
   );
-  assert.equal(session.checkpointRunId, "different-checkpoint");
+  assert.equal(session.version, 2);
   assert.equal(session.threadId, threadId);
 });
 

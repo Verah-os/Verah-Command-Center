@@ -6,6 +6,7 @@ import { delimiter, dirname, extname, isAbsolute, join, resolve } from "node:pat
 import type { CodexInvocationResult, DispatcherConfig } from "./dispatcher-types.ts";
 import { classifyCodexFailure } from "./dispatcher-policy.ts";
 import { readCheckpoint } from "./state.ts";
+import type { RunCheckpoint } from "./types.ts";
 
 export const DISPATCHER_PROMPT = [
   "Use $verah-os-unattended to continue the currently selected VERAH OS checkpoint.",
@@ -26,8 +27,8 @@ export const DISPATCHER_RESUME_PROMPT = [
 ].join(" ");
 
 type CodexSession = {
-  version: 1;
-  checkpointRunId: string;
+  version: 2;
+  checkpointIdentity: string;
   threadId: string;
   updatedAt: string;
 };
@@ -43,6 +44,13 @@ function codexSessionPath(runtimeDirectory: string) {
   return join(runtimeDirectory, "dispatcher", codexSessionName);
 }
 
+function checkpointIdentity(checkpoint: RunCheckpoint) {
+  const workIdentity = checkpoint.issueNumber !== null
+    ? `issue:${checkpoint.issueNumber}`
+    : `pull_request:${checkpoint.pullRequestNumber ?? "unknown"}`;
+  return [checkpoint.repository, workIdentity, checkpoint.branch, checkpoint.startedAt].join("\n");
+}
+
 export function threadIdFromEvent(line: string) {
   try {
     const event = JSON.parse(line) as Record<string, unknown>;
@@ -54,12 +62,12 @@ export function threadIdFromEvent(line: string) {
   }
 }
 
-async function readCodexSession(runtimeDirectory: string, checkpointRunId: string) {
+async function readCodexSession(runtimeDirectory: string, identity: string) {
   try {
     const session = JSON.parse(
       await readFile(codexSessionPath(runtimeDirectory), "utf8"),
     ) as CodexSession;
-    return session.version === 1 && session.checkpointRunId === checkpointRunId && safeThreadId(session.threadId)
+    return session.version === 2 && session.checkpointIdentity === identity && safeThreadId(session.threadId)
       ? session
       : null;
   } catch {
@@ -69,7 +77,7 @@ async function readCodexSession(runtimeDirectory: string, checkpointRunId: strin
 
 async function writeCodexSession(
   runtimeDirectory: string,
-  checkpointRunId: string,
+  identity: string,
   threadId: string,
 ) {
   const directory = join(runtimeDirectory, "dispatcher");
@@ -77,8 +85,8 @@ async function writeCodexSession(
   const target = codexSessionPath(runtimeDirectory);
   const temporary = join(directory, `${codexSessionName}.${randomUUID()}.tmp`);
   const session: CodexSession = {
-    version: 1,
-    checkpointRunId,
+    version: 2,
+    checkpointIdentity: identity,
     threadId,
     updatedAt: new Date().toISOString(),
   };
@@ -182,9 +190,9 @@ export async function invokeCodex(
   platform = process.platform,
 ): Promise<CodexInvocationResult> {
   const checkpoint = await readCheckpoint(config.runtimeDirectory).catch(() => null);
-  const checkpointRunId = checkpoint?.runId ?? null;
-  const existingSession = checkpointRunId
-    ? await readCodexSession(config.runtimeDirectory, checkpointRunId)
+  const activeCheckpointIdentity = checkpoint ? checkpointIdentity(checkpoint) : null;
+  const existingSession = activeCheckpointIdentity
+    ? await readCodexSession(config.runtimeDirectory, activeCheckpointIdentity)
     : null;
   const arguments_ = buildCodexArguments(config, existingSession?.threadId ?? null);
   const environment = childEnvironment();
@@ -219,10 +227,10 @@ export async function invokeCodex(
     const consumeLine = (line: string) => {
       tokens = Math.max(tokens, reportedTokens(line));
       const threadId = threadIdFromEvent(line);
-      if (!threadId || !checkpointRunId || threadId === capturedThreadId) return;
+      if (!threadId || !activeCheckpointIdentity || threadId === capturedThreadId) return;
       capturedThreadId = threadId;
       sessionPersistence = sessionPersistence
-        .then(() => writeCodexSession(config.runtimeDirectory, checkpointRunId, threadId))
+        .then(() => writeCodexSession(config.runtimeDirectory, activeCheckpointIdentity, threadId))
         .catch(() => undefined);
     };
     child.stdout.on("data", (chunk: Buffer) => {
