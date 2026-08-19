@@ -173,6 +173,41 @@ run_second_opinion_concurrency() {
   run_sql supabase/tests/second_opinion_concurrency_verify.sql
 }
 
+run_provider_invitation_concurrency() {
+  local first_pid
+  local first_status=0
+  local second_pid
+  local second_status=0
+
+  printf 'Running concurrent provider invitation replay\n'
+  run_sql supabase/tests/provider_invitations_concurrency_setup.sql
+
+  docker exec --interactive "${DATABASE_CONTAINER}" psql \
+    --username=postgres \
+    --dbname=postgres \
+    --no-psqlrc \
+    --set=ON_ERROR_STOP=1 \
+    --file=- <supabase/tests/provider_invitations_concurrency_call.sql &
+  first_pid=$!
+
+  docker exec --interactive "${DATABASE_CONTAINER}" psql \
+    --username=postgres \
+    --dbname=postgres \
+    --no-psqlrc \
+    --set=ON_ERROR_STOP=1 \
+    --file=- <supabase/tests/provider_invitations_concurrency_call.sql &
+  second_pid=$!
+
+  wait "${first_pid}" || first_status=$?
+  wait "${second_pid}" || second_status=$?
+
+  if [[ "${first_status}" -ne 0 || "${second_status}" -ne 0 ]]; then
+    fail "concurrent provider invitation replay failed"
+  fi
+
+  run_sql supabase/tests/provider_invitations_concurrency_verify.sql
+}
+
 assert_local_database_container() {
   local project_label
 
@@ -242,10 +277,12 @@ run_sql supabase/tests/intelligent_intake_security.sql
 run_sql supabase/tests/quote_intelligence_security.sql
 run_sql supabase/tests/quote_quality_comparison_security.sql
 run_sql supabase/tests/second_opinion_vehicle_movement_security.sql
+run_sql supabase/tests/provider_invitations_security.sql
 run_customer_identity_concurrency
 run_quote_intelligence_concurrency
 run_quote_quality_concurrency
 run_second_opinion_concurrency
+run_provider_invitation_concurrency
 
 printf 'Linting public and private schemas; warnings are reported and errors block CI\n'
 supabase db lint --local --schema public,private --level warning --fail-on error
@@ -263,10 +300,12 @@ run_sql supabase/tests/intelligent_intake_security.sql
 run_sql supabase/tests/quote_intelligence_security.sql
 run_sql supabase/tests/quote_quality_comparison_security.sql
 run_sql supabase/tests/second_opinion_vehicle_movement_security.sql
+run_sql supabase/tests/provider_invitations_security.sql
 run_customer_identity_concurrency
 run_quote_intelligence_concurrency
 run_quote_quality_concurrency
 run_second_opinion_concurrency
+run_provider_invitation_concurrency
 supabase db lint --local --schema public,private --level warning --fail-on error
 
 printf 'Database authorization CI completed successfully\n'
