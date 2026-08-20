@@ -26,6 +26,10 @@ exception
 end;
 $$;
 
+grant usage on schema whatsapp_worker_test to service_role;
+grant select, insert on all tables in schema whatsapp_worker_test to service_role;
+grant execute on function whatsapp_worker_test.expect_error(text) to service_role;
+
 do $$
 declare
   signature text;
