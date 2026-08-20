@@ -280,7 +280,7 @@ begin
       select 1 from public.service_attachments as existing
       where existing.external_media_id = message.sanitized_metadata ->> 'media_id'
     )
-  on conflict (external_media_id) where external_media_id is not null do nothing;
+  on conflict do nothing;
 
   return query
   with candidates as (
