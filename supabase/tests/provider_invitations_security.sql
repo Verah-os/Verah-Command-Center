@@ -103,6 +103,15 @@ select pg_catalog.set_config('request.jwt.claim.role', 'authenticated', true);
 select pg_catalog.set_config('request.jwt.claim.sub', 'd3333333-3333-4333-8333-333333333333', true);
 select pg_catalog.set_config('request.jwt.claims', '{"role":"authenticated","sub":"d3333333-3333-4333-8333-333333333333"}', true);
 
+select provider_invitation_test.expect_error(
+  pg_catalog.format(
+    'select public.invite_service_provider(%L,%L,%L,%L::jsonb,%L::timestamptz,%L)',
+    'd6666666-6666-4666-8666-666666666661', 'd8888888-8888-4888-8888-888888888881',
+    'd5555555-5555-4555-8555-555555555552', '{"contact":"Ligar para (11) 99999-8888"}',
+    now() + interval '1 day', 'provider-invite-formatted-phone'
+  )
+);
+
 select public.invite_service_provider(
   'd6666666-6666-4666-8666-666666666661', 'd8888888-8888-4888-8888-888888888881',
   'd5555555-5555-4555-8555-555555555552', '{"summary":"Revisar escopo sintético","vehicle":"Honda Fit 2018"}',
@@ -216,6 +225,82 @@ select provider_invitation_test.expect_error(
 select provider_invitation_test.expect_error(
   pg_catalog.format('delete from public.provider_selections where id=%L', :'selection_one')
 );
+
+reset role;
+update public.service_quotes
+set status = 'cancelled', updated_at = pg_catalog.clock_timestamp()
+where id = 'd7777777-7777-4777-8777-777777777771';
+insert into public.service_quotes (
+  id, service_request_id, provider_id, status, labor_total, parts_total,
+  additional_total, total_amount, estimated_duration, customer_summary,
+  warranty_text, valid_until, submitted_at, created_by
+) values (
+  'd7777777-7777-4777-8777-777777777772', 'd6666666-6666-4666-8666-666666666661',
+  'd5555555-5555-4555-8555-555555555552', 'submitted', 120, 0, 0, 120,
+  '2 horas', 'Escopo substituto sintético', '30 dias', current_date + 7,
+  pg_catalog.clock_timestamp(), 'd2222222-2222-4222-8222-222222222222'
+);
+insert into public.service_quote_revisions (
+  id, quote_id, service_request_id, provider_id, revision_number,
+  commercial_scope, snapshot, content_hash, idempotency_key,
+  author_user_id, submitted_at, created_at
+) values (
+  'd8888888-8888-4888-8888-888888888882', 'd7777777-7777-4777-8777-777777777772',
+  'd6666666-6666-4666-8666-666666666661', 'd5555555-5555-4555-8555-555555555552',
+  1, 'service_only', '{"items":[],"totals":{"total":120}}', repeat('d', 64),
+  'provider-invitation-replacement-revision', 'd2222222-2222-4222-8222-222222222222',
+  pg_catalog.clock_timestamp(), pg_catalog.clock_timestamp()
+);
+
+set local role authenticated;
+select pg_catalog.set_config('request.jwt.claim.role', 'authenticated', true);
+select pg_catalog.set_config('request.jwt.claim.sub', 'd3333333-3333-4333-8333-333333333333', true);
+select pg_catalog.set_config('request.jwt.claims', '{"role":"authenticated","sub":"d3333333-3333-4333-8333-333333333333"}', true);
+create temporary table provider_invitation_replay_results (
+  replay_kind text primary key,
+  invitation_id uuid not null
+);
+select provider_invitation_test.expect_error(
+  pg_catalog.format(
+    'select public.invite_service_provider(%L,%L,%L,%L::jsonb,%L::timestamptz,%L)',
+    'd6666666-6666-4666-8666-666666666661', 'd8888888-8888-4888-8888-888888888881',
+    'd5555555-5555-4555-8555-555555555553', '{"summary":"Revisão antiga"}',
+    now() + interval '1 day', 'provider-invite-stale-request-revision'
+  )
+);
+insert into provider_invitation_replay_results (replay_kind, invitation_id)
+select 'expired', public.invite_service_provider(
+  'd6666666-6666-4666-8666-666666666661', 'd8888888-8888-4888-8888-888888888881',
+  'd5555555-5555-4555-8555-555555555553', '{"summary":"Convite sintético curto"}',
+  (select expires_at from public.provider_invitations where id = :'expiring_invitation'),
+  'provider-invite-expiring'
+);
+
+reset role;
+update public.service_requests set service_stage = 'cancelado'
+where id = 'd6666666-6666-4666-8666-666666666661';
+set local role authenticated;
+select pg_catalog.set_config('request.jwt.claim.role', 'authenticated', true);
+select pg_catalog.set_config('request.jwt.claim.sub', 'd3333333-3333-4333-8333-333333333333', true);
+select pg_catalog.set_config('request.jwt.claims', '{"role":"authenticated","sub":"d3333333-3333-4333-8333-333333333333"}', true);
+insert into provider_invitation_replay_results (replay_kind, invitation_id)
+select 'closed', public.invite_service_provider(
+  'd6666666-6666-4666-8666-666666666661', 'd8888888-8888-4888-8888-888888888881',
+  'd5555555-5555-4555-8555-555555555553', '{"summary":"Convite sintético curto"}',
+  (select expires_at from public.provider_invitations where id = :'expiring_invitation'),
+  'provider-invite-expiring'
+) ;
+do $$ begin
+  if exists (
+    select 1 from provider_invitation_replay_results as replay
+    where replay.invitation_id <> (
+      select invitation.id from public.provider_invitations as invitation
+      where invitation.idempotency_key = 'provider-invite-expiring'
+    )
+  ) or (select count(*) from provider_invitation_replay_results) <> 2 then
+    raise exception 'Late invitation replay did not return the original result';
+  end if;
+end $$;
 
 reset role;
 set local role service_role;

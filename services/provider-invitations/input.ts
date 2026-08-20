@@ -7,7 +7,7 @@ import {
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const sensitivePattern =
-  /(?:\b\d{7,}\b|[\w.+-]+@[\w.-]+\.[a-z]{2,}|bearer\s+|service[_-]?role|authorization)/i;
+  /(?:(?:\+?\d[\s().-]*){7,}|[\w.+-]+@[\w.-]+\.[a-z]{2,}|bearer\s+|service[_-]?role|authorization)/i;
 
 function uuid(value: string, error: string) {
   const normalized = value.toLowerCase();

@@ -18,7 +18,7 @@ create table public.provider_invitations (
   constraint provider_invitations_briefing_check check (
     jsonb_typeof(briefing) = 'object'
     and length(briefing::text) between 2 and 4000
-    and briefing::text !~* '([[:alnum:]_.+%-]+@[[:alnum:].-]+\.[[:alpha:]]{2,}|bearer[[:space:]]+|authorization|service[_-]?role|[0-9]{7,})'
+    and briefing::text !~* '(([+]?[0-9][[:space:]().-]*){7,}|[[:alnum:]_.+%-]+@[[:alnum:].-]+\.[[:alpha:]]{2,}|bearer[[:space:]]+|authorization|service[_-]?role)'
   ),
   constraint provider_invitations_expiry_check check (expires_at > created_at),
   constraint provider_invitations_idempotency_check check (
@@ -253,20 +253,15 @@ begin
   if actor_id is null or actor_role not in ('concierge', 'admin') then
     raise exception using errcode = '42501', message = 'Provider invitation requires Concierge or Admin.';
   end if;
-  if p_idempotency_key is null or btrim(p_idempotency_key) = '' or length(p_idempotency_key) > 200
-    or p_briefing is null or jsonb_typeof(p_briefing) <> 'object'
-    or length(p_briefing::text) > 4000
-    or p_briefing::text ~* '([[:alnum:]_.+%-]+@[[:alnum:].-]+\.[[:alpha:]]{2,}|bearer[[:space:]]+|authorization|service[_-]?role|[0-9]{7,})'
-    or p_expires_at <= pg_catalog.clock_timestamp()
-    or p_expires_at > pg_catalog.clock_timestamp() + interval '30 days' then
+  if p_idempotency_key is null or btrim(p_idempotency_key) = '' or length(p_idempotency_key) > 200 then
     raise exception using errcode = '22023', message = 'Invalid provider invitation input.';
   end if;
-
-  select * into request_row from public.service_requests where id = p_service_request_id for update;
-  if not found or request_row.service_stage in ('concluido', 'cancelado') then
-    raise exception using errcode = 'P0002', message = 'Service request is unavailable for invitations.';
-  end if;
-  select * into existing_row from public.provider_invitations where idempotency_key = btrim(p_idempotency_key);
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended('provider-invitation:' || btrim(p_idempotency_key), 0)
+  );
+  select * into existing_row
+  from public.provider_invitations
+  where idempotency_key = btrim(p_idempotency_key);
   if found then
     if existing_row.service_request_id = p_service_request_id
       and existing_row.revision_id = p_revision_id
@@ -277,12 +272,31 @@ begin
     end if;
     raise exception using errcode = '23505', message = 'Provider invitation idempotency conflict.';
   end if;
+  if p_briefing is null or jsonb_typeof(p_briefing) <> 'object'
+    or length(p_briefing::text) > 4000
+    or p_briefing::text ~* '(([+]?[0-9][[:space:]().-]*){7,}|[[:alnum:]_.+%-]+@[[:alnum:].-]+\.[[:alpha:]]{2,}|bearer[[:space:]]+|authorization|service[_-]?role)'
+    or p_expires_at <= pg_catalog.clock_timestamp()
+    or p_expires_at > pg_catalog.clock_timestamp() + interval '30 days' then
+    raise exception using errcode = '22023', message = 'Invalid provider invitation input.';
+  end if;
+
+  select * into request_row from public.service_requests where id = p_service_request_id for update;
+  if not found or request_row.service_stage in ('concluido', 'cancelado') then
+    raise exception using errcode = 'P0002', message = 'Service request is unavailable for invitations.';
+  end if;
   select * into revision_row from public.service_quote_revisions where id = p_revision_id;
   if not found or revision_row.service_request_id <> request_row.id
-    or exists (
-      select 1 from public.service_quote_revisions as newer
-      where newer.quote_id = revision_row.quote_id
-        and newer.revision_number > revision_row.revision_number
+    or revision_row.id is distinct from (
+      select current_revision.id
+      from public.service_quote_revisions as current_revision
+      join public.service_quotes as current_quote on current_quote.id = current_revision.quote_id
+      where current_revision.service_request_id = request_row.id
+        and current_quote.service_request_id = request_row.id
+        and current_quote.status <> 'cancelled'
+      order by current_revision.created_at desc,
+        current_revision.revision_number desc,
+        current_revision.id desc
+      limit 1
     ) then
     raise exception using errcode = '22023', message = 'Invitation must reference the latest revision for this request.';
   end if;
@@ -348,6 +362,9 @@ begin
     or p_idempotency_key is null or btrim(p_idempotency_key) = '' or length(p_idempotency_key) > 200 then
     raise exception using errcode = '22023', message = 'Invalid provider invitation response.';
   end if;
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended('provider-response:' || btrim(p_idempotency_key), 0)
+  );
 
   select * into existing_response from public.provider_invitation_responses where idempotency_key = btrim(p_idempotency_key);
   if found then
@@ -393,6 +410,12 @@ begin
   if actor_id is null or actor_role not in ('concierge', 'admin') then
     raise exception using errcode = '42501', message = 'Invitation revocation requires Concierge or Admin.';
   end if;
+  if p_idempotency_key is null or btrim(p_idempotency_key) = '' or length(p_idempotency_key) > 200 then
+    raise exception using errcode = '22023', message = 'Invalid invitation revocation input.';
+  end if;
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended('provider-revocation:' || btrim(p_idempotency_key), 0)
+  );
   select * into event_row from public.provider_invitation_events where idempotency_key = btrim(p_idempotency_key);
   if found then
     if event_row.invitation_id = p_invitation_id and event_row.event_type = 'revoked' then return p_invitation_id; end if;
@@ -433,6 +456,9 @@ begin
     or p_idempotency_key is null or btrim(p_idempotency_key) = '' or length(p_idempotency_key) > 200 then
     raise exception using errcode = '22023', message = 'Invalid provider selection input.';
   end if;
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended('provider-selection:' || btrim(p_idempotency_key), 0)
+  );
   select * into existing_selection from public.provider_selections where idempotency_key = btrim(p_idempotency_key);
   if found then
     if existing_selection.invitation_id = p_invitation_id and existing_selection.rationale = btrim(p_rationale) then

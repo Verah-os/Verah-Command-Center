@@ -43,6 +43,17 @@ test("builds a bounded versioned invitation without contact data", () => {
     }),
     /provider_invitation_invalid_briefing/,
   );
+  assert.throws(
+    () => buildProviderInvitationInput({
+      serviceRequestId: requestId,
+      revisionId,
+      providerId,
+      briefing: { contact: "Ligar para (11) 99999-8888" },
+      expiresAt: "2026-08-20T12:00:00.000Z",
+      idempotencyKey: "invite-3",
+    }),
+    /provider_invitation_invalid_briefing/,
+  );
 });
 
 test("provider response is tied to one invitation and decline requires a reason", () => {
