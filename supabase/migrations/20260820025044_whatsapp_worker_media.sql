@@ -433,3 +433,5 @@ grant execute on function public.fail_whatsapp_outbox(uuid, text, boolean, integ
 grant execute on function public.claim_whatsapp_media(integer, integer) to service_role;
 grant execute on function public.complete_whatsapp_media(uuid, text, bigint, text) to service_role;
 grant execute on function public.fail_whatsapp_media(uuid, text, boolean, integer) to service_role;
+grant select on table public.service_messages to service_role;
+grant select, update on table public.service_attachments to service_role;
