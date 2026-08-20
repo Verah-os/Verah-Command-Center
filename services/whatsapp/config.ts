@@ -42,3 +42,11 @@ export function canSendToMeta(config: WhatsAppConfig) {
     config.accessToken && config.phoneNumberId && config.apiVersion,
   );
 }
+
+export function canRunWhatsAppWorker(config: WhatsAppConfig) {
+  return config.syntheticMode || canSendToMeta(config);
+}
+
+export function readWhatsAppWorkerSecret(environment: Environment) {
+  return environment.WHATSAPP_WORKER_SECRET ?? "";
+}

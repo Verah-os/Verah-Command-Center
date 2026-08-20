@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createSupabaseServerClient } from "@/services/supabase/server";
+import { canSignWhatsAppMedia } from "@/services/whatsapp/media";
 import type { IntakeCollectedData } from "./types";
 
 export type ConciergeIntakeDetails = {
@@ -47,7 +48,7 @@ export async function getConciergeIntakeDetails(serviceRequestId: string) {
     supabase
       .from("service_attachments")
       .select(
-        "id,message_id,storage_bucket,storage_path,media_type,declared_mime_type,detected_mime_type,status,created_at",
+        "id,message_id,storage_bucket,storage_path,media_type,declared_mime_type,detected_mime_type,status,retention_until,created_at",
       )
       .eq("conversation_id", session.conversation_id)
       .order("created_at", { ascending: true }),
@@ -63,9 +64,14 @@ export async function getConciergeIntakeDetails(serviceRequestId: string) {
 
   const resolvedAttachments = await Promise.all(
     (attachments ?? []).map(async (attachment) => {
-      const { data } = await supabase.storage
-        .from(attachment.storage_bucket)
-        .createSignedUrl(attachment.storage_path, 300);
+      const { data } = canSignWhatsAppMedia({
+        status: attachment.status,
+        retentionUntil: attachment.retention_until,
+      })
+        ? await supabase.storage
+            .from(attachment.storage_bucket)
+            .createSignedUrl(attachment.storage_path, 300)
+        : { data: null };
       return {
         id: attachment.id,
         mediaType: attachment.media_type,
