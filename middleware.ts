@@ -35,8 +35,8 @@ export async function middleware(request: NextRequest) {
 
   const path = request.nextUrl.pathname;
   const isLogin = path.startsWith("/login") || path.startsWith("/entrar/");
-  const isPublicCustomerLanding = path === "/demo";
-  if (!user && !isLogin && !isPublicCustomerLanding) {
+  const isPublicDemo = path === "/demo" || path === "/demo/concierge";
+  if (!user && !isLogin && !isPublicDemo) {
     const url = request.nextUrl.clone();
     url.pathname = path.startsWith("/demo/cliente")
       ? "/entrar/cliente"
@@ -86,7 +86,7 @@ export async function middleware(request: NextRequest) {
   }
 
   const allowed =
-    path === "/demo" ||
+    isPublicDemo ||
     routeRole === role ||
     role === "admin";
   if (!allowed) {

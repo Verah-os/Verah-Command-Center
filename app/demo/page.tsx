@@ -38,14 +38,20 @@ export default function DemoPage() {
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Link
-                href="/demo/whatsapp"
+                href="/demo/concierge"
                 className="inline-flex min-h-12 items-center justify-center rounded-xl bg-teal-700 px-6 font-semibold text-white shadow-sm outline-none hover:bg-teal-800 focus-visible:ring-4 focus-visible:ring-teal-200"
+              >
+                Ver demonstração do Concierge
+              </Link>
+              <Link
+                href="/demo/whatsapp"
+                className="inline-flex min-h-12 items-center justify-center rounded-xl border border-teal-200 bg-white px-6 font-semibold text-teal-800 outline-none hover:bg-teal-50 focus-visible:ring-4 focus-visible:ring-teal-100"
               >
                 Simular atendimento via WhatsApp
               </Link>
               <Link
                 href="/entrar/cliente"
-                className="inline-flex min-h-12 items-center justify-center rounded-xl border border-teal-200 bg-white px-6 font-semibold text-teal-800 outline-none hover:bg-teal-50 focus-visible:ring-4 focus-visible:ring-teal-100"
+                className="inline-flex min-h-12 items-center justify-center rounded-xl px-4 font-semibold text-slate-600 outline-none hover:bg-slate-50 focus-visible:ring-4 focus-visible:ring-teal-100"
               >
                 Acessar meus atendimentos
               </Link>
