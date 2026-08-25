@@ -179,6 +179,8 @@ begin
 end;
 $$;
 
+reset role;
+
 insert into public.integration_outbox (
   id, aggregate_type, aggregate_id, event_type, destination, payload,
   idempotency_key, status, attempt_count, updated_at
@@ -189,6 +191,8 @@ insert into public.integration_outbox (
   'n8n:stale-final-attempt', 'processing', 5,
   pg_catalog.clock_timestamp() - interval '6 minutes'
 );
+
+set local role service_role;
 
 do $$
 begin
