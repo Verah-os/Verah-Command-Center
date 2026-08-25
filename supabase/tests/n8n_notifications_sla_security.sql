@@ -195,16 +195,24 @@ insert into public.integration_outbox (
 set local role service_role;
 
 do $$
+declare
+  claimed_count integer;
+  recovered public.integration_outbox%rowtype;
 begin
-  if exists (select 1 from public.claim_n8n_notifications(10, 5))
-    or not exists (
-      select 1 from public.integration_outbox
-      where id = '78000000-0000-4000-8000-000000000096'
-        and status = 'dead_letter'
-        and last_error_code = 'claim_timeout'
-        and processed_at is not null
-    ) then
-    raise exception 'Stale final attempts must be recovered to dead-letter';
+  select count(*) into claimed_count
+  from public.claim_n8n_notifications(10, 5);
+
+  select * into recovered
+  from public.integration_outbox
+  where id = '78000000-0000-4000-8000-000000000096';
+
+  if claimed_count <> 0
+    or recovered.status <> 'dead_letter'
+    or recovered.last_error_code <> 'claim_timeout'
+    or recovered.processed_at is null then
+    raise exception 'Stale final attempt recovery failed: claimed=%, status=%, attempts=%, updated_at=%, error=%, processed_at=%',
+      claimed_count, recovered.status, recovered.attempt_count, recovered.updated_at,
+      recovered.last_error_code, recovered.processed_at;
   end if;
 end;
 $$;
