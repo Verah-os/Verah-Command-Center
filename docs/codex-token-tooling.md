@@ -18,6 +18,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\setup-codex-token-tooling.ps1
 ```
 
 Then restart Codex. Open `/hooks` and review/trust Ponytail's two hooks.
+If the setup adds `multi_agent` to an existing Codex configuration, it validates the updated TOML and keeps a timestamped backup beside `config.toml`.
 
 ## Daily usage
 

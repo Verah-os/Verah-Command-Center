@@ -8,6 +8,67 @@ function Require-Command($name, $hint) {
   }
 }
 
+function Enable-CodexMultiAgent($codexConfig) {
+  $utf8 = [System.Text.UTF8Encoding]::new($false)
+  $newline = [Environment]::NewLine
+  $configExists = Test-Path -LiteralPath $codexConfig
+  $cfg = if ($configExists) {
+    [System.IO.File]::ReadAllText($codexConfig)
+  } else {
+    ''
+  }
+
+  if ($cfg.Contains("`n")) {
+    $newline = if ($cfg.Contains("`r`n")) { "`r`n" } else { "`n" }
+  }
+
+  $features = [regex]::Match($cfg, '(?m)^[ \t]*\[features\][ \t]*(?:#.*)?\r?$')
+  if ($features.Success) {
+    $bodyStart = $features.Index + $features.Length
+    $remaining = $cfg.Substring($bodyStart)
+    $nextTable = [regex]::Match($remaining, '(?m)^[ \t]*\[[^\]]+\]')
+    $bodyLength = if ($nextTable.Success) { $nextTable.Index } else { $remaining.Length }
+    $featuresBody = $remaining.Substring(0, $bodyLength)
+
+    if ($featuresBody -match '(?m)^[ \t]*multi_agent[ \t]*=') {
+      return
+    }
+
+    $lineEnd = $cfg.IndexOf("`n", $features.Index)
+    if ($lineEnd -ge 0) {
+      $updated = $cfg.Insert($lineEnd + 1, "multi_agent = true$newline")
+    } else {
+      $updated = "$cfg$newline" + "multi_agent = true$newline"
+    }
+  } else {
+    if ([string]::IsNullOrEmpty($cfg)) {
+      $updated = "[features]$newline" + "multi_agent = true$newline"
+    } else {
+      $separator = if ($cfg.EndsWith($newline)) { '' } else { $newline }
+      $updated = "$cfg$separator$newline" + "[features]$newline" + "multi_agent = true$newline"
+    }
+  }
+
+  $tempConfig = "$codexConfig.tmp-$PID"
+  try {
+    [System.IO.File]::WriteAllText($tempConfig, $updated, $utf8)
+    python -c "import sys, tomllib; tomllib.load(open(sys.argv[1], 'rb'))" $tempConfig
+    if ($LASTEXITCODE -ne 0) {
+      throw 'Updated Codex configuration is not valid TOML.'
+    }
+
+    if ($configExists) {
+      $backup = "$codexConfig.backup-$([DateTime]::UtcNow.ToString('yyyyMMddHHmmssfff'))"
+      Copy-Item -LiteralPath $codexConfig -Destination $backup
+      Write-Host "Codex config backup: $backup"
+    }
+
+    Move-Item -Force -LiteralPath $tempConfig -Destination $codexConfig
+  } finally {
+    Remove-Item -Force -LiteralPath $tempConfig -ErrorAction SilentlyContinue
+  }
+}
+
 Require-Command git 'Install Git and reopen PowerShell.'
 Require-Command codex 'Install/update the Codex CLI/Desktop integration first.'
 Require-Command python 'Install Python 3.10+ and reopen PowerShell.'
@@ -24,19 +85,11 @@ try {
   python -m pip install --upgrade graphifyy
   graphify install --project --platform codex
 
-  # Enable multi-agent extraction if a Codex config already exists. We do not overwrite
-  # arbitrary config: only append a documented feature stanza when absent.
+  # Enable multi-agent extraction without duplicating an existing TOML table.
   $codexDir = Join-Path $HOME '.codex'
   $codexConfig = Join-Path $codexDir 'config.toml'
   New-Item -ItemType Directory -Force -Path $codexDir | Out-Null
-  if (-not (Test-Path $codexConfig)) {
-    "[features]`nmulti_agent = true`n" | Set-Content -Path $codexConfig -Encoding utf8
-  } else {
-    $cfg = Get-Content $codexConfig -Raw
-    if ($cfg -notmatch '(?m)^\s*multi_agent\s*=') {
-      Add-Content -Path $codexConfig -Value "`n[features]`nmulti_agent = true`n"
-    }
-  }
+  Enable-CodexMultiAgent $codexConfig
 
   Write-Host '[3/4] Installing Ponytail Codex plugin...' -ForegroundColor Yellow
   codex plugin marketplace add DietrichGebert/ponytail
