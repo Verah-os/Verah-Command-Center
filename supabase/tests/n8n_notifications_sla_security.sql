@@ -127,7 +127,7 @@ end;
 $$;
 
 select public.fail_n8n_notification(
-  (select min(outbox_id) from n8n_notification_test.claims),
+  (select outbox_id from n8n_notification_test.claims order by outbox_id limit 1),
   'n8n_http_503', true, 5
 );
 
