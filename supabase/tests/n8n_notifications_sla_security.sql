@@ -91,9 +91,15 @@ select pg_catalog.set_config('request.jwt.claim.role', 'service_role', true);
 select pg_catalog.set_config('request.jwt.claims', '{"role":"service_role"}', true);
 
 do $$
+declare
+  initial_count integer;
+  replay_count integer;
 begin
-  if public.enqueue_n8n_sla_notifications('2026-08-20T03:00:00Z') <> 2
-    or public.enqueue_n8n_sla_notifications('2026-08-20T03:00:00Z') <> 0
+  initial_count := public.enqueue_n8n_sla_notifications('2026-08-20T03:00:00Z');
+  replay_count := public.enqueue_n8n_sla_notifications('2026-08-20T03:00:00Z');
+
+  if initial_count <> 2
+    or replay_count <> 0
     or (select count(*) from public.integration_outbox where destination = 'n8n') <> 2
     or exists (
       select 1 from public.integration_outbox
