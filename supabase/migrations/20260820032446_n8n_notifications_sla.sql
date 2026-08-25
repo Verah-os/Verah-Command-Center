@@ -120,19 +120,18 @@ begin
     raise exception using errcode = '22023', message = 'Invalid worker limits';
   end if;
 
+  update public.integration_outbox as outbox
+  set status = 'dead_letter',
+      last_error_code = 'claim_timeout',
+      processed_at = pg_catalog.clock_timestamp(),
+      updated_at = pg_catalog.clock_timestamp()
+  where outbox.destination = 'n8n'
+    and outbox.status = 'processing'
+    and outbox.attempt_count >= p_max_attempts
+    and outbox.updated_at < pg_catalog.clock_timestamp() - interval '5 minutes';
+
   return query
-  with stale_exhausted as (
-    update public.integration_outbox as outbox
-    set status = 'dead_letter',
-        last_error_code = 'claim_timeout',
-        processed_at = pg_catalog.clock_timestamp(),
-        updated_at = pg_catalog.clock_timestamp()
-    where outbox.destination = 'n8n'
-      and outbox.status = 'processing'
-      and outbox.attempt_count >= p_max_attempts
-      and outbox.updated_at < pg_catalog.clock_timestamp() - interval '5 minutes'
-    returning outbox.id
-  ), candidates as (
+  with candidates as (
     select outbox.id
     from public.integration_outbox as outbox
     where outbox.destination = 'n8n'
