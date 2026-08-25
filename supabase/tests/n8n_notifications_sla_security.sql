@@ -52,6 +52,17 @@ select n8n_notification_test.expect_error($sql$
   )
 $sql$);
 
+select n8n_notification_test.expect_error($sql$
+  insert into public.integration_outbox (
+    id, aggregate_type, aggregate_id, event_type, destination, payload, idempotency_key
+  ) values (
+    '78000000-0000-4000-8000-000000000097', 'intake_session',
+    '78000000-0000-4000-8000-000000000098', 'sla.intake.stalled', 'n8n',
+    '{"schema_version":1,"event_type":"sla.intake.stalled","aggregate_type":"intake_session","aggregate_id":"78000000-0000-4000-8000-000000000098","occurred_at":"2026-08-20T03:00:00Z","data":{}}',
+    'n8n:missing-event-id'
+  )
+$sql$);
+
 insert into public.customers (id, display_name)
 values ('78000000-0000-4000-8000-000000000010', 'Synthetic SLA Customer');
 insert into public.customer_channels (
@@ -164,6 +175,32 @@ begin
   if report.sent <> 1 or report.dead_letter <> 1 or report.pending <> 0
     or report.retrying <> 0 or report.processing <> 0 then
     raise exception 'n8n operational report is incorrect';
+  end if;
+end;
+$$;
+
+insert into public.integration_outbox (
+  id, aggregate_type, aggregate_id, event_type, destination, payload,
+  idempotency_key, status, attempt_count, updated_at
+) values (
+  '78000000-0000-4000-8000-000000000096', 'intake_session',
+  '78000000-0000-4000-8000-000000000098', 'sla.intake.stalled', 'n8n',
+  '{"schema_version":1,"event_id":"78000000-0000-4000-8000-000000000096","event_type":"sla.intake.stalled","aggregate_type":"intake_session","aggregate_id":"78000000-0000-4000-8000-000000000098","occurred_at":"2026-08-20T03:00:00Z","data":{}}',
+  'n8n:stale-final-attempt', 'processing', 5,
+  pg_catalog.clock_timestamp() - interval '6 minutes'
+);
+
+do $$
+begin
+  if exists (select 1 from public.claim_n8n_notifications(10, 5))
+    or not exists (
+      select 1 from public.integration_outbox
+      where id = '78000000-0000-4000-8000-000000000096'
+        and status = 'dead_letter'
+        and last_error_code = 'claim_timeout'
+        and processed_at is not null
+    ) then
+    raise exception 'Stale final attempts must be recovered to dead-letter';
   end if;
 end;
 $$;

@@ -1,7 +1,7 @@
 alter table public.integration_outbox
   add constraint integration_outbox_n8n_contract_v1_check check (
     destination <> 'n8n'
-    or (
+    or ((
       payload ->> 'schema_version' = '1'
       and payload ->> 'event_id' = id::text
       and payload ->> 'event_type' = event_type
@@ -10,7 +10,7 @@ alter table public.integration_outbox
       and nullif(payload ->> 'occurred_at', '') is not null
       and jsonb_typeof(payload -> 'data') = 'object'
       and payload::text !~* '"(authorization|body|email|message|phone|secret|token)"[[:space:]]*:'
-    )
+    ) is true)
   );
 
 create or replace function public.enqueue_n8n_sla_notifications(
@@ -121,7 +121,18 @@ begin
   end if;
 
   return query
-  with candidates as (
+  with stale_exhausted as (
+    update public.integration_outbox as outbox
+    set status = 'dead_letter',
+        last_error_code = 'claim_timeout',
+        processed_at = pg_catalog.clock_timestamp(),
+        updated_at = pg_catalog.clock_timestamp()
+    where outbox.destination = 'n8n'
+      and outbox.status = 'processing'
+      and outbox.attempt_count >= p_max_attempts
+      and outbox.updated_at < pg_catalog.clock_timestamp() - interval '5 minutes'
+    returning outbox.id
+  ), candidates as (
     select outbox.id
     from public.integration_outbox as outbox
     where outbox.destination = 'n8n'
