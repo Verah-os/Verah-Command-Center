@@ -68,8 +68,14 @@ export async function resolveVehicleIntelligence({
 
   for (const provider of providers) {
     const providerName = safeProviderName(provider.id);
+    const validBudget =
+      Number.isSafeInteger(policy.maxCostMicrounits) && policy.maxCostMicrounits >= 0;
+    const validEstimate =
+      Number.isSafeInteger(provider.estimatedCostMicrounits) &&
+      provider.estimatedCostMicrounits >= 0;
     const exceedsBudget =
-      provider.estimatedCostMicrounits < 0 ||
+      !validBudget ||
+      !validEstimate ||
       spentMicrounits + provider.estimatedCostMicrounits > policy.maxCostMicrounits;
     if (
       (provider.access === "external" && !policy.allowExternalProviders) ||
@@ -81,7 +87,7 @@ export async function resolveVehicleIntelligence({
       continue;
     }
 
-    const cacheKey = `${provider.id}:${request.vehicleReference}`;
+    const cacheKey = JSON.stringify([provider.id, request.vehicleReference]);
     const cached = cache.get(cacheKey);
     if (cached) {
       observations.push(cached);

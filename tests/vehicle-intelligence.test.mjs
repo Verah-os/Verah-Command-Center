@@ -125,6 +125,30 @@ test("external or paid providers are blocked by default without invocation", asy
   assert.equal(result.reason, "provider_blocked");
 });
 
+test("non-finite cost estimates and budgets fail closed", async () => {
+  let invoked = 0;
+  const invalidEstimate = provider("commercial_nan", async () => {
+    invoked += 1;
+    return observation({}, "commercial_nan");
+  }, { access: "external", paid: true, estimatedCostMicrounits: Number.NaN });
+  const validEstimate = provider("commercial_valid", async () => {
+    invoked += 1;
+    return observation({}, "commercial_valid");
+  }, { access: "external", paid: true, estimatedCostMicrounits: 1 });
+
+  const result = await resolveVehicleIntelligence({
+    request: { vehicleReference: DEMO_VEHICLE_REFERENCE },
+    providers: [invalidEstimate, validEstimate],
+    policy: {
+      allowExternalProviders: true,
+      allowPaidProviders: true,
+      maxCostMicrounits: Number.NaN,
+    },
+  });
+  assert.equal(invoked, 0);
+  assert.equal(result.reason, "provider_blocked");
+});
+
 test("valid observations use the in-memory cache", async () => {
   let lookups = 0;
   const cachedProvider = provider("fixture_cached", async () => {
@@ -141,6 +165,33 @@ test("valid observations use the in-memory cache", async () => {
   const second = await resolveVehicleIntelligence(options);
   assert.equal(second.status, "available");
   assert.equal(lookups, 1);
+});
+
+test("cache keys cannot collide across provider and reference delimiters", async () => {
+  let lookups = 0;
+  const cache = new InMemoryVehicleIntelligenceCache();
+  const firstProvider = provider("a:b", async () => {
+    lookups += 1;
+    return observation({ model: "Polo" }, "a:b");
+  });
+  const secondProvider = provider("a", async () => {
+    lookups += 1;
+    return observation({ model: "Virtus" }, "a");
+  });
+
+  await resolveVehicleIntelligence({
+    request: { vehicleReference: "c" },
+    providers: [firstProvider],
+    cache,
+  });
+  const second = await resolveVehicleIntelligence({
+    request: { vehicleReference: "b:c" },
+    providers: [secondProvider],
+    cache,
+  });
+  assert.equal(lookups, 2);
+  assert.equal(second.vehicle.model, "Virtus");
+  assert.equal(second.observations[0].evidence.provider, "a");
 });
 
 function provider(id, lookup, overrides = {}) {
@@ -175,4 +226,3 @@ function observation(overrides, providerId) {
     },
   };
 }
-
