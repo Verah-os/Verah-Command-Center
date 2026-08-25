@@ -151,10 +151,10 @@ select public.fail_n8n_notification(
 );
 
 select public.complete_n8n_notification(
-  (select max(outbox_id) from n8n_notification_test.claims where attempt = 1)
+  (select outbox_id from n8n_notification_test.claims where attempt = 1 order by outbox_id desc limit 1)
 );
 select public.complete_n8n_notification(
-  (select max(outbox_id) from n8n_notification_test.claims where attempt = 1)
+  (select outbox_id from n8n_notification_test.claims where attempt = 1 order by outbox_id desc limit 1)
 );
 
 do $$
