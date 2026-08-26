@@ -565,6 +565,20 @@ begin
   if request_row.id is null or request_row.customer_id is null or request_row.vehicle_id is null then
     raise exception 'Custody requires a canonical service request.';
   end if;
+  if exists (
+    select 1
+    from pg_catalog.unnest(coalesce(p_evidence_attachment_ids, '{}'::uuid[])) as evidence(attachment_id)
+    where not exists (
+      select 1
+      from public.service_attachments as attachment
+      where attachment.id = evidence.attachment_id
+        and attachment.service_request_id = request_row.id
+        and attachment.storage_bucket = 'service-attachments'
+        and attachment.status = 'available'
+    )
+  ) then
+    raise exception 'Custody evidence must reference available private attachments for this service request.';
+  end if;
 
   select * into existing_event
   from public.vehicle_custody_events where idempotency_key = normalized_key;
@@ -605,6 +619,10 @@ begin
     if p_occurred_at < previous_event.occurred_at
       or p_odometer_km < previous_event.odometer_km then
       raise exception 'Custody chronology and odometer cannot move backwards.';
+    end if;
+    if previous_event.to_party_type is distinct from p_from_party_type
+      or previous_event.to_party_ref is distinct from pg_catalog.btrim(p_from_party_ref) then
+      raise exception 'Custody party continuity does not match the previous handoff.';
     end if;
     if previous_event.event_type = 'return' then
       raise exception 'Returned custody chain is already complete.';
@@ -669,6 +687,7 @@ declare
   caller_role text := (select public.current_verah_role());
   normalized_key text := nullif(pg_catalog.btrim(p_idempotency_key), '');
   existing_event public.service_incident_events%rowtype;
+  existing_incident public.service_incidents%rowtype;
   incident_id uuid;
 begin
   if auth.uid() is null or caller_role not in ('concierge', 'admin') then
@@ -694,13 +713,43 @@ begin
   )) then
     raise exception 'Incident request, custody event or human owner is invalid.';
   end if;
+  if exists (
+    select 1
+    from pg_catalog.unnest(coalesce(p_evidence_attachment_ids, '{}'::uuid[])) as evidence(attachment_id)
+    where not exists (
+      select 1
+      from public.service_attachments as attachment
+      where attachment.id = evidence.attachment_id
+        and attachment.service_request_id = p_service_request_id
+        and attachment.storage_bucket = 'service-attachments'
+        and attachment.status = 'available'
+    )
+  ) then
+    raise exception 'Incident evidence must reference available private attachments for this service request.';
+  end if;
 
   perform pg_catalog.pg_advisory_xact_lock(
     pg_catalog.hashtextextended('service-incident:' || normalized_key, 0)
   );
   select * into existing_event
   from public.service_incident_events where idempotency_key = normalized_key;
-  if existing_event.id is not null then return existing_event.incident_id; end if;
+  if existing_event.id is not null then
+    select * into existing_incident
+    from public.service_incidents where id = existing_event.incident_id;
+    if existing_incident.service_request_id is not distinct from p_service_request_id
+      and existing_incident.custody_event_id is not distinct from p_custody_event_id
+      and existing_incident.severity is not distinct from p_severity
+      and existing_incident.category is not distinct from pg_catalog.btrim(p_category)
+      and existing_incident.owner_user_id is not distinct from p_owner_user_id
+      and existing_event.communication_status_after is not distinct from p_communication_status
+      and existing_event.action_notes is not distinct from pg_catalog.btrim(p_containment_notes)
+      and existing_event.evidence_attachment_ids is not distinct from coalesce(p_evidence_attachment_ids, '{}'::uuid[])
+      and existing_incident.payment_reference is not distinct from nullif(pg_catalog.btrim(p_payment_reference), '')
+      and existing_event.rework is not distinct from coalesce(p_rework, false) then
+      return existing_event.incident_id;
+    end if;
+    raise exception 'Incident idempotency key conflicts with existing input.';
+  end if;
 
   insert into public.service_incidents (
     service_request_id, custody_event_id, severity, category, owner_user_id,

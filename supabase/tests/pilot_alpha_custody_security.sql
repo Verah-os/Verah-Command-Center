@@ -102,6 +102,31 @@ values
     'f0555555-5555-4555-8555-555555555552', now()
   );
 
+insert into public.service_attachments (
+  id, service_request_id, storage_path, media_type, visibility, status, created_by
+)
+values
+  (
+    'f0888888-8888-4888-8888-888888888881', 'f0666666-6666-4666-8666-666666666661',
+    'pilot-alpha/request-1/pickup.jpg', 'image', 'operations', 'available',
+    'f3333333-3333-4333-8333-333333333333'
+  ),
+  (
+    'f0888888-8888-4888-8888-888888888882', 'f0666666-6666-4666-8666-666666666661',
+    'pilot-alpha/request-1/return.jpg', 'image', 'operations', 'available',
+    'f3333333-3333-4333-8333-333333333333'
+  ),
+  (
+    'f0888888-8888-4888-8888-888888888883', 'f0666666-6666-4666-8666-666666666661',
+    'pilot-alpha/request-1/incident.jpg', 'image', 'operations', 'available',
+    'f3333333-3333-4333-8333-333333333333'
+  ),
+  (
+    'f0888888-8888-4888-8888-888888888884', 'f0666666-6666-4666-8666-666666666662',
+    'pilot-alpha/request-2/other.jpg', 'image', 'operations', 'available',
+    'f3333333-3333-4333-8333-333333333333'
+  );
+
 set local role authenticated;
 select pg_catalog.set_config('request.jwt.claim.role', 'authenticated', true);
 select pg_catalog.set_config('request.jwt.claim.sub', 'f3333333-3333-4333-8333-333333333333', true);
@@ -163,6 +188,25 @@ select pg_catalog.set_config('request.jwt.claim.role', 'authenticated', true);
 select pg_catalog.set_config('request.jwt.claim.sub', 'f3333333-3333-4333-8333-333333333333', true);
 select pg_catalog.set_config('request.jwt.claims', '{"role":"authenticated","sub":"f3333333-3333-4333-8333-333333333333"}', true);
 
+select pilot_alpha_test.expect_error($sql$
+  select public.record_vehicle_custody_event(
+    'f0666666-6666-4666-8666-666666666661', 'pickup',
+    'customer', 'customer:f0111111', 'verah_driver', 'driver:alpha-01', 'driver:alpha-01',
+    '2026-08-26 10:00:00+00', 'Customer pickup zone', 48320, 'half', array['primary_key'],
+    'Small existing mark on rear bumper.', array['f0888888-8888-4888-8888-888888888899']::uuid[],
+    false, 'alpha-pickup-invented-evidence'
+  )
+$sql$);
+select pilot_alpha_test.expect_error($sql$
+  select public.record_vehicle_custody_event(
+    'f0666666-6666-4666-8666-666666666661', 'pickup',
+    'customer', 'customer:f0111111', 'verah_driver', 'driver:alpha-01', 'driver:alpha-01',
+    '2026-08-26 10:00:00+00', 'Customer pickup zone', 48320, 'half', array['primary_key'],
+    'Small existing mark on rear bumper.', array['f0888888-8888-4888-8888-888888888884']::uuid[],
+    false, 'alpha-pickup-cross-request-evidence'
+  )
+$sql$);
+
 select public.record_vehicle_custody_event(
   'f0666666-6666-4666-8666-666666666661', 'pickup',
   'customer', 'customer:f0111111', 'verah_driver', 'driver:alpha-01', 'driver:alpha-01',
@@ -170,6 +214,14 @@ select public.record_vehicle_custody_event(
   'Small existing mark on rear bumper.', array['f0888888-8888-4888-8888-888888888881']::uuid[],
   false, 'alpha-pickup'
 ) as pickup_id \gset
+select pilot_alpha_test.expect_error($sql$
+  select public.record_vehicle_custody_event(
+    'f0666666-6666-4666-8666-666666666661', 'provider_dropoff',
+    'verah_driver', 'driver:unexplained', 'provider', 'provider:f0555555', 'driver:unexplained',
+    '2026-08-26 10:30:00+00', 'Provider receiving zone', 48325, 'half', array['primary_key'],
+    null, '{}'::uuid[], false, 'alpha-unexplained-party-switch'
+  )
+$sql$);
 select public.record_vehicle_custody_event(
   'f0666666-6666-4666-8666-666666666661', 'provider_dropoff',
   'verah_driver', 'driver:alpha-01', 'provider', 'provider:f0555555', 'driver:alpha-01',
@@ -202,12 +254,57 @@ begin
 end;
 $$;
 
+select pilot_alpha_test.expect_error($sql$
+  select public.open_service_incident(
+    'f0666666-6666-4666-8666-666666666661', null, 'S1', 'evidence_scope',
+    'f3333333-3333-4333-8333-333333333333', 'not_required',
+    'Cross-request evidence must be rejected.',
+    array['f0888888-8888-4888-8888-888888888884']::uuid[], null, false,
+    'alpha-incident-cross-request-evidence'
+  )
+$sql$);
+
 select public.open_service_incident(
   'f0666666-6666-4666-8666-666666666661', :'pickup_id', 'S3', 'vehicle_damage',
   'f3333333-3333-4333-8333-333333333333', 'customer_notified',
   'Vehicle held and evidence preserved for human review.',
   array['f0888888-8888-4888-8888-888888888883']::uuid[], null, true, 'alpha-severe-incident'
 ) as incident_id \gset
+
+do $$
+declare
+  original_id uuid;
+  replay_id uuid;
+begin
+  select id into original_id
+  from public.service_incidents
+  where service_request_id = 'f0666666-6666-4666-8666-666666666661'
+    and severity = 'S3'
+    and category = 'vehicle_damage';
+  replay_id := public.open_service_incident(
+    'f0666666-6666-4666-8666-666666666661',
+    (select id from public.vehicle_custody_events where idempotency_key = 'alpha-pickup'),
+    'S3', 'vehicle_damage',
+    'f3333333-3333-4333-8333-333333333333', 'customer_notified',
+    'Vehicle held and evidence preserved for human review.',
+    array['f0888888-8888-4888-8888-888888888883']::uuid[], null, true, 'alpha-severe-incident'
+  );
+  if replay_id <> original_id then
+    raise exception 'Matching incident idempotency replay did not return the original incident';
+  end if;
+end;
+$$;
+
+select pilot_alpha_test.expect_error($sql$
+  select public.open_service_incident(
+    'f0666666-6666-4666-8666-666666666661',
+    (select id from public.vehicle_custody_events where idempotency_key = 'alpha-pickup'),
+    'S4', 'vehicle_damage',
+    'f3333333-3333-4333-8333-333333333333', 'customer_notified',
+    'Vehicle held and evidence preserved for human review.',
+    array['f0888888-8888-4888-8888-888888888883']::uuid[], null, true, 'alpha-severe-incident'
+  )
+$sql$);
 
 select pilot_alpha_test.expect_error(
   $$select public.concierge_confirm_service_completion('f0666666-6666-4666-8666-666666666661')$$
