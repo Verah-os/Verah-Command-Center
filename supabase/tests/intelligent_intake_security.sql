@@ -234,6 +234,14 @@ begin
   if (select count(*) from public.service_requests where origin = 'whatsapp') <> 1 then
     raise exception 'Expected exactly one WhatsApp service request';
   end if;
+  if exists (
+    select 1
+    from public.service_requests
+    where origin = 'whatsapp'
+      and (operation_context <> 'pilot_alpha' or service_category_code <> 'motor')
+  ) then
+    raise exception 'Canonical intake request did not receive a safe operation context and category';
+  end if;
   if (select count(*) from public.intake_assessments) <> 1 then
     raise exception 'Expected exactly one deterministic assessment';
   end if;

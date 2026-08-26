@@ -73,6 +73,21 @@ values
   ('e3333333-3333-4333-8333-333333333333', 'concierge', 'Alpha Concierge', null)
 on conflict (user_id) do nothing;
 
+insert into public.service_attachments (
+  id, homologation_provider_id, storage_path, media_type, visibility, status, created_by
+)
+values
+  (
+    'e6666666-6666-4666-8666-666666666661', 'e4444444-4444-4444-8444-444444444441',
+    'provider-homologation/provider-a/valid-document.pdf', 'document', 'operations', 'available',
+    'e2222222-2222-4222-8222-222222222222'
+  ),
+  (
+    'e6666666-6666-4666-8666-666666666662', 'e4444444-4444-4444-8444-444444444442',
+    'provider-homologation/provider-b/other-document.pdf', 'document', 'operations', 'available',
+    'e2222222-2222-4222-8222-222222222222'
+  );
+
 -- Operationally active is not enough for a real Pilot Alpha assignment.
 do $$ begin
   if public.provider_is_eligible_for_service(
@@ -114,16 +129,36 @@ do $$ begin
   ) then raise exception 'Candidate provider became eligible'; end if;
 end $$;
 
+select provider_homologation_test.expect_error(
+  $$select public.review_provider_checklist_item(
+    'e4444444-4444-4444-8444-444444444441','company_registration','verified',
+    null,null,'Missing mandatory evidence'
+  )$$
+);
+select provider_homologation_test.expect_error(
+  $$select public.review_provider_checklist_item(
+    'e4444444-4444-4444-8444-444444444441','company_registration','verified',
+    'e6666666-6666-4666-8666-666666666699',null,'Invented evidence'
+  )$$
+);
+select provider_homologation_test.expect_error(
+  $$select public.review_provider_checklist_item(
+    'e4444444-4444-4444-8444-444444444441','company_registration','verified',
+    'e6666666-6666-4666-8666-666666666662',null,'Cross-provider evidence'
+  )$$
+);
+
 do $$
 declare item record;
 begin
   for item in
-    select item_code from public.provider_homologation_checklist_items
+    select item_code, evidence_required from public.provider_homologation_checklist_items
     where provider_id = 'e4444444-4444-4444-8444-444444444441' and is_required_for_pilot
   loop
     perform public.review_provider_checklist_item(
       'e4444444-4444-4444-8444-444444444441', item.item_code, 'verified',
-      gen_random_uuid(), pg_catalog.now() + interval '1 year', 'Human verification'
+      case when item.evidence_required then 'e6666666-6666-4666-8666-666666666661'::uuid end,
+      pg_catalog.now() + interval '1 year', 'Human verification'
     );
   end loop;
 end;
@@ -159,7 +194,7 @@ end $$;
 
 select public.review_provider_checklist_item(
   'e4444444-4444-4444-8444-444444444441', 'company_registration', 'verified',
-  gen_random_uuid(), pg_catalog.now() - interval '1 minute', 'Expired mandatory document'
+  'e6666666-6666-4666-8666-666666666661', pg_catalog.now() - interval '1 minute', 'Expired mandatory document'
 );
 do $$ begin
   if public.provider_is_eligible_for_service(
@@ -168,7 +203,7 @@ do $$ begin
 end $$;
 select public.review_provider_checklist_item(
   'e4444444-4444-4444-8444-444444444441', 'company_registration', 'verified',
-  gen_random_uuid(), pg_catalog.now() + interval '1 year', 'Renewed mandatory document'
+  'e6666666-6666-4666-8666-666666666661', pg_catalog.now() + interval '1 year', 'Renewed mandatory document'
 );
 select public.set_provider_operational_block(
   'e4444444-4444-4444-8444-444444444441', true, 'Human safety hold'
@@ -185,6 +220,37 @@ select public.set_provider_operational_block(
 reset role;
 insert into public.service_requests (
   id, reference_code, customer_name, vehicle_brand, vehicle_model, vehicle_year,
+  city, customer_report, perceived_urgency, service_stage, origin, created_by
+) values (
+  'e5555555-5555-4555-8555-555555555553', 'VERAH-HOMOLOGATION-SAFE-DEFAULT', 'Synthetic Customer',
+  'Volkswagen', 'Polo', 2022, 'Test City', 'Synthetic unclassified request.', 'media',
+  'solicitado', 'concierge', 'e3333333-3333-4333-8333-333333333333'
+);
+insert into public.service_requests (
+  id, reference_code, customer_name, vehicle_brand, vehicle_model, vehicle_year,
+  city, customer_report, perceived_urgency, service_stage, origin, created_by,
+  operation_context
+) values (
+  'e5555555-5555-4555-8555-555555555554', 'VERAH-HOMOLOGATION-DEMO', 'Synthetic Demo Customer',
+  'Volkswagen', 'Polo', 2022, 'Test City', 'Explicit synthetic demo request.', 'baixa',
+  'solicitado', 'concierge', 'e3333333-3333-4333-8333-333333333333', 'demo'
+);
+do $$ begin
+  if (select operation_context from public.service_requests
+      where id = 'e5555555-5555-4555-8555-555555555553') <> 'production_candidate'
+    or (select operation_context from public.service_requests
+      where id = 'e5555555-5555-4555-8555-555555555554') <> 'demo' then
+    raise exception 'Safe default or explicit demo context was not preserved';
+  end if;
+end $$;
+select provider_homologation_test.expect_error(
+  $$update public.service_requests
+    set provider_id = 'e4444444-4444-4444-8444-444444444441'
+    where id = 'e5555555-5555-4555-8555-555555555553'$$
+);
+
+insert into public.service_requests (
+  id, reference_code, customer_name, vehicle_brand, vehicle_model, vehicle_year,
   city, customer_report, perceived_urgency, service_stage, origin, created_by,
   operation_context, service_category_code, provider_id
 ) values (
@@ -198,6 +264,16 @@ set local role authenticated;
 select pg_catalog.set_config('request.jwt.claim.role', 'authenticated', true);
 select pg_catalog.set_config('request.jwt.claim.sub', 'e2222222-2222-4222-8222-222222222222', true);
 select pg_catalog.set_config('request.jwt.claims', '{"role":"authenticated","sub":"e2222222-2222-4222-8222-222222222222"}', true);
+select public.record_provider_performance_event(
+  'e4444444-4444-4444-8444-444444444441', 'e5555555-5555-4555-8555-555555555555',
+  'delivery_time', 30, 'minutes'
+);
+select provider_homologation_test.expect_error(
+  $$select public.record_provider_performance_event(
+    'e4444444-4444-4444-8444-444444444442', 'e5555555-5555-4555-8555-555555555555',
+    'delivery_time', 30, 'minutes'
+  )$$
+);
 select public.set_provider_homologation_status(
   'e4444444-4444-4444-8444-444444444441', 'suspended', 'Human safety suspension', null
 );

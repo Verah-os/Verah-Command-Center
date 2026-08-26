@@ -65,10 +65,10 @@ values
   ('f0999999-9999-4999-8999-999999999991', 'f0111111-1111-4111-8111-111111111111', 'Volkswagen', 'Polo', 2022, 'TST1A31', 48320),
   ('f0999999-9999-4999-8999-999999999992', 'f0111111-1111-4111-8111-111111111112', 'Honda', 'Fit', 2018, 'TST2B32', 60000);
 
-insert into public.service_providers (id, name, trade_name, city, specialties, status, rating)
+insert into public.service_providers (id, name, trade_name, city, specialties, status, rating, is_synthetic)
 values
-  ('f0555555-5555-4555-8555-555555555551', 'Alpha Provider One', 'Alpha Provider One', 'Test City', '["maintenance"]', 'active', 5),
-  ('f0555555-5555-4555-8555-555555555552', 'Alpha Provider Two', 'Alpha Provider Two', 'Test City', '["maintenance"]', 'active', 4.5)
+  ('f0555555-5555-4555-8555-555555555551', 'Alpha Provider One', 'Alpha Provider One', 'Test City', '["maintenance"]', 'active', 5, true),
+  ('f0555555-5555-4555-8555-555555555552', 'Alpha Provider Two', 'Alpha Provider Two', 'Test City', '["maintenance"]', 'active', 4.5, true)
 on conflict (id) do nothing;
 
 insert into public.user_profiles (user_id, role, display_name, provider_id)
@@ -84,7 +84,8 @@ on conflict (user_id) do nothing;
 insert into public.service_requests (
   id, reference_code, customer_name, customer_id, vehicle_id, vehicle_brand,
   vehicle_model, vehicle_year, city, customer_report, perceived_urgency,
-  service_stage, origin, created_by, provider_id, provider_completed_at
+  service_stage, origin, created_by, provider_id, provider_completed_at,
+  operation_context, service_category_code
 )
 values
   (
@@ -92,14 +93,14 @@ values
     'f0111111-1111-4111-8111-111111111111', 'f0999999-9999-4999-8999-999999999991',
     'Volkswagen', 'Polo', 2022, 'Test City', 'Synthetic custody test.', 'media',
     'em_execucao', 'concierge', 'f1111111-1111-4111-8111-111111111111',
-    'f0555555-5555-4555-8555-555555555551', now()
+    'f0555555-5555-4555-8555-555555555551', now(), 'demo', 'maintenance'
   ),
   (
     'f0666666-6666-4666-8666-666666666662', 'VERAH-ALPHA-002', 'Other Customer',
     'f0111111-1111-4111-8111-111111111112', 'f0999999-9999-4999-8999-999999999992',
     'Honda', 'Fit', 2018, 'Test City', 'Other synthetic request.', 'baixa',
     'em_execucao', 'concierge', 'f1111111-1111-4111-8111-111111111112',
-    'f0555555-5555-4555-8555-555555555552', now()
+    'f0555555-5555-4555-8555-555555555552', now(), 'demo', 'maintenance'
   );
 
 insert into public.service_attachments (

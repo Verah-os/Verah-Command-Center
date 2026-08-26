@@ -7,13 +7,13 @@ values
   ('e2222222-2222-4222-8222-222222222223', 'authenticated', 'authenticated', 'invite.concurrent.selection@example.invalid', '{}', '{}', now(), now()),
   ('e3333333-3333-4333-8333-333333333333', 'authenticated', 'authenticated', 'invite.concurrent.concierge@example.invalid', '{}', '{}', now(), now())
 on conflict (id) do nothing;
-insert into public.service_providers (id, name, trade_name, city, specialties, status, rating)
+insert into public.service_providers (id, name, trade_name, city, specialties, status, rating, is_synthetic)
 values
-  ('e5555555-5555-4555-8555-555555555551', 'Invite Concurrent Source', 'Invite Concurrent Source', 'Test City', '["maintenance"]', 'active', 5),
-  ('e5555555-5555-4555-8555-555555555552', 'Invite Concurrent Target', 'Invite Concurrent Target', 'Test City', '["maintenance"]', 'active', 5),
-  ('e5555555-5555-4555-8555-555555555553', 'Response Concurrent Target', 'Response Concurrent Target', 'Test City', '["maintenance"]', 'active', 5),
-  ('e5555555-5555-4555-8555-555555555554', 'Revocation Concurrent Target', 'Revocation Concurrent Target', 'Test City', '["maintenance"]', 'active', 5),
-  ('e5555555-5555-4555-8555-555555555555', 'Selection Concurrent Target', 'Selection Concurrent Target', 'Test City', '["maintenance"]', 'active', 5)
+  ('e5555555-5555-4555-8555-555555555551', 'Invite Concurrent Source', 'Invite Concurrent Source', 'Test City', '["maintenance"]', 'active', 5, true),
+  ('e5555555-5555-4555-8555-555555555552', 'Invite Concurrent Target', 'Invite Concurrent Target', 'Test City', '["maintenance"]', 'active', 5, true),
+  ('e5555555-5555-4555-8555-555555555553', 'Response Concurrent Target', 'Response Concurrent Target', 'Test City', '["maintenance"]', 'active', 5, true),
+  ('e5555555-5555-4555-8555-555555555554', 'Revocation Concurrent Target', 'Revocation Concurrent Target', 'Test City', '["maintenance"]', 'active', 5, true),
+  ('e5555555-5555-4555-8555-555555555555', 'Selection Concurrent Target', 'Selection Concurrent Target', 'Test City', '["maintenance"]', 'active', 5, true)
 on conflict (id) do nothing;
 insert into public.user_profiles (user_id, role, display_name, provider_id)
 values
@@ -24,11 +24,13 @@ values
 on conflict (user_id) do nothing;
 insert into public.service_requests (
   id, reference_code, customer_name, vehicle_brand, vehicle_model, city,
-  customer_report, perceived_urgency, service_stage, origin, created_by
+  customer_report, perceived_urgency, service_stage, origin, created_by,
+  operation_context, service_category_code
 ) values (
   'e6666666-6666-4666-8666-666666666661', 'VERAH-INVITE-CONCURRENT', 'Synthetic Customer',
   'Honda', 'Fit', 'Test City', 'Synthetic concurrent invitation.', 'media',
-  'aguardando_aprovacao', 'concierge', 'e3333333-3333-4333-8333-333333333333'
+  'aguardando_aprovacao', 'concierge', 'e3333333-3333-4333-8333-333333333333',
+  'demo', 'maintenance'
 ) on conflict (id) do nothing;
 
 insert into public.service_quotes (

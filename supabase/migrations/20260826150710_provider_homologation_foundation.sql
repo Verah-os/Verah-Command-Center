@@ -5,12 +5,26 @@ alter table public.service_providers
   add column is_synthetic boolean not null default false;
 
 alter table public.service_requests
-  add column operation_context text not null default 'demo'
-    check (operation_context in ('demo', 'pilot_alpha')),
+  add column operation_context text not null default 'production_candidate'
+    check (operation_context in ('demo', 'pilot_alpha', 'production_candidate')),
   add column service_category_code text,
   add constraint service_requests_pilot_category_check check (
     operation_context <> 'pilot_alpha' or nullif(btrim(service_category_code), '') is not null
   );
+
+alter table public.service_attachments
+  drop constraint service_attachments_parent_check,
+  add column homologation_provider_id uuid
+    references public.service_providers(id) on delete restrict,
+  add constraint service_attachments_parent_check check (
+    conversation_id is not null
+    or service_request_id is not null
+    or homologation_provider_id is not null
+  );
+
+create index service_attachments_homologation_provider_idx
+  on public.service_attachments (homologation_provider_id)
+  where homologation_provider_id is not null;
 
 update public.service_providers
 set is_synthetic = true
@@ -64,7 +78,8 @@ create table public.provider_homologation_checklist_items (
   )),
   reviewer_id uuid references auth.users(id) on delete restrict,
   reviewed_at timestamptz,
-  evidence_ref uuid,
+  evidence_required boolean not null default true,
+  evidence_ref uuid references public.service_attachments(id) on delete restrict,
   valid_until timestamptz,
   note text,
   created_at timestamptz not null default now(),
@@ -313,16 +328,18 @@ begin
     receives_vehicles = excluded.receives_vehicles, internal_notes = excluded.internal_notes,
     updated_at = pg_catalog.now();
 
-  insert into public.provider_homologation_checklist_items (provider_id, item_code, is_required_for_pilot)
-  select p_provider_id, seed.item_code, seed.required
+  insert into public.provider_homologation_checklist_items (
+    provider_id, item_code, is_required_for_pilot, evidence_required
+  )
+  select p_provider_id, seed.item_code, seed.required, seed.evidence_required
   from (values
-    ('company_registration', true), ('cadastral_data', true),
-    ('operational_address', true), ('responsible_person', true),
-    ('fiscal_documentation', true), ('banking_reference', false),
-    ('contract_acceptance', true), ('warranty_policy', true),
-    ('capacity_evidence', true), ('verah_inspection', true),
-    ('pilot_service', true), ('final_human_approval', true)
-  ) as seed(item_code, required)
+    ('company_registration', true, true), ('cadastral_data', true, false),
+    ('operational_address', true, true), ('responsible_person', true, false),
+    ('fiscal_documentation', true, true), ('banking_reference', false, false),
+    ('contract_acceptance', true, true), ('warranty_policy', true, true),
+    ('capacity_evidence', true, true), ('verah_inspection', true, true),
+    ('pilot_service', true, true), ('final_human_approval', true, false)
+  ) as seed(item_code, required, evidence_required)
   on conflict (provider_id, item_code) do nothing;
 
   perform private.append_provider_homologation_event(
@@ -338,10 +355,32 @@ create or replace function public.review_provider_checklist_item(
   p_evidence_ref uuid default null, p_valid_until timestamptz default null,
   p_note text default null, p_required_for_pilot boolean default true
 ) returns uuid language plpgsql security definer set search_path = '' as $$
-declare actor_id uuid := (select private.require_homologation_admin()); old_row jsonb; result_id uuid;
+declare
+  actor_id uuid := (select private.require_homologation_admin());
+  old_row jsonb;
+  result_id uuid;
+  item_evidence_required boolean;
 begin
   select to_jsonb(item) into old_row from public.provider_homologation_checklist_items item
   where item.provider_id = p_provider_id and item.item_code = p_item_code;
+  select coalesce(item.evidence_required, true) into item_evidence_required
+  from public.provider_homologation_checklist_items item
+  where item.provider_id = p_provider_id and item.item_code = p_item_code;
+  item_evidence_required := coalesce(item_evidence_required, true);
+  if p_status = 'verified' and p_required_for_pilot and item_evidence_required
+     and p_evidence_ref is null then
+    raise exception using errcode = 'P0001', message = 'Verified mandatory checklist item requires private evidence.';
+  end if;
+  if p_evidence_ref is not null and not exists (
+    select 1
+    from public.service_attachments attachment
+    where attachment.id = p_evidence_ref
+      and attachment.homologation_provider_id = p_provider_id
+      and attachment.storage_bucket = 'service-attachments'
+      and attachment.status = 'available'
+  ) then
+    raise exception using errcode = 'P0001', message = 'Checklist evidence is unavailable or belongs to another provider.';
+  end if;
   insert into public.provider_homologation_checklist_items (
     provider_id, item_code, is_required_for_pilot, review_status, reviewer_id,
     reviewed_at, evidence_ref, valid_until, note
@@ -547,6 +586,14 @@ begin
   if actor_id is null or (select public.current_verah_role()) not in ('concierge', 'admin') then
     raise exception using errcode = '42501', message = 'Human operations authorization required.';
   end if;
+  if p_service_request_id is not null and not exists (
+    select 1
+    from public.service_requests request
+    where request.id = p_service_request_id
+      and request.provider_id = p_provider_id
+  ) then
+    raise exception using errcode = 'P0001', message = 'Performance event service request does not belong to provider.';
+  end if;
   insert into public.provider_performance_events (
     provider_id, service_request_id, event_type, metric_value, metric_unit, recorded_by
   ) values (
@@ -556,12 +603,34 @@ begin
 end;
 $$;
 
+create or replace function private.set_canonical_service_operation_context()
+returns trigger language plpgsql set search_path = '' as $$
+begin
+  if new.intake_session_id is not null then
+    new.operation_context := 'pilot_alpha';
+    new.service_category_code := coalesce(
+      nullif(pg_catalog.btrim(new.service_category_code), ''),
+      nullif(pg_catalog.btrim(new.probable_category), ''),
+      'outro'
+    );
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function private.set_canonical_service_operation_context()
+  from public, anon, authenticated, service_role;
+create trigger service_requests_canonical_operation_context
+before insert on public.service_requests
+for each row execute function private.set_canonical_service_operation_context();
+
 create or replace function private.guard_real_provider_assignment()
 returns trigger language plpgsql set search_path = '' as $$
 begin
-  if new.operation_context = 'pilot_alpha' and new.provider_id is not null
-     and not public.provider_is_eligible_for_service(new.provider_id, new.service_category_code, 'pilot_alpha') then
-    raise exception using errcode = 'P0001', message = 'Provider is not eligible for this Pilot Alpha service.';
+  if new.provider_id is not null
+     and not public.provider_is_eligible_for_service(
+       new.provider_id, new.service_category_code, new.operation_context
+     ) then
+    raise exception using errcode = 'P0001', message = 'Provider is not eligible for this service context.';
   end if;
   return new;
 end;
@@ -577,9 +646,10 @@ returns trigger language plpgsql set search_path = '' as $$
 declare request_row public.service_requests%rowtype;
 begin
   select * into request_row from public.service_requests request where request.id = new.service_request_id;
-  if request_row.operation_context = 'pilot_alpha'
-     and not public.provider_is_eligible_for_service(new.provider_id, request_row.service_category_code, 'pilot_alpha') then
-    raise exception using errcode = 'P0001', message = 'Provider is not eligible for this Pilot Alpha invitation.';
+  if not public.provider_is_eligible_for_service(
+    new.provider_id, request_row.service_category_code, request_row.operation_context
+  ) then
+    raise exception using errcode = 'P0001', message = 'Provider is not eligible for this service invitation context.';
   end if;
   return new;
 end;
