@@ -25,6 +25,14 @@ export const customerPilotDemo = {
     category: "Suspensão e direção",
     priority: "Avaliação recomendada",
     disclaimer: "A triagem organiza o próximo passo; não declara diagnóstico.",
+    summary:
+      "Barulho dianteiro em piso irregular e pequena vibração no volante, sem conclusão mecânica automática.",
+    riskSignals: [
+      "Vibração percebida no volante",
+      "Ruído recorrente na dianteira",
+    ],
+    safeNextStep:
+      "Coordenar uma avaliação profissional antes de autorizar qualquer troca de peça.",
   },
   transport: {
     title: "Leva-e-traz VERAH",
@@ -47,6 +55,61 @@ export const customerPilotDemo = {
     total: serviceAmount + verahFee,
     duration: "Mesmo dia após aprovação",
     warranty: "90 dias sobre o serviço · fixture demonstrativa",
+  },
+  network: {
+    invitations: [
+      {
+        provider: "Centro Automotivo A",
+        status: "Aceitou",
+        context: "Disponibilidade imediata e documentação completa",
+      },
+      {
+        provider: "Especialista Suspensão B",
+        status: "Aceitou",
+        context: "Disponibilidade em 1 dia útil",
+      },
+      {
+        provider: "Oficina Multimarcas C",
+        status: "Aguardando resposta",
+        context: "Convite sintético enviado",
+      },
+    ],
+    proposals: [
+      {
+        provider: "Centro Automotivo A",
+        total: 580,
+        duration: "Mesmo dia após aprovação",
+        warranty: "90 dias · fixture",
+        classification: "comparison_ready",
+        qualityLabel: "Clara e documentada",
+        qualityReason: "Detalha inspeção, peças, mão de obra, alinhamento e prazo.",
+        highlight: "Recomendação VERAH",
+      },
+      {
+        provider: "Especialista Suspensão B",
+        total: 560,
+        duration: "1 dia útil",
+        warranty: "90 dias · fixture",
+        classification: "usable_with_caveats",
+        qualityLabel: "Comparável com ressalva",
+        qualityReason: "Tem menor preço, mas documentação menos completa para decisão imediata.",
+        highlight: "Menor valor",
+      },
+    ],
+    comparison: {
+      basis: "Mesmo escopo inicial: avaliação da suspensão dianteira, bieletas e alinhamento.",
+      recommendation:
+        "A proposta A custa R$20 a mais, mas combina atendimento no mesmo dia com evidências e escopo mais claros.",
+      caveat:
+        "A recomendação organiza evidências; Marina continua responsável pela aprovação final.",
+    },
+    secondOpinion: {
+      label: "Escopo comparado por uma segunda avaliação",
+      summary:
+        "As duas propostas convergem no escopo após avaliação profissional; nenhuma peça é tratada como diagnóstico antes dessa confirmação.",
+    },
+    decisionPrompt:
+      "Explique prazo, evidências e diferença de R$20 para Marina antes de registrar a escolha.",
   },
   payment: {
     method: "Visa •••• 4821",

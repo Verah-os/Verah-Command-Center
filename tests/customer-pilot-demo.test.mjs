@@ -4,6 +4,7 @@ import test from "node:test";
 
 import { customerPilotDemo as demo } from "../lib/customer-pilot-demo.ts";
 import { customerJourneyStages } from "../lib/customer-service-stage.ts";
+import { conciergeDemoFixture } from "../lib/concierge-demo.ts";
 
 test("canonical customer fixture keeps vehicle, R$659 split and synthetic payment coherent", () => {
   assert.equal(demo.vehicle.id, "DEMO-VEH-001");
@@ -31,6 +32,17 @@ test("passport and next care derive from the same completed fixture", () => {
   assert.ok(demo.nextCare.every((care) => !/diagnóstico confirmado automaticamente/i.test(care)));
 });
 
+test("executive customer and Concierge views derive from the same canonical case", () => {
+  assert.equal(conciergeDemoFixture.customer, demo.customer.fullName);
+  assert.match(conciergeDemoFixture.vehicle, /Volkswagen Polo/);
+  assert.equal(conciergeDemoFixture.reportedProblem, demo.report);
+  assert.deepEqual(
+    conciergeDemoFixture.proposals.map(({ total }) => total),
+    [580, 560],
+  );
+  assert.match(conciergeDemoFixture.comparison.recommendation, /R\$20/);
+});
+
 test("service worker caches only the synthetic demo shell and clears it on logout", async () => {
   const source = await readFile(new URL("../public/customer-demo-sw.js", import.meta.url), "utf8");
   assert.match(source, /CLEAR_CUSTOMER_DEMO_CACHE/);
@@ -48,6 +60,8 @@ test("client persists only versioned demo controls and handles offline, reconnec
   assert.match(source, /addEventListener\("offline"/);
   assert.match(source, /addEventListener\("online"/);
   assert.match(source, /CLEAR_CUSTOMER_DEMO_CACHE/);
+  assert.match(source, /Coordenação VERAH/);
+  assert.match(source, /Reiniciar/);
   assert.match(source, /type StoredState = \{ scene: Scene; furthest: number; approved: boolean; paid: boolean \}/);
   assert.doesNotMatch(source, /localStorage/);
 });
