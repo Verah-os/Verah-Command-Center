@@ -36,10 +36,15 @@ declare
     'provider_invitation_responses',
     'provider_invitations',
     'provider_selections',
+    'pilot_concierge_time_entries',
+    'pilot_consent_receipts',
     'second_opinion_events',
     'second_opinion_requests',
+    'service_incident_events',
+    'service_incidents',
     'service_quote_revisions',
     'user_profiles',
+    'vehicle_custody_events',
     'vehicle_movement_guidance',
     'work_orders'
   ];
