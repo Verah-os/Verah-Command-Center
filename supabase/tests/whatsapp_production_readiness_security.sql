@@ -167,6 +167,7 @@ select * from public.queue_whatsapp_outbound_message_gated(
   'f7777777-7777-4777-8777-777777777771', 'Synthetic acknowledgement', 'wa-transactional',
   'intake_acknowledgement', '{}'::jsonb, 'transactional', 'human'
 );
+reset role;
 do $$ begin
   if (select count(distinct message_id) from whatsapp_outbound_results) <> 1
     or (select count(*) from whatsapp_outbound_results where created) <> 1
@@ -180,6 +181,10 @@ do $$ begin
   ) then raise exception 'Sensitive outbound observability payload detected'; end if;
 end $$;
 
+set local role authenticated;
+select pg_catalog.set_config('request.jwt.claim.role', 'authenticated', true);
+select pg_catalog.set_config('request.jwt.claim.sub', 'f2222222-2222-4222-8222-222222222222', true);
+select pg_catalog.set_config('request.jwt.claims', '{"role":"authenticated","sub":"f2222222-2222-4222-8222-222222222222"}', true);
 select public.record_whatsapp_consent(
   'f5555555-5555-4555-8555-555555555551', 'granted', 'pilot_onboarding'
 );
