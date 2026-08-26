@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">VERAH Demo</title>
+  <rect width="512" height="512" rx="112" fill="#1A1A1A"/>
+  <circle cx="256" cy="256" r="154" fill="none" stroke="#E8B6C0" stroke-width="28"/>
+  <path d="M168 190l88 176 88-176" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round" stroke-width="36"/>
+</svg>
