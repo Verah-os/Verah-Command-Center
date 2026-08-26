@@ -12,6 +12,7 @@ import {
   LogOut,
   RotateCcw,
   ShieldCheck,
+  Siren,
   Sparkles,
   UsersRound,
   WifiOff,
@@ -19,14 +20,30 @@ import {
 } from "lucide-react";
 import { customerPilotDemo as demo } from "@/lib/customer-pilot-demo";
 import { customerStageLabels } from "@/lib/customer-service-stage";
+import type { VerahAgentResponse } from "@/services/verah-agent";
+
+type CustomerAgentView = Pick<
+  VerahAgentResponse,
+  | "knownFacts"
+  | "evidence"
+  | "inference"
+  | "missingInformation"
+  | "questions"
+  | "riskSignals"
+  | "explanation"
+  | "nextStep"
+  | "offer"
+  | "handoff"
+>;
 
 const storageKey = "verah.customer-pilot-demo.v1";
-const scenes = ["home", "intake", "tracking", "coordination", "quote", "payment", "execution", "completion", "passport", "next-care"] as const;
+const scenes = ["home", "agent", "intake", "tracking", "coordination", "quote", "payment", "execution", "completion", "passport", "next-care"] as const;
 type Scene = (typeof scenes)[number];
 type StoredState = { scene: Scene; furthest: number; approved: boolean; paid: boolean };
 
 const sceneLabels: Record<Scene, string> = {
   home: "Meu veículo",
+  agent: "Agente VERAH",
   intake: "Relato",
   tracking: "Acompanhamento",
   coordination: "Coordenação VERAH",
@@ -38,7 +55,7 @@ const sceneLabels: Record<Scene, string> = {
   "next-care": "Próximos Cuidados",
 };
 
-export function CustomerPilotDemo() {
+export function CustomerPilotDemo({ agent }: { agent: CustomerAgentView }) {
   const [ready, setReady] = useState(false);
   const [signedIn, setSignedIn] = useState(false);
   const [online, setOnline] = useState(true);
@@ -130,7 +147,7 @@ export function CustomerPilotDemo() {
 
         <main>
           <DemoBadge />
-          <SceneContent scene={state.scene} approved={state.approved} paid={state.paid} online={online} advance={advance} />
+          <SceneContent scene={state.scene} approved={state.approved} paid={state.paid} online={online} agent={agent} advance={advance} />
           <div className="mt-6 flex items-center justify-between gap-3 lg:hidden">
             <button type="button" disabled={sceneIndex === 0} onClick={() => advance(scenes[Math.max(0, sceneIndex - 1)])} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/15 px-4 text-sm font-semibold disabled:opacity-40"><ArrowLeft className="h-4 w-4" /> Voltar</button>
             <p className="text-xs text-[#9A9A9A]">{sceneIndex + 1} de {scenes.length}</p>
@@ -141,8 +158,9 @@ export function CustomerPilotDemo() {
   );
 }
 
-function SceneContent({ scene, approved, paid, online, advance }: { scene: Scene; approved: boolean; paid: boolean; online: boolean; advance: (scene: Scene, patch?: Partial<StoredState>) => void }) {
-  if (scene === "home") return <Scene icon={CarFront} eyebrow={`Olá, ${demo.customer.firstName}`} title="Seu carro, seus cuidados, tudo em um só lugar." action={<PrimaryAction online={online} onClick={() => advance("intake")}>Relatar um problema <ArrowRight className="h-4 w-4" /></PrimaryAction>}><div className="grid gap-4 sm:grid-cols-2"><Info label="Veículo" value={`${demo.vehicle.name} · ${demo.vehicle.year}`} /><Info label="Identificação" value={demo.vehicle.id} /><Info label="Quilometragem" value={`${demo.vehicle.mileageAtIntake.toLocaleString("pt-BR")} km`} /><Info label="Placa" value={demo.vehicle.plate} /></div><CareCard /></Scene>;
+function SceneContent({ scene, approved, paid, online, agent, advance }: { scene: Scene; approved: boolean; paid: boolean; online: boolean; agent: CustomerAgentView; advance: (scene: Scene, patch?: Partial<StoredState>) => void }) {
+  if (scene === "home") return <Scene icon={CarFront} eyebrow={`Olá, ${demo.customer.firstName}`} title="Seu carro, seus cuidados, tudo em um só lugar." action={<PrimaryAction online={online} onClick={() => advance("agent")}>Conversar com a VERAH <ArrowRight className="h-4 w-4" /></PrimaryAction>}><div className="grid gap-4 sm:grid-cols-2"><Info label="Veículo" value={`${demo.vehicle.name} · ${demo.vehicle.year}`} /><Info label="Identificação" value={demo.vehicle.id} /><Info label="Quilometragem" value={`${demo.vehicle.mileageAtIntake.toLocaleString("pt-BR")} km`} /><Info label="Placa" value={demo.vehicle.plate} /></div><CareCard /></Scene>;
+  if (scene === "agent") return <AgentConversation agent={agent} online={online} onAccept={() => advance(agent.handoff.scene)} />;
   if (scene === "intake") return <Scene icon={Sparkles} eyebrow="Novo atendimento" title="Conte do seu jeito. A VERAH organiza o próximo passo." action={<PrimaryAction online={online} onClick={() => advance("tracking")}>Acompanhar atendimento <ArrowRight className="h-4 w-4" /></PrimaryAction>}><Info label="Relato de Marina" value={demo.report} /><div className="rounded-[20px] border border-[#E8B6C0]/30 bg-[#E8B6C0]/10 p-5"><p className="font-semibold text-[#E8B6C0]">Vamos cuidar disso</p><p className="mt-2 leading-7 text-white/80">{demo.reassurance}</p></div><div className="grid gap-3 sm:grid-cols-2"><Info label="Categoria inicial" value={demo.triage.category} /><Info label="Prioridade" value={demo.triage.priority} /></div><p className="text-sm text-[#9A9A9A]">{demo.triage.disclaimer}</p></Scene>;
   if (scene === "tracking") return <Scene icon={Clock3} eyebrow="Acompanhamento" title="Você sabe o que está acontecendo e qual é o próximo passo." action={<PrimaryAction online={online} onClick={() => advance("coordination")}>Ver como a VERAH coordenou <ArrowRight className="h-4 w-4" /></PrimaryAction>}><CareCard /><Timeline limit={4} /></Scene>;
   if (scene === "coordination") return <Scene icon={UsersRound} eyebrow="Visão da coordenação" title="A VERAH compara opções e explica a recomendação — Marina decide." action={<PrimaryAction online={online} onClick={() => advance("quote")}>Voltar à decisão da Marina <ArrowRight className="h-4 w-4" /></PrimaryAction>}><div className="grid gap-3 sm:grid-cols-3">{demo.network.invitations.map((invitation) => <Info key={invitation.provider} label={invitation.status} value={`${invitation.provider}\n${invitation.context}`} />)}</div><div className="grid gap-4 sm:grid-cols-2">{demo.network.proposals.map((proposal) => <div key={proposal.provider} className="rounded-[20px] border border-white/10 bg-white/[0.03] p-5"><p className="text-xs font-semibold uppercase tracking-wider text-[#E8B6C0]">{proposal.highlight}</p><h2 className="mt-2 font-semibold">{proposal.provider}</h2><p className="mt-3 text-3xl font-semibold">{money(proposal.total)}</p><p className="mt-2 text-sm text-[#9A9A9A]">{proposal.duration} · {proposal.warranty}</p><p className="mt-4 text-sm leading-6 text-white/80">{proposal.qualityReason}</p></div>)}</div><div className="rounded-[20px] border border-[#E8B6C0]/30 bg-[#E8B6C0]/10 p-5"><p className="font-semibold text-[#E8B6C0]">Por que a proposta A?</p><p className="mt-2 leading-7 text-white/80">{demo.network.comparison.recommendation}</p><p className="mt-3 text-sm text-[#9A9A9A]">{demo.network.secondOpinion.summary}</p></div><p className="text-sm leading-6 text-[#9A9A9A]">Operação humana assistida por software · prestadores, avaliações e evidências são fixtures sintéticas.</p></Scene>;
@@ -152,6 +170,14 @@ function SceneContent({ scene, approved, paid, online, advance }: { scene: Scene
   if (scene === "completion") return <Scene icon={ShieldCheck} eyebrow="Tudo pronto" title="Atendimento concluído e conferido pela VERAH." action={<PrimaryAction online={online} onClick={() => advance("passport")}>Abrir Passaporte <ArrowRight className="h-4 w-4" /></PrimaryAction>}><Timeline /><Info label="Serviço registrado" value={demo.completion.service} /><Info label="Resultado" value={demo.completion.note} /><div className="grid gap-3 sm:grid-cols-2"><Info label="Valor final demonstrativo" value={money(demo.quote.total)} /><Info label="Quilometragem final" value={`${demo.vehicle.mileageAtCompletion.toLocaleString("pt-BR")} km`} /></div></Scene>;
   if (scene === "passport") return <Scene icon={FileCheck2} eyebrow="Passaporte VERAH" title="Este atendimento agora faz parte da história do seu carro." action={<PrimaryAction online={online} onClick={() => advance("next-care")}>Ver Próximos Cuidados <ArrowRight className="h-4 w-4" /></PrimaryAction>}><div className="rounded-[20px] border border-[#E8B6C0]/30 bg-[#E8B6C0]/10 p-5"><p className="font-semibold text-[#E8B6C0]">Evento registrado</p><p className="mt-3 leading-7 text-white/80">{demo.passport.event}</p></div><p className="text-sm text-[#9A9A9A]">Origem e documento são fixtures sintéticas; nenhum dado externo foi consultado.</p></Scene>;
   return <Scene icon={Sparkles} eyebrow="Próximos Cuidados" title="O cuidado continua depois da entrega."><div className="space-y-3">{demo.nextCare.map((care) => <div key={care} className="flex gap-3 rounded-[20px] bg-white/5 p-5"><Check className="mt-0.5 h-5 w-5 shrink-0 text-emerald-300" /><p className="leading-7 text-white/80">{care}</p></div>)}</div><p className="rounded-[20px] border border-white/10 p-5 text-sm leading-6 text-[#9A9A9A]">A VERAH não entrega apenas uma oficina. Coordena a decisão, acompanha a execução e transforma cada atendimento em conhecimento para cuidar melhor do veículo depois.</p></Scene>;
+}
+
+function AgentConversation({ agent, online, onAccept }: { agent: CustomerAgentView; online: boolean; onAccept: () => void }) {
+  return <Scene icon={Sparkles} eyebrow="Agente assistivo · sandbox determinístico" title="Eu organizo o que sabemos — e deixo claro o que ainda precisa de avaliação." action={<PrimaryAction online={online} onClick={onAccept}>A VERAH cuida disso para mim <ArrowRight className="h-4 w-4" /></PrimaryAction>}><div className="rounded-[20px] bg-white/5 p-5"><p className="text-xs font-semibold uppercase tracking-wider text-[#9A9A9A]">Marina</p><p className="mt-2 leading-7 text-white/90">{demo.report}</p></div><div className="rounded-[20px] border border-[#E8B6C0]/30 bg-[#E8B6C0]/10 p-5"><p className="font-semibold text-[#E8B6C0]">VERAH</p><p className="mt-2 leading-7 text-white/85">{agent.explanation}</p><p className="mt-3 font-semibold text-white">{agent.offer}</p></div><div className="grid gap-4 sm:grid-cols-2"><AgentList title="Fatos conhecidos" items={agent.knownFacts} /><AgentList title="Evidências permitidas" items={agent.evidence.map(({ content }) => content)} /><AgentList title="Inferência — não é diagnóstico" items={agent.inference} /><AgentList title="Informações ausentes" items={agent.missingInformation} /></div><div className="rounded-[20px] border border-amber-300/30 bg-amber-300/10 p-5"><div className="flex items-center gap-2 font-semibold text-amber-100"><Siren className="h-5 w-5" aria-hidden="true" />Revisão profissional necessária</div><ul className="mt-3 space-y-2 text-sm text-amber-50/90">{agent.riskSignals.map((signal) => <li key={signal}>• {signal}</li>)}</ul><p className="mt-4 text-sm leading-6 text-amber-50">{agent.nextStep}</p></div><div><p className="text-sm font-semibold text-[#E8B6C0]">Perguntas úteis antes da avaliação</p><ol className="mt-3 space-y-3">{agent.questions.map((question, index) => <li key={question} className="rounded-[16px] border border-white/10 p-4 text-sm leading-6 text-white/85"><strong className="mr-2 text-[#E8B6C0]">{index + 1}.</strong>{question}</li>)}</ol></div><p className="text-xs leading-5 text-[#9A9A9A]">Contexto e evidências são fixtures sintéticas. Nenhum provider externo, mensagem ou ação operacional foi acionado.</p></Scene>;
+}
+
+function AgentList({ title, items }: { title: string; items: readonly string[] }) {
+  return <div className="rounded-[20px] border border-white/10 bg-white/[0.03] p-5"><p className="text-xs font-semibold uppercase tracking-wider text-[#E8B6C0]">{title}</p>{items.length > 0 ? <ul className="mt-3 space-y-2 text-sm leading-6 text-white/80">{items.map((item) => <li key={item}>• {item}</li>)}</ul> : <p className="mt-3 text-sm text-[#9A9A9A]">Nada disponível — não vou inventar.</p>}</div>;
 }
 
 function Scene({ icon: Icon, eyebrow, title, children, action }: { icon: typeof CarFront; eyebrow: string; title: string; children: React.ReactNode; action?: React.ReactNode }) { return <section className="rounded-[20px] border border-white/10 bg-[#2E2E2E] p-5 shadow-2xl shadow-black/20 sm:p-8"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#E8B6C0]/10 text-[#E8B6C0]"><Icon className="h-6 w-6" /></div><p className="mt-6 text-sm font-semibold uppercase tracking-[0.16em] text-[#E8B6C0]">{eyebrow}</p><h1 className="mt-2 max-w-2xl text-3xl font-semibold leading-tight sm:text-4xl">{title}</h1><div className="mt-7 space-y-5">{children}</div>{action && <div className="mt-8">{action}</div>}</section>; }
