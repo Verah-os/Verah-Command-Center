@@ -40,6 +40,8 @@ export const customerPilotDemo = {
       "Coleta, conferência e entrega coordenadas pela VERAH, com acompanhamento em cada etapa.",
   },
   quote: {
+    id: "DEMO-QUOTE-A",
+    version: "1",
     summary:
       "Após avaliação profissional, o escopo demonstrativo inclui substituição do par de bieletas e alinhamento.",
     rationale:
