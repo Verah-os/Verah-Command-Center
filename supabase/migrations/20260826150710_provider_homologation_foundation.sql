@@ -460,15 +460,15 @@ create or replace function public.update_own_provider_operational_profile(
   p_operational_hours jsonb, p_approximate_capacity integer,
   p_warranty_policy text, p_warranty_days integer, p_receives_vehicles boolean
 ) returns uuid language plpgsql security definer set search_path = '' as $$
-declare provider_id uuid := (select public.current_verah_provider_id());
+declare effective_provider_id uuid := (select public.current_verah_provider_id());
 begin
-  if auth.uid() is null or (select public.current_verah_role()) <> 'provider' or provider_id is null then
+  if auth.uid() is null or (select public.current_verah_role()) <> 'provider' or effective_provider_id is null then
     raise exception using errcode = '42501', message = 'Provider authorization required.';
   end if;
   insert into public.provider_homologation_profiles (
     provider_id, operational_hours, approximate_capacity, warranty_policy, warranty_days, receives_vehicles
   ) values (
-    provider_id, p_operational_hours, p_approximate_capacity, p_warranty_policy, p_warranty_days, p_receives_vehicles
+    effective_provider_id, p_operational_hours, p_approximate_capacity, p_warranty_policy, p_warranty_days, p_receives_vehicles
   ) on conflict (provider_id) do update set
     operational_hours = excluded.operational_hours,
     approximate_capacity = excluded.approximate_capacity,
@@ -476,15 +476,15 @@ begin
     warranty_days = excluded.warranty_days,
     receives_vehicles = excluded.receives_vehicles,
     updated_at = pg_catalog.now();
-  return provider_id;
+  return effective_provider_id;
 end;
 $$;
 
 create or replace function public.get_own_provider_homologation()
 returns jsonb language plpgsql stable security definer set search_path = '' as $$
-declare provider_id uuid := (select public.current_verah_provider_id()); result jsonb;
+declare effective_provider_id uuid := (select public.current_verah_provider_id()); result jsonb;
 begin
-  if auth.uid() is null or (select public.current_verah_role()) <> 'provider' or provider_id is null then
+  if auth.uid() is null or (select public.current_verah_role()) <> 'provider' or effective_provider_id is null then
     raise exception using errcode = '42501', message = 'Provider authorization required.';
   end if;
   select jsonb_build_object(
@@ -498,8 +498,8 @@ begin
     'warranty_days', profile.warranty_days,
     'receives_vehicles', profile.receives_vehicles,
     'next_review_at', profile.next_review_at
-  ) into result from public.provider_homologation_profiles profile where profile.provider_id = provider_id;
-  return coalesce(result, jsonb_build_object('provider_id', provider_id, 'homologation_status', 'candidate'));
+  ) into result from public.provider_homologation_profiles profile where profile.provider_id = effective_provider_id;
+  return coalesce(result, jsonb_build_object('provider_id', effective_provider_id, 'homologation_status', 'candidate'));
 end;
 $$;
 
@@ -510,19 +510,19 @@ create or replace function public.record_provider_service_completion(
   p_notes text default null, p_evidence_refs uuid[] default '{}'
 ) returns uuid language plpgsql security definer set search_path = '' as $$
 declare actor_id uuid := auth.uid(); role_name text := (select public.current_verah_role());
-  provider_id uuid := (select public.current_verah_provider_id()); request_row public.service_requests%rowtype; result_id uuid;
+  effective_provider_id uuid := (select public.current_verah_provider_id()); request_row public.service_requests%rowtype; result_id uuid;
 begin
   select * into request_row from public.service_requests request where request.id = p_service_request_id;
   if actor_id is null or role_name not in ('provider', 'admin') then
     raise exception using errcode = '42501', message = 'Provider completion authorization required.';
   end if;
-  if role_name = 'admin' then provider_id := request_row.provider_id; end if;
-  if provider_id is null or request_row.provider_id is distinct from provider_id then
+  if role_name = 'admin' then effective_provider_id := request_row.provider_id; end if;
+  if effective_provider_id is null or request_row.provider_id is distinct from effective_provider_id then
     raise exception using errcode = '42501', message = 'Service request does not belong to provider.';
   end if;
   if request_row.operation_context = 'pilot_alpha' and not exists (
     select 1 from public.service_quotes quote
-    where quote.service_request_id = request_row.id and quote.provider_id = provider_id
+    where quote.service_request_id = request_row.id and quote.provider_id = effective_provider_id
       and quote.status = 'approved' and quote.total_amount = p_final_amount
   ) then
     raise exception using errcode = 'P0001', message = 'Final amount requires an approved quote.';
@@ -531,7 +531,7 @@ begin
     service_request_id, provider_id, service_performed, relevant_items, final_amount,
     completed_at, warranty_terms, warranty_valid_until, notes, evidence_refs, closed_by
   ) values (
-    request_row.id, provider_id, p_service_performed, p_relevant_items, p_final_amount,
+    request_row.id, effective_provider_id, p_service_performed, p_relevant_items, p_final_amount,
     p_completed_at, p_warranty_terms, p_warranty_valid_until, p_notes, p_evidence_refs, actor_id
   ) returning id into result_id;
   return result_id;
