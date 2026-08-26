@@ -122,7 +122,8 @@ values (
   5,
   true
 )
-on conflict (id) do nothing;
+on conflict (id) do update
+set is_synthetic = excluded.is_synthetic;
 
 insert into public.user_profiles (user_id, role, display_name, provider_id)
 values
