@@ -49,8 +49,7 @@ insert into auth.users (id, aud, role, email, raw_app_meta_data, raw_user_meta_d
 values
   ('f1111111-1111-4111-8111-111111111111', 'authenticated', 'authenticated', 'wa.customer@example.invalid', '{}', '{}', now(), now()),
   ('f2222222-2222-4222-8222-222222222222', 'authenticated', 'authenticated', 'wa.admin@example.invalid', '{}', '{}', now(), now()),
-  ('f3333333-3333-4333-8333-333333333333', 'authenticated', 'authenticated', 'wa.concierge@example.invalid', '{}', '{}', now(), now()),
-  ('f4444444-4444-4444-8444-444444444444', 'authenticated', 'authenticated', 'wa.provider@example.invalid', '{}', '{}', now(), now())
+  ('f3333333-3333-4333-8333-333333333333', 'authenticated', 'authenticated', 'wa.concierge@example.invalid', '{}', '{}', now(), now())
 on conflict (id) do nothing;
 
 insert into public.customers (id, auth_user_id, display_name)
@@ -62,8 +61,7 @@ insert into public.user_profiles (user_id, role, display_name)
 values
   ('f1111111-1111-4111-8111-111111111111', 'customer', 'Bound Alpha Customer'),
   ('f2222222-2222-4222-8222-222222222222', 'admin', 'WhatsApp Admin'),
-  ('f3333333-3333-4333-8333-333333333333', 'concierge', 'WhatsApp Concierge'),
-  ('f4444444-4444-4444-8444-444444444444', 'provider', 'WhatsApp Provider')
+  ('f3333333-3333-4333-8333-333333333333', 'concierge', 'WhatsApp Concierge')
 on conflict (user_id) do nothing;
 
 insert into public.customer_channels (
