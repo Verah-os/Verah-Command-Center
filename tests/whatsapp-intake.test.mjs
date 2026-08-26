@@ -145,6 +145,10 @@ test("outbound endpoint enforces operational roles and queues instead of sending
         conversationId: "77777777-7777-4777-8777-777777777777",
         body: "Mensagem operacional sintética.",
         idempotencyKey: "synthetic-outbound-1",
+        templateKey: "intake_acknowledgement",
+        variables: {},
+        basis: "transactional",
+        origin: "human",
       }),
     });
 
@@ -152,6 +156,7 @@ test("outbound endpoint enforces operational roles and queues instead of sending
     async getProfile() {
       return { status: "authenticated", profile: { role: "provider" } };
     },
+    outboundEnabled: true,
     async queue() {
       queued += 1;
     },
@@ -163,6 +168,7 @@ test("outbound endpoint enforces operational roles and queues instead of sending
     async getProfile() {
       return { status: "authenticated", profile: { role: "concierge" } };
     },
+    outboundEnabled: true,
     async queue() {
       queued += 1;
     },
@@ -173,6 +179,37 @@ test("outbound endpoint enforces operational roles and queues instead of sending
     accepted: true,
     delivery: "outbox",
   });
+});
+
+test("outbound kill switch and agent origin cannot bypass enqueue gates", async () => {
+  const request = (origin = "human") => new Request("https://example.test/api/integrations/whatsapp/messages", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      conversationId: "77777777-7777-4777-8777-777777777777",
+      body: "Mensagem sintética.",
+      idempotencyKey: `gate-${origin}`,
+      templateKey: "intake_acknowledgement",
+      variables: {},
+      basis: "transactional",
+      origin,
+    }),
+  });
+  let queued = 0;
+  const profile = async () => ({ status: "authenticated", profile: { role: "concierge" } });
+  const killed = await handleOutboundMessage(request(), {
+    getProfile: profile,
+    outboundEnabled: false,
+    async queue() { queued += 1; },
+  });
+  assert.equal(killed.status, 503);
+  const agent = await handleOutboundMessage(request("agent_proposal"), {
+    getProfile: profile,
+    outboundEnabled: true,
+    async queue() { queued += 1; },
+  });
+  assert.equal(agent.status, 400);
+  assert.equal(queued, 0);
 });
 
 test("configuration has an explicit safe fallback without Meta credentials", async () => {

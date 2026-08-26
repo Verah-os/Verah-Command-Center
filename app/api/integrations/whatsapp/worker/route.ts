@@ -40,6 +40,6 @@ export async function POST(request: Request) {
         failMedia: failWhatsAppMedia,
         purgeExpiredMedia: purgeExpiredWhatsAppMedia,
         log: (event) => console.info("whatsapp_worker", event),
-      }),
+      }, { outboundEnabled: !config.outboundKillSwitch }),
   });
 }

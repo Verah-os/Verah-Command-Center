@@ -273,6 +273,7 @@ run_sql supabase/tests/admin_authorization_matrix.sql
 run_sql supabase/tests/customer_identity_security.sql
 run_sql supabase/tests/communication_intake_security.sql
 run_sql supabase/tests/whatsapp_worker_media_security.sql
+run_sql supabase/tests/whatsapp_production_readiness_security.sql
 run_sql supabase/tests/n8n_notifications_sla_security.sql
 run_sql supabase/tests/control_plane_dry_run.sql
 run_sql supabase/tests/intelligent_intake_security.sql
@@ -300,6 +301,7 @@ run_sql supabase/tests/rls_catalog.sql
 run_sql supabase/tests/customer_identity_security.sql
 run_sql supabase/tests/communication_intake_security.sql
 run_sql supabase/tests/whatsapp_worker_media_security.sql
+run_sql supabase/tests/whatsapp_production_readiness_security.sql
 run_sql supabase/tests/n8n_notifications_sla_security.sql
 run_sql supabase/tests/control_plane_dry_run.sql
 run_sql supabase/tests/intelligent_intake_security.sql

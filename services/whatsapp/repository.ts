@@ -16,7 +16,7 @@ import { processIntelligentIntakeMessage } from "@/services/intelligent-intake";
 
 export async function persistInboundMessage(message: ParsedInboundMessage) {
   const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase.rpc("persist_whatsapp_inbound_message", {
+  const { data, error } = await supabase.rpc("persist_whatsapp_inbound_message_safe", {
     p_phone: message.phone,
     p_external_message_id: message.externalMessageId,
     p_message_type: message.messageType,
@@ -28,21 +28,29 @@ export async function persistInboundMessage(message: ParsedInboundMessage) {
   const row = Array.isArray(data) ? data[0] : data;
   const messageId = row?.message_id as string | undefined;
   if (!messageId) throw new Error("Inbound persistence returned no message id");
-  await processIntelligentIntakeMessage(messageId);
+  if (row?.conversation_id) await processIntelligentIntakeMessage(messageId);
 }
 
 export async function queueOutboundMessage(input: {
   conversationId: string;
   body: string;
   idempotencyKey: string;
+  templateKey: string;
+  variables: Record<string, unknown>;
+  basis: "transactional" | "consent";
+  origin: "human" | "system" | "agent_proposal";
 }) {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.rpc(
-    "queue_whatsapp_outbound_message",
+    "queue_whatsapp_outbound_message_gated",
     {
       p_conversation_id: input.conversationId,
       p_body: input.body,
       p_idempotency_key: input.idempotencyKey,
+      p_template_key: input.templateKey,
+      p_template_variables: input.variables,
+      p_message_basis: input.basis,
+      p_origin: input.origin,
     },
   );
   if (error) throw new Error(`Outbound queue failed: ${error.code}`);

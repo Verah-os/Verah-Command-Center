@@ -45,13 +45,15 @@ type WorkerDependencies = {
 
 export async function runWhatsAppWorker(
   dependencies: WorkerDependencies,
-  options: { batchSize?: number; maxAttempts?: number } = {},
+  options: { batchSize?: number; maxAttempts?: number; outboundEnabled?: boolean } = {},
 ) {
   const batchSize = Math.min(50, Math.max(1, options.batchSize ?? 10));
   const maxAttempts = Math.min(3, Math.max(1, options.maxAttempts ?? 3));
   const result = { sent: 0, stored: 0, failed: 0, expired: 0 };
 
-  const outbox = await dependencies.claimOutbox(batchSize, maxAttempts);
+  const outbox = options.outboundEnabled === false
+    ? []
+    : await dependencies.claimOutbox(batchSize, maxAttempts);
   for (const item of outbox) {
     try {
       const sent = await dependencies.sendText({

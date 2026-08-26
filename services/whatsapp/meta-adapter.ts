@@ -40,6 +40,7 @@ export function createMetaWhatsAppAdapter(
             type: "text",
             text: { preview_url: false, body: input.body },
           }),
+          signal: AbortSignal.timeout(config.requestTimeoutMs ?? 8000),
         },
       );
 

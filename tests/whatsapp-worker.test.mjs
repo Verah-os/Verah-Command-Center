@@ -187,6 +187,20 @@ test("worker completes batches, preserves retries and emits sanitized observabil
   assert.match(serializedLogs, /meta_rate_limited/);
 });
 
+test("outbound kill switch skips claims while inbound media maintenance remains available", async () => {
+  let outboxClaims = 0;
+  let mediaClaims = 0;
+  await runWhatsAppWorker({
+    async claimOutbox() { outboxClaims += 1; return []; },
+    async completeOutbox() {}, async failOutbox() { return "failed"; }, async sendText() { throw new Error("must not send"); },
+    async claimMedia() { mediaClaims += 1; return []; },
+    async downloadMedia() { throw new Error("unused"); }, async storeMedia() {}, async completeMedia() {}, async failMedia() { return "failed"; },
+    async purgeExpiredMedia() { return []; }, log() {},
+  }, { outboundEnabled: false });
+  assert.equal(outboxClaims, 0);
+  assert.equal(mediaClaims, 1);
+});
+
 test("signed URLs are allowed only for available, unexpired private media", () => {
   const now = new Date("2026-08-20T00:00:00.000Z");
   assert.equal(canSignWhatsAppMedia({ status: "available", retentionUntil: "2026-08-21T00:00:00.000Z", now }), true);
