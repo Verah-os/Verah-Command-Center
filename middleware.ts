@@ -5,6 +5,15 @@ import { isUserRole, roleHome as homes } from "@/services/auth/access";
 import type { UserRole } from "@/types/user-profile";
 
 export async function middleware(request: NextRequest) {
+  const path = request.nextUrl.pathname;
+  const isPublicCustomerPilotDemo = [
+    "/demo/cliente/piloto",
+    "/customer-demo-sw.js",
+    "/customer-demo-icon.svg",
+    "/manifest.webmanifest",
+  ].includes(path);
+  if (isPublicCustomerPilotDemo) return NextResponse.next({ request });
+
   let response = NextResponse.next({ request });
   type CookieToSet = {
     name: string;
@@ -33,7 +42,6 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const path = request.nextUrl.pathname;
   const isLogin = path.startsWith("/login") || path.startsWith("/entrar/");
   const isPublicDemo = path === "/demo" || path === "/demo/concierge";
   if (!user && !isLogin && !isPublicDemo) {
