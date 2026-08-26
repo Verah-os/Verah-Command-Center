@@ -38,16 +38,16 @@ export default function DemoPage() {
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Link
-                href="/demo/concierge"
+                href="/demo/cliente/piloto"
                 className="inline-flex min-h-12 items-center justify-center rounded-xl bg-teal-700 px-6 font-semibold text-white shadow-sm outline-none hover:bg-teal-800 focus-visible:ring-4 focus-visible:ring-teal-200"
               >
-                Ver demonstração do Concierge
+                Iniciar trilha executiva · 3–5 min
               </Link>
               <Link
-                href="/demo/whatsapp"
+                href="/demo/concierge"
                 className="inline-flex min-h-12 items-center justify-center rounded-xl border border-teal-200 bg-white px-6 font-semibold text-teal-800 outline-none hover:bg-teal-50 focus-visible:ring-4 focus-visible:ring-teal-100"
               >
-                Simular atendimento via WhatsApp
+                Abrir visão Concierge
               </Link>
               <Link
                 href="/entrar/cliente"

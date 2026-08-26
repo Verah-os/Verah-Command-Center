@@ -1,5 +1,6 @@
 import type { QuoteQualityClassification } from "@/services/quote-quality/types";
 import type { SecondOpinionOutcome } from "@/services/second-opinion/types";
+import { customerPilotDemo as demo } from "./customer-pilot-demo.ts";
 
 export type ConciergeDemoState = "ready" | "empty" | "error";
 
@@ -48,9 +49,9 @@ export type ConciergeDemoFixture = {
 
 export const conciergeDemoQueue = [
   {
-    reference: "VERAH-2481",
-    customer: "Marina Alves",
-    vehicle: "Honda Fit 2018",
+    reference: "Caso Marina · demo",
+    customer: demo.customer.fullName,
+    vehicle: `${demo.vehicle.name} ${demo.vehicle.year}`,
     stage: "Decisão pendente",
     urgency: "Alta",
   },
@@ -71,81 +72,27 @@ export const conciergeDemoQueue = [
 ] as const;
 
 export const conciergeDemoFixture: ConciergeDemoFixture = {
-  reference: "VERAH-2481",
-  customer: "Marina Alves",
-  vehicle: "Honda Fit 2018 · 85.000 km",
+  reference: "Caso Marina · demonstração",
+  customer: demo.customer.fullName,
+  vehicle: `${demo.vehicle.name} · ${demo.vehicle.year} · ${demo.vehicle.mileageAtIntake.toLocaleString("pt-BR")} km`,
   city: "São Paulo",
   urgency: "Alta",
-  reportedProblem:
-    "O motor falha ao acelerar quando está frio e a luz amarela do painel acendeu.",
+  reportedProblem: demo.report,
   intake: {
-    summary:
-      "Perda de força recorrente com luz de injeção acesa, mais perceptível nas primeiras acelerações do dia.",
-    riskSignals: [
-      "Luz de injeção acesa",
-      "Perda de força durante a condução",
-    ],
-    safeNextStep:
-      "Evitar trajetos longos e realizar diagnóstico eletrônico antes de autorizar troca de peças.",
+    summary: demo.triage.summary,
+    riskSignals: [...demo.triage.riskSignals],
+    safeNextStep: demo.triage.safeNextStep,
   },
-  invitations: [
-    {
-      provider: "Oficina Horizonte",
-      status: "Aceitou",
-      context: "Especialista em injeção eletrônica · 4,9 de avaliação",
-    },
-    {
-      provider: "Auto Center Vila Nova",
-      status: "Aceitou",
-      context: "Atendimento próximo · 4,7 de avaliação",
-    },
-    {
-      provider: "Garage Norte",
-      status: "Recusou",
-      context: "Sem agenda no prazo necessário",
-    },
-  ],
-  proposals: [
-    {
-      provider: "Oficina Horizonte",
-      total: 860,
-      duration: "1 dia útil",
-      warranty: "90 dias",
-      classification: "comparison_ready",
-      qualityLabel: "Pronta para comparar",
-      qualityReason:
-        "Separa diagnóstico, mão de obra e peças e informa prazo e garantia.",
-      highlight: "Melhor detalhamento técnico",
-    },
-    {
-      provider: "Auto Center Vila Nova",
-      total: 690,
-      duration: "Até 2 dias úteis",
-      warranty: "90 dias",
-      classification: "usable_with_caveats",
-      qualityLabel: "Comparável com ressalva",
-      qualityReason:
-        "Preço e garantia estão claros, mas a peça só será definida após o diagnóstico.",
-      highlight: "Menor valor inicial",
-    },
-  ],
-  comparison: {
-    basis: "Mesmo escopo inicial: diagnóstico eletrônico e correção da falha.",
-    recommendation:
-      "A proposta da Oficina Horizonte oferece mais previsibilidade; a Vila Nova custa menos antes da confirmação da peça.",
-    caveat:
-      "O valor final pode mudar se o diagnóstico identificar uma peça diferente. A cliente deve aprovar qualquer alteração.",
-  },
+  invitations: [...demo.network.invitations],
+  proposals: [...demo.network.proposals],
+  comparison: demo.network.comparison,
   secondOpinion: {
     outcome: "questions_scope",
-    label: "Escopo precisa de confirmação",
-    summary:
-      "A segunda oficina concorda com o diagnóstico eletrônico, mas recomenda confirmar bobinas e velas antes de substituir componentes.",
+    ...demo.network.secondOpinion,
   },
   decision: {
     status: "human_required",
-    prompt:
-      "Revise as diferenças com a cliente e registre a escolha somente após a confirmação dela.",
+    prompt: demo.network.decisionPrompt,
   },
 };
 

@@ -10,8 +10,10 @@ import {
   Clock3,
   FileCheck2,
   LogOut,
+  RotateCcw,
   ShieldCheck,
   Sparkles,
+  UsersRound,
   WifiOff,
   Wrench,
 } from "lucide-react";
@@ -19,7 +21,7 @@ import { customerPilotDemo as demo } from "@/lib/customer-pilot-demo";
 import { customerStageLabels } from "@/lib/customer-service-stage";
 
 const storageKey = "verah.customer-pilot-demo.v1";
-const scenes = ["home", "intake", "tracking", "quote", "payment", "execution", "completion", "passport", "next-care"] as const;
+const scenes = ["home", "intake", "tracking", "coordination", "quote", "payment", "execution", "completion", "passport", "next-care"] as const;
 type Scene = (typeof scenes)[number];
 type StoredState = { scene: Scene; furthest: number; approved: boolean; paid: boolean };
 
@@ -27,6 +29,7 @@ const sceneLabels: Record<Scene, string> = {
   home: "Meu veículo",
   intake: "Relato",
   tracking: "Acompanhamento",
+  coordination: "Coordenação VERAH",
   quote: "Orçamento",
   payment: "Pagamento demo",
   execution: "Execução",
@@ -88,6 +91,12 @@ export function CustomerPilotDemo() {
     setState({ scene: "home", furthest: 0, approved: false, paid: false });
     navigator.serviceWorker?.controller?.postMessage({ type: "CLEAR_CUSTOMER_DEMO_CACHE" });
   };
+  const reset = () => {
+    const initial = { scene: "home" as const, furthest: 0, approved: false, paid: false };
+    setState(initial);
+    writeStoredState(initial);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   return (
     <div className="min-h-screen bg-[#232323] text-white">
@@ -97,9 +106,14 @@ export function CustomerPilotDemo() {
             <p className="text-lg font-semibold tracking-[0.18em] text-[#E8B6C0]">VERAH</p>
             <p className="text-xs text-[#9A9A9A]">Experiência cliente · demo sintética</p>
           </div>
-          <button type="button" onClick={logout} className="inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-white outline-none hover:bg-white/10 focus-visible:ring-4 focus-visible:ring-[#E8B6C0]/30">
-            <LogOut className="h-4 w-4" aria-hidden="true" /> Sair
-          </button>
+          <div className="flex items-center gap-1">
+            <button type="button" onClick={reset} className="inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-white outline-none hover:bg-white/10 focus-visible:ring-4 focus-visible:ring-[#E8B6C0]/30">
+              <RotateCcw className="h-4 w-4" aria-hidden="true" /> Reiniciar
+            </button>
+            <button type="button" onClick={logout} className="inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-white outline-none hover:bg-white/10 focus-visible:ring-4 focus-visible:ring-[#E8B6C0]/30">
+              <LogOut className="h-4 w-4" aria-hidden="true" /> Sair
+            </button>
+          </div>
         </div>
       </header>
 
@@ -130,7 +144,8 @@ export function CustomerPilotDemo() {
 function SceneContent({ scene, approved, paid, online, advance }: { scene: Scene; approved: boolean; paid: boolean; online: boolean; advance: (scene: Scene, patch?: Partial<StoredState>) => void }) {
   if (scene === "home") return <Scene icon={CarFront} eyebrow={`Olá, ${demo.customer.firstName}`} title="Seu carro, seus cuidados, tudo em um só lugar." action={<PrimaryAction online={online} onClick={() => advance("intake")}>Relatar um problema <ArrowRight className="h-4 w-4" /></PrimaryAction>}><div className="grid gap-4 sm:grid-cols-2"><Info label="Veículo" value={`${demo.vehicle.name} · ${demo.vehicle.year}`} /><Info label="Identificação" value={demo.vehicle.id} /><Info label="Quilometragem" value={`${demo.vehicle.mileageAtIntake.toLocaleString("pt-BR")} km`} /><Info label="Placa" value={demo.vehicle.plate} /></div><CareCard /></Scene>;
   if (scene === "intake") return <Scene icon={Sparkles} eyebrow="Novo atendimento" title="Conte do seu jeito. A VERAH organiza o próximo passo." action={<PrimaryAction online={online} onClick={() => advance("tracking")}>Acompanhar atendimento <ArrowRight className="h-4 w-4" /></PrimaryAction>}><Info label="Relato de Marina" value={demo.report} /><div className="rounded-[20px] border border-[#E8B6C0]/30 bg-[#E8B6C0]/10 p-5"><p className="font-semibold text-[#E8B6C0]">Vamos cuidar disso</p><p className="mt-2 leading-7 text-white/80">{demo.reassurance}</p></div><div className="grid gap-3 sm:grid-cols-2"><Info label="Categoria inicial" value={demo.triage.category} /><Info label="Prioridade" value={demo.triage.priority} /></div><p className="text-sm text-[#9A9A9A]">{demo.triage.disclaimer}</p></Scene>;
-  if (scene === "tracking") return <Scene icon={Clock3} eyebrow="Acompanhamento" title="Você sabe o que está acontecendo e qual é o próximo passo." action={<PrimaryAction online={online} onClick={() => advance("quote")}>Ver orçamento explicado <ArrowRight className="h-4 w-4" /></PrimaryAction>}><CareCard /><Timeline limit={5} /></Scene>;
+  if (scene === "tracking") return <Scene icon={Clock3} eyebrow="Acompanhamento" title="Você sabe o que está acontecendo e qual é o próximo passo." action={<PrimaryAction online={online} onClick={() => advance("coordination")}>Ver como a VERAH coordenou <ArrowRight className="h-4 w-4" /></PrimaryAction>}><CareCard /><Timeline limit={4} /></Scene>;
+  if (scene === "coordination") return <Scene icon={UsersRound} eyebrow="Visão da coordenação" title="A VERAH compara opções e explica a recomendação — Marina decide." action={<PrimaryAction online={online} onClick={() => advance("quote")}>Voltar à decisão da Marina <ArrowRight className="h-4 w-4" /></PrimaryAction>}><div className="grid gap-3 sm:grid-cols-3">{demo.network.invitations.map((invitation) => <Info key={invitation.provider} label={invitation.status} value={`${invitation.provider}\n${invitation.context}`} />)}</div><div className="grid gap-4 sm:grid-cols-2">{demo.network.proposals.map((proposal) => <div key={proposal.provider} className="rounded-[20px] border border-white/10 bg-white/[0.03] p-5"><p className="text-xs font-semibold uppercase tracking-wider text-[#E8B6C0]">{proposal.highlight}</p><h2 className="mt-2 font-semibold">{proposal.provider}</h2><p className="mt-3 text-3xl font-semibold">{money(proposal.total)}</p><p className="mt-2 text-sm text-[#9A9A9A]">{proposal.duration} · {proposal.warranty}</p><p className="mt-4 text-sm leading-6 text-white/80">{proposal.qualityReason}</p></div>)}</div><div className="rounded-[20px] border border-[#E8B6C0]/30 bg-[#E8B6C0]/10 p-5"><p className="font-semibold text-[#E8B6C0]">Por que a proposta A?</p><p className="mt-2 leading-7 text-white/80">{demo.network.comparison.recommendation}</p><p className="mt-3 text-sm text-[#9A9A9A]">{demo.network.secondOpinion.summary}</p></div><p className="text-sm leading-6 text-[#9A9A9A]">Operação humana assistida por software · prestadores, avaliações e evidências são fixtures sintéticas.</p></Scene>;
   if (scene === "quote") return <Scene icon={FileCheck2} eyebrow="Sua decisão" title="Um orçamento simples, com tudo explicado antes de começar." action={<PrimaryAction online={online} onClick={() => advance("payment", { approved: true })}>Aprovar total demonstrativo de {money(demo.quote.total)} <Check className="h-4 w-4" /></PrimaryAction>}><p className="leading-7 text-white/80">{demo.quote.summary}</p><div className="space-y-3">{demo.quote.items.map((item) => <div key={item.label} className="flex justify-between gap-4 border-b border-white/10 pb-3 text-sm"><span>{item.label}</span><strong>{money(item.amount)}</strong></div>)}</div><div className="rounded-[20px] bg-white/5 p-5"><Price label="Serviço e especialista" value={demo.quote.serviceAmount} /><Price label="Taxa VERAH demo" value={demo.quote.verahFee} /><Price label="Total para você aprovar" value={demo.quote.total} total /></div><p className="text-sm leading-6 text-[#9A9A9A]">{demo.quote.rationale}</p><Info label="Prazo" value={demo.quote.duration} /><Info label="Garantia" value={demo.quote.warranty} /></Scene>;
   if (scene === "payment") return <Scene icon={CircleDollarSign} eyebrow="Pagamento demonstrativo" title={approved ? "Aprovação registrada. Agora veja como seria o pagamento." : "O orçamento precisa ser aprovado primeiro."} action={<PrimaryAction online={online && approved} onClick={() => advance("execution", { paid: true })}>Confirmar pagamento sandbox <ArrowRight className="h-4 w-4" /></PrimaryAction>}><div className="rounded-[20px] border border-amber-300/30 bg-amber-300/10 p-5"><p className="text-sm font-semibold uppercase tracking-wider text-amber-200">Sandbox / mock</p><p className="mt-3 text-2xl font-semibold">{money(demo.quote.total)}</p><p className="mt-2 text-white/80">{demo.payment.method}</p><p className="mt-4 text-sm leading-6 text-amber-100">{demo.payment.disclaimer}</p></div><p className="text-sm text-[#9A9A9A]">Composição conceitual: {money(demo.quote.serviceAmount)} para o serviço + {money(demo.quote.verahFee)} de taxa VERAH. Sem split ou cobrança real.</p></Scene>;
   if (scene === "execution") return <Scene icon={Wrench} eyebrow="Execução acompanhada" title={paid ? "O serviço está em andamento com a VERAH ao seu lado." : "Confirmação sandbox pendente."} action={<PrimaryAction online={online && paid} onClick={() => advance("completion")}>Ver conclusão <ArrowRight className="h-4 w-4" /></PrimaryAction>}><CareCard /><Timeline limit={10} /><p className="rounded-[20px] bg-emerald-400/10 p-5 text-sm leading-6 text-emerald-100">Nenhuma alteração de escopo ou valor acontece sem uma nova autorização explícita.</p></Scene>;
