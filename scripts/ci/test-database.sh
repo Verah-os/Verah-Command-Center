@@ -281,6 +281,7 @@ run_sql supabase/tests/quote_quality_comparison_security.sql
 run_sql supabase/tests/second_opinion_vehicle_movement_security.sql
 run_sql supabase/tests/provider_invitations_security.sql
 run_sql supabase/tests/pilot_alpha_custody_security.sql
+run_sql supabase/tests/provider_homologation_security.sql
 run_customer_identity_concurrency
 run_quote_intelligence_concurrency
 run_quote_quality_concurrency
@@ -307,6 +308,7 @@ run_sql supabase/tests/quote_quality_comparison_security.sql
 run_sql supabase/tests/second_opinion_vehicle_movement_security.sql
 run_sql supabase/tests/provider_invitations_security.sql
 run_sql supabase/tests/pilot_alpha_custody_security.sql
+run_sql supabase/tests/provider_homologation_security.sql
 run_customer_identity_concurrency
 run_quote_intelligence_concurrency
 run_quote_quality_concurrency
