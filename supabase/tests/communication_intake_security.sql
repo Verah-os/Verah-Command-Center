@@ -109,7 +109,8 @@ insert into public.service_providers (
   city,
   specialties,
   status,
-  rating
+  rating,
+  is_synthetic
 )
 values (
   'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
@@ -118,9 +119,11 @@ values (
   'Test City',
   '["maintenance"]'::jsonb,
   'active',
-  5
+  5,
+  true
 )
-on conflict (id) do nothing;
+on conflict (id) do update
+set is_synthetic = excluded.is_synthetic;
 
 insert into public.user_profiles (user_id, role, display_name, provider_id)
 values
@@ -362,7 +365,9 @@ begin
     perceived_urgency,
     service_stage,
     created_by,
-    provider_id
+    provider_id,
+    operation_context,
+    service_category_code
   )
   values (
     'cccccccc-cccc-4ccc-8ccc-cccccccccc45',
@@ -375,7 +380,9 @@ begin
     'media',
     'prestador_indicado',
     '11111111-1111-4111-8111-111111111111',
-    'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+    'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    'demo',
+    'maintenance'
   );
 
   update public.service_conversations

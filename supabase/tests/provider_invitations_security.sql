@@ -53,11 +53,11 @@ values
   ('d4444444-4444-4444-8444-444444444444', 'authenticated', 'authenticated', 'invite.admin@example.invalid', '{}', '{}', now(), now())
 on conflict (id) do nothing;
 
-insert into public.service_providers (id, name, trade_name, city, specialties, status, rating)
+insert into public.service_providers (id, name, trade_name, city, specialties, status, rating, is_synthetic)
 values
-  ('d5555555-5555-4555-8555-555555555551', 'Invitation Source', 'Invitation Source', 'Test City', '["maintenance"]', 'active', 5),
-  ('d5555555-5555-4555-8555-555555555552', 'Invitation Provider One', 'Invitation Provider One', 'Test City', '["maintenance"]', 'active', 5),
-  ('d5555555-5555-4555-8555-555555555553', 'Invitation Provider Two', 'Invitation Provider Two', 'Test City', '["maintenance"]', 'active', 5)
+  ('d5555555-5555-4555-8555-555555555551', 'Invitation Source', 'Invitation Source', 'Test City', '["maintenance"]', 'active', 5, true),
+  ('d5555555-5555-4555-8555-555555555552', 'Invitation Provider One', 'Invitation Provider One', 'Test City', '["maintenance"]', 'active', 5, true),
+  ('d5555555-5555-4555-8555-555555555553', 'Invitation Provider Two', 'Invitation Provider Two', 'Test City', '["maintenance"]', 'active', 5, true)
 on conflict (id) do nothing;
 
 insert into public.user_profiles (user_id, role, display_name, provider_id)
@@ -72,11 +72,13 @@ on conflict (user_id) do nothing;
 
 insert into public.service_requests (
   id, reference_code, customer_name, vehicle_brand, vehicle_model, vehicle_year,
-  city, customer_report, perceived_urgency, service_stage, origin, created_by
+  city, customer_report, perceived_urgency, service_stage, origin, created_by,
+  operation_context, service_category_code
 ) values (
   'd6666666-6666-4666-8666-666666666661', 'VERAH-INVITE-001', 'Invitation Customer',
   'Honda', 'Fit', 2018, 'Test City', 'Synthetic invitation request.', 'media',
-  'aguardando_aprovacao', 'concierge', 'd1111111-1111-4111-8111-111111111111'
+  'aguardando_aprovacao', 'concierge', 'd1111111-1111-4111-8111-111111111111',
+  'demo', 'maintenance'
 );
 insert into public.service_quotes (
   id, service_request_id, provider_id, status, labor_total, parts_total,
