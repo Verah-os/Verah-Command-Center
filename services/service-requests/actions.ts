@@ -104,7 +104,6 @@ async function createServiceRequestFromForm(
         .from("customer_vehicles")
         .select("id,brand,model,year,plate")
         .eq("id", selectedVehicleId)
-        .eq("owner_id", user.id)
         .eq("active", true)
         .maybeSingle();
       if (!selectedVehicle)
@@ -115,41 +114,7 @@ async function createServiceRequestFromForm(
       vehicleYear = selectedVehicle.year;
       vehiclePlate = selectedVehicle.plate;
     } else {
-      const normalizedPlate = normalizePlate(vehiclePlate);
-      const { data: candidates } = await supabase
-        .from("customer_vehicles")
-        .select("id,brand,model,year,plate")
-        .eq("owner_id", user.id)
-        .eq("active", true)
-        .eq("brand", vehicleBrand)
-        .eq("model", vehicleModel);
-      const match = (candidates ?? []).find(
-        (candidate) =>
-          candidate.year === vehicleYear &&
-          (normalizedPlate
-            ? normalizePlate(candidate.plate) === normalizedPlate
-            : !normalizePlate(candidate.plate)),
-      );
-      if (match) {
-        vehicleId = match.id;
-      } else {
-        const { data: createdVehicle, error: vehicleError } = await supabase
-          .from("customer_vehicles")
-          .insert({
-            owner_id: user.id,
-            brand: vehicleBrand,
-            model: vehicleModel,
-            year: vehicleYear,
-            plate: vehiclePlate,
-            state,
-            city,
-          })
-          .select("id")
-          .single();
-        if (vehicleError || !createdVehicle)
-          fail("Não foi possível vincular o veículo. Tente novamente.", origin);
-        vehicleId = createdVehicle.id;
-      }
+      fail("Cadastre e confirme seu veículo antes de abrir o atendimento.", origin);
     }
   }
 
@@ -213,10 +178,6 @@ async function createServiceRequestFromForm(
   }
   revalidatePath("/demo/cliente");
   redirect(`/demo/cliente/atendimento/${data.id}`);
-}
-
-function normalizePlate(plate: string | null) {
-  return (plate ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
 }
 
 export async function submitServiceRequestAnswers(formData: FormData) {
