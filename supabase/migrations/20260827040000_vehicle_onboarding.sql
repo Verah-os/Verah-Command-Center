@@ -83,7 +83,7 @@ declare
   actor_id uuid := auth.uid();
   resolved_customer_id uuid := (select private.current_customer_id());
   normalized_plate text := pg_catalog.upper(
-    pg_catalog.regexp_replace(pg_catalog.coalesce(p_plate, ''), '[[:space:]-]', '', 'g')
+    pg_catalog.regexp_replace(coalesce(p_plate, ''), '[[:space:]-]', '', 'g')
   );
   normalized_brand text := nullif(pg_catalog.btrim(p_brand), '');
   normalized_model text := nullif(pg_catalog.btrim(p_model), '');
