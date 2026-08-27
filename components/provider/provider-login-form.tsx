@@ -16,6 +16,7 @@ export function ProviderLoginForm({ error }: { error?: string }) {
         Acesse seus atendimentos, prepare propostas e acompanhe os serviços em andamento.
       </p>
       <form action={signInWithEmail} className="relative mt-8 space-y-5">
+        <input type="hidden" name="audience" value="provider" />
         <label className="block text-sm font-semibold">
           E-mail
           <Input className="mt-2" name="email" type="email" autoComplete="email" required />

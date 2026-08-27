@@ -11,6 +11,9 @@ declare
     'customers',
     'dispatcher_jobs',
     'integration_outbox',
+    'identity_access_events',
+    'identity_onboarding',
+    'identity_relations',
     'whatsapp_unbound_contacts',
     'whatsapp_unbound_messages',
     'whatsapp_outbound_control',
@@ -55,6 +58,7 @@ declare
     'service_incidents',
     'service_quote_revisions',
     'user_profiles',
+    'verah_identities',
     'vehicle_custody_events',
     'vehicle_movement_guidance',
     'work_orders'
