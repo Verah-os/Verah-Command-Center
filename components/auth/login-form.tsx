@@ -13,16 +13,19 @@ const errorMessages: Record<string, string> = {
     "O perfil desta conta está inconsistente. Fale com o administrador.",
   profile_error: "Não foi possível validar seu acesso. Tente novamente.",
   session_required: "Sua sessão expirou. Entre novamente.",
+  confirm_email: "Confirme o e-mail enviado e depois entre para continuar.",
 };
 
 export function LoginForm({
   error,
   title = "Command Center",
   description = "Acesso administrativo autorizado.",
+  audience = "internal",
 }: {
   error?: string;
   title?: string;
   description?: string;
+  audience?: "customer" | "internal";
 }) {
   const errorMessage = error
     ? (errorMessages[error] ?? "Não foi possível concluir o acesso.")
@@ -44,6 +47,7 @@ export function LoginForm({
       </CardHeader>
       <CardContent className="p-6">
         <form action={signInWithEmail} className="space-y-3">
+          <input type="hidden" name="audience" value={audience} />
           <label className="block text-sm font-medium">
             E-mail
             <Input

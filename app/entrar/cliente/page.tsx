@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Route } from "next";
 import { LoginForm } from "@/components/auth/login-form";
 
 export default async function CustomerLoginPage({
@@ -18,9 +19,13 @@ export default async function CustomerLoginPage({
         </Link>
         <LoginForm
           error={error}
+          audience="customer"
           title="Que bom ter você aqui"
           description="Entre para iniciar ou acompanhar seus atendimentos com tranquilidade."
         />
+        <Link href={"/entrar/cliente/cadastro" as Route} className="mt-5 block text-center text-sm font-semibold text-teal-800">
+          Criar minha conta VERAH
+        </Link>
         <p className="mt-5 text-center text-xs leading-5 text-slate-500">
           Seu acesso é protegido e seus atendimentos ficam visíveis somente para
           você.

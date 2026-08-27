@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Route } from "next";
 import { ProviderLoginForm } from "@/components/provider/provider-login-form";
 
 export default async function ProviderLoginPage({
@@ -14,6 +15,9 @@ export default async function ProviderLoginPage({
           ← Voltar para a VERAH
         </Link>
         <ProviderLoginForm error={error} />
+        <Link href={"/entrar/prestador/cadastro" as Route} className="mt-5 block text-center text-sm font-semibold text-teal-800">
+          Candidatar minha oficina à Rede VERAH
+        </Link>
       </div>
     </main>
   );

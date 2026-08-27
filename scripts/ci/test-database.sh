@@ -271,6 +271,7 @@ run_sql supabase/tests/admin_authorization_catalog.sql
 run_sql supabase/tests/rls_catalog.sql
 run_sql supabase/tests/admin_authorization_matrix.sql
 run_sql supabase/tests/customer_identity_security.sql
+run_sql supabase/tests/identity_onboarding_security.sql
 run_sql supabase/tests/communication_intake_security.sql
 run_sql supabase/tests/whatsapp_worker_media_security.sql
 run_sql supabase/tests/whatsapp_production_readiness_security.sql
@@ -299,6 +300,7 @@ assert_migration_count
 run_sql supabase/tests/admin_authorization_catalog.sql
 run_sql supabase/tests/rls_catalog.sql
 run_sql supabase/tests/customer_identity_security.sql
+run_sql supabase/tests/identity_onboarding_security.sql
 run_sql supabase/tests/communication_intake_security.sql
 run_sql supabase/tests/whatsapp_worker_media_security.sql
 run_sql supabase/tests/whatsapp_production_readiness_security.sql
