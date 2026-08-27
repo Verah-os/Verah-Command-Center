@@ -1,4 +1,5 @@
 import {
+  renderWhatsAppTemplate,
   validateWhatsAppMessageProposal,
   type WhatsAppMessageBasis,
   type WhatsAppMessageOrigin,
@@ -75,10 +76,17 @@ export async function handleOutboundMessage(
   if (proposalError) {
     return Response.json({ error: proposalError }, { status: 400 });
   }
+  const renderedBody = renderWhatsAppTemplate(
+    value.templateKey,
+    value.variables as Record<string, unknown>,
+  );
+  if (!renderedBody || value.body !== renderedBody) {
+    return Response.json({ error: "template_body_mismatch" }, { status: 400 });
+  }
 
   await dependencies.queue({
     conversationId: value.conversationId,
-    body: value.body,
+    body: renderedBody,
     idempotencyKey: value.idempotencyKey,
     templateKey: value.templateKey,
     variables: value.variables as Record<string, unknown>,

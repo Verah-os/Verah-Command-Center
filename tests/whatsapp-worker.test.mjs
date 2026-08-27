@@ -147,6 +147,7 @@ test("worker completes batches, preserves retries and emits sanitized observabil
     checksumSha256: createHash("sha256").update(mediaBytes).digest("hex"),
   };
   const result = await runWhatsAppWorker({
+    async isOutboundEnabled() { return true; },
     async claimOutbox() {
       return [
         { outboxId: "outbox-ok", messageId: "message-ok", recipient: "+5511999999999", body: "private body", attemptCount: 1 },
@@ -191,6 +192,7 @@ test("outbound kill switch skips claims while inbound media maintenance remains 
   let outboxClaims = 0;
   let mediaClaims = 0;
   await runWhatsAppWorker({
+    async isOutboundEnabled() { return true; },
     async claimOutbox() { outboxClaims += 1; return []; },
     async completeOutbox() {}, async failOutbox() { return "failed"; }, async sendText() { throw new Error("must not send"); },
     async claimMedia() { mediaClaims += 1; return []; },
@@ -199,6 +201,21 @@ test("outbound kill switch skips claims while inbound media maintenance remains 
   }, { outboundEnabled: false });
   assert.equal(outboxClaims, 0);
   assert.equal(mediaClaims, 1);
+});
+
+test("database kill switch blocks claims even when the environment switch is enabled", async () => {
+  let outboxClaims = 0;
+  let sends = 0;
+  await runWhatsAppWorker({
+    async isOutboundEnabled() { return false; },
+    async claimOutbox() { outboxClaims += 1; return []; },
+    async completeOutbox() {}, async failOutbox() { return "failed"; }, async sendText() { sends += 1; return { status: "synthetic", externalMessageId: null }; },
+    async claimMedia() { return []; }, async downloadMedia() { throw new Error("unused"); },
+    async storeMedia() {}, async completeMedia() {}, async failMedia() { return "failed"; },
+    async purgeExpiredMedia() { return []; }, log() {},
+  }, { outboundEnabled: true });
+  assert.equal(outboxClaims, 0);
+  assert.equal(sends, 0);
 });
 
 test("signed URLs are allowed only for available, unexpired private media", () => {

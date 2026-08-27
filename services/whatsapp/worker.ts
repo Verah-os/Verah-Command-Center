@@ -30,6 +30,7 @@ export type WhatsAppWorkerLog = {
 };
 
 type WorkerDependencies = {
+  isOutboundEnabled(): Promise<boolean>;
   claimOutbox(limit: number, maxAttempts: number): Promise<ClaimedWhatsAppOutbox[]>;
   completeOutbox(outboxId: string, externalMessageId: string | null): Promise<void>;
   failOutbox(outboxId: string, code: string, retryable: boolean, maxAttempts: number): Promise<string>;
@@ -51,7 +52,9 @@ export async function runWhatsAppWorker(
   const maxAttempts = Math.min(3, Math.max(1, options.maxAttempts ?? 3));
   const result = { sent: 0, stored: 0, failed: 0, expired: 0 };
 
-  const outbox = options.outboundEnabled === false
+  const outboundEnabled = options.outboundEnabled !== false
+    && await dependencies.isOutboundEnabled();
+  const outbox = !outboundEnabled
     ? []
     : await dependencies.claimOutbox(batchSize, maxAttempts);
   for (const item of outbox) {

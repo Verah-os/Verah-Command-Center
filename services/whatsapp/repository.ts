@@ -62,7 +62,7 @@ export async function claimWhatsAppOutbox(
   maxAttempts: number,
 ) {
   const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase.rpc("claim_whatsapp_outbox", {
+  const { data, error } = await supabase.rpc("claim_whatsapp_outbox_gated", {
     p_limit: limit,
     p_max_attempts: maxAttempts,
   });
@@ -77,6 +77,13 @@ export async function claimWhatsAppOutbox(
         attemptCount: row.attempt_count,
       }) as ClaimedWhatsAppOutbox,
   );
+}
+
+export async function isWhatsAppOutboundEnabled() {
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase.rpc("whatsapp_readiness_snapshot");
+  if (error) throw new Error(`Outbound control lookup failed: ${error.code}`);
+  return Boolean((data as Record<string, unknown> | null)?.outbound_enabled);
 }
 
 export async function completeWhatsAppOutbox(

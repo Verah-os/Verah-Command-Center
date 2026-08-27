@@ -120,10 +120,21 @@ end $$;
 -- Human operations binds the channel to an existing canonical customer.
 select pg_catalog.set_config('request.jwt.claim.sub', 'f3333333-3333-4333-8333-333333333333', true);
 select pg_catalog.set_config('request.jwt.claims', '{"role":"authenticated","sub":"f3333333-3333-4333-8333-333333333333"}', true);
+create temporary table whatsapp_binding_results as
 select public.bind_whatsapp_unbound_contact(
   (select id from public.whatsapp_unbound_contacts where channel_address = '+5511999992002'),
   'f5555555-5555-4555-8555-555555555552'
-) as resolved_channel_id \gset
+) as channel_id;
+insert into whatsapp_binding_results
+select public.bind_whatsapp_unbound_contact(
+  (select id from public.whatsapp_unbound_contacts where channel_address = '+5511999992002'),
+  'f5555555-5555-4555-8555-555555555552'
+) as channel_id;
+create temporary table whatsapp_bound_conversation as
+select conversation.id
+from public.service_conversations conversation
+where conversation.customer_channel_id = (select channel_id from whatsapp_binding_results limit 1)
+  and conversation.channel_type = 'whatsapp' and conversation.status = 'open';
 do $$ begin
   if not exists (
     select 1 from public.whatsapp_unbound_contacts contact
@@ -131,7 +142,24 @@ do $$ begin
     where contact.channel_address = '+5511999992002'
       and contact.status = 'bound'
       and channel.customer_id = 'f5555555-5555-4555-8555-555555555552'
-  ) or (select count(*) from public.customers) <> 2 then
+  ) or (select count(*) from public.customers) <> 2
+    or (select count(distinct channel_id) from whatsapp_binding_results) <> 1
+    or (select count(*) from public.service_conversations
+        where customer_channel_id = (select channel_id from whatsapp_binding_results limit 1)
+          and channel_type = 'whatsapp' and status = 'open') <> 1
+    or (select count(*) from public.service_messages
+        where conversation_id = (select id from whatsapp_bound_conversation)
+          and external_message_id = 'wamid.readiness.unbound.1') <> 1
+    or not exists (
+      select 1 from public.whatsapp_unbound_messages pending
+      join public.service_messages message on message.id = pending.bound_service_message_id
+      where pending.external_message_id = 'wamid.readiness.unbound.1'
+        and pending.status = 'bound'
+        and pending.bound_conversation_id = (select id from whatsapp_bound_conversation)
+        and message.conversation_id = (select id from whatsapp_bound_conversation)
+        and message.provider_timestamp is not null
+        and message.sanitized_metadata ->> 'bound_from' = 'pending_identity'
+    ) then
     raise exception 'Human binding replaced customer identity with phone';
   end if;
 end $$;
@@ -139,7 +167,7 @@ end $$;
 -- The DB kill switch is closed by default and agent-originated enqueue is forbidden.
 select whatsapp_readiness_test.expect_error(
   $$select public.queue_whatsapp_outbound_message_gated(
-    'f7777777-7777-4777-8777-777777777771', 'Synthetic acknowledgement', 'wa-killed',
+    'f7777777-7777-4777-8777-777777777771', 'Recebemos seu relato. A VERAH vai cuidar disso com você.', 'wa-killed',
     'intake_acknowledgement', '{}'::jsonb, 'transactional', 'human')$$
 );
 select pg_catalog.set_config('request.jwt.claim.sub', 'f2222222-2222-4222-8222-222222222222', true);
@@ -147,31 +175,65 @@ select pg_catalog.set_config('request.jwt.claims', '{"role":"authenticated","sub
 select public.set_whatsapp_outbound_enabled(true, 'Controlled test enable');
 select whatsapp_readiness_test.expect_error(
   $$select public.queue_whatsapp_outbound_message_gated(
-    'f7777777-7777-4777-8777-777777777771', 'Agent proposal', 'wa-agent',
+    'f7777777-7777-4777-8777-777777777771', 'Recebemos seu relato. A VERAH vai cuidar disso com você.', 'wa-agent',
     'intake_acknowledgement', '{}'::jsonb, 'transactional', 'agent_proposal')$$
+);
+
+-- Catalogued outbound is rendered from validated variables, never an independent body.
+select whatsapp_readiness_test.expect_error(
+  $$select public.queue_whatsapp_outbound_message_gated(
+    'f7777777-7777-4777-8777-777777777771', 'Arbitrary body', 'wa-body-mismatch',
+    'intake_acknowledgement', '{}'::jsonb, 'transactional', 'human')$$
+);
+select whatsapp_readiness_test.expect_error(
+  $$select public.queue_whatsapp_outbound_message_gated(
+    'f7777777-7777-4777-8777-777777777771', 'Missing variable', 'wa-missing-variable',
+    'information_needed', '{}'::jsonb, 'transactional', 'human')$$
+);
+select whatsapp_readiness_test.expect_error(
+  $$select public.queue_whatsapp_outbound_message_gated(
+    'f7777777-7777-4777-8777-777777777771', 'irrelevant', 'wa-sensitive-variable',
+    'information_needed', '{"requested_information":"access_token=secret"}'::jsonb, 'transactional', 'human')$$
 );
 
 -- Explicit opt-out blocks consent-based outbound but not a scoped transactional acknowledgement.
 select whatsapp_readiness_test.expect_error(
   $$select public.queue_whatsapp_outbound_message_gated(
-    'f7777777-7777-4777-8777-777777777771', 'Consent based', 'wa-consent-revoked',
+    'f7777777-7777-4777-8777-777777777771', 'Recebemos seu relato. A VERAH vai cuidar disso com você.', 'wa-consent-revoked',
     'intake_acknowledgement', '{}'::jsonb, 'consent', 'human')$$
 );
 create temporary table whatsapp_outbound_results as
 select * from public.queue_whatsapp_outbound_message_gated(
-  'f7777777-7777-4777-8777-777777777771', 'Synthetic acknowledgement', 'wa-transactional',
+  'f7777777-7777-4777-8777-777777777771', 'Recebemos seu relato. A VERAH vai cuidar disso com você.', 'wa-transactional',
   'intake_acknowledgement', '{}'::jsonb, 'transactional', 'human'
 );
 insert into whatsapp_outbound_results
 select * from public.queue_whatsapp_outbound_message_gated(
-  'f7777777-7777-4777-8777-777777777771', 'Synthetic acknowledgement', 'wa-transactional',
+  'f7777777-7777-4777-8777-777777777771', 'Recebemos seu relato. A VERAH vai cuidar disso com você.', 'wa-transactional',
   'intake_acknowledgement', '{}'::jsonb, 'transactional', 'human'
+);
+select whatsapp_readiness_test.expect_error(
+  $$select public.queue_whatsapp_outbound_message_gated(
+    'f7777777-7777-4777-8777-777777777771',
+    'Para continuar, precisamos desta informação: quilometragem.', 'wa-transactional',
+    'information_needed', '{"requested_information":"quilometragem"}'::jsonb,
+    'transactional', 'human')$$
+);
+select * from public.queue_whatsapp_outbound_message_gated(
+  (select id from whatsapp_bound_conversation), 'Recebemos seu relato. A VERAH vai cuidar disso com você.',
+  'wa-bound-conversation', 'intake_acknowledgement', '{}'::jsonb, 'transactional', 'human'
 );
 reset role;
 do $$ begin
   if (select count(distinct message_id) from whatsapp_outbound_results) <> 1
     or (select count(*) from whatsapp_outbound_results where created) <> 1
-    or (select count(*) from public.integration_outbox where idempotency_key = 'meta:outbound:wa-transactional') <> 1 then
+    or (select count(*) from public.integration_outbox where idempotency_key = 'meta:outbound:wa-transactional') <> 1
+    or not exists (
+      select 1 from public.service_messages
+      where id = (select message_id from whatsapp_outbound_results limit 1)
+        and body = 'Recebemos seu relato. A VERAH vai cuidar disso com você.'
+        and sanitized_metadata -> 'template_variables' = '{}'::jsonb
+    ) then
     raise exception 'Outbound idempotency invariant failed';
   end if;
   if exists (
@@ -181,15 +243,34 @@ do $$ begin
   ) then raise exception 'Sensitive outbound observability payload detected'; end if;
 end $$;
 
+-- A queued message remains unclaimed while the canonical DB switch is closed.
 set local role authenticated;
 select pg_catalog.set_config('request.jwt.claim.role', 'authenticated', true);
 select pg_catalog.set_config('request.jwt.claim.sub', 'f2222222-2222-4222-8222-222222222222', true);
 select pg_catalog.set_config('request.jwt.claims', '{"role":"authenticated","sub":"f2222222-2222-4222-8222-222222222222"}', true);
+select public.set_whatsapp_outbound_enabled(false, 'Controlled worker pause');
+reset role;
+set local role service_role;
+select pg_catalog.set_config('request.jwt.claim.role', 'service_role', true);
+create temporary table whatsapp_disabled_claims as
+select * from public.claim_whatsapp_outbox_gated(10, 3);
+do $$ begin
+  if exists (select 1 from whatsapp_disabled_claims) then
+    raise exception 'Database kill switch allowed an outbound claim';
+  end if;
+end $$;
+reset role;
+set local role authenticated;
+select pg_catalog.set_config('request.jwt.claim.role', 'authenticated', true);
+select pg_catalog.set_config('request.jwt.claim.sub', 'f2222222-2222-4222-8222-222222222222', true);
+select pg_catalog.set_config('request.jwt.claims', '{"role":"authenticated","sub":"f2222222-2222-4222-8222-222222222222"}', true);
+select public.set_whatsapp_outbound_enabled(true, 'Resume controlled worker');
+
 select public.record_whatsapp_consent(
   'f5555555-5555-4555-8555-555555555551', 'granted', 'pilot_onboarding'
 );
 select public.queue_whatsapp_outbound_message_gated(
-  'f7777777-7777-4777-8777-777777777771', 'Consent message', 'wa-consent-granted',
+  'f7777777-7777-4777-8777-777777777771', 'Recebemos seu relato. A VERAH vai cuidar disso com você.', 'wa-consent-granted',
   'intake_acknowledgement', '{}'::jsonb, 'consent', 'human'
 );
 
