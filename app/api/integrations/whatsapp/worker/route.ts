@@ -13,6 +13,7 @@ import {
   failWhatsAppMedia,
   failWhatsAppOutbox,
   purgeExpiredWhatsAppMedia,
+  isWhatsAppOutboundEnabled,
   storeWhatsAppMedia,
 } from "@/services/whatsapp/repository";
 import { runWhatsAppWorker } from "@/services/whatsapp/worker";
@@ -29,6 +30,7 @@ export async function POST(request: Request) {
     available: canRunWhatsAppWorker(config),
     run: () =>
       runWhatsAppWorker({
+        isOutboundEnabled: isWhatsAppOutboundEnabled,
         claimOutbox: claimWhatsAppOutbox,
         completeOutbox: completeWhatsAppOutbox,
         failOutbox: failWhatsAppOutbox,
@@ -40,6 +42,6 @@ export async function POST(request: Request) {
         failMedia: failWhatsAppMedia,
         purgeExpiredMedia: purgeExpiredWhatsAppMedia,
         log: (event) => console.info("whatsapp_worker", event),
-      }),
+      }, { outboundEnabled: !config.outboundKillSwitch }),
   });
 }

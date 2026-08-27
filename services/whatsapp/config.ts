@@ -5,6 +5,11 @@ export type WhatsAppConfig = {
   phoneNumberId: string;
   apiVersion: string;
   syntheticMode: boolean;
+  production: boolean;
+  outboundKillSwitch: boolean;
+  privateMediaBucket: string;
+  publicWebhookUrl: string;
+  requestTimeoutMs: number;
 };
 
 type Environment = Record<string, string | undefined>;
@@ -30,6 +35,12 @@ export function readWhatsAppConfig(environment: Environment): WhatsAppConfig {
     phoneNumberId: environment.WHATSAPP_META_PHONE_NUMBER_ID ?? "",
     apiVersion: environment.WHATSAPP_META_API_VERSION ?? "",
     syntheticMode,
+    production,
+    outboundKillSwitch:
+      environment.WHATSAPP_OUTBOUND_KILL_SWITCH !== "false",
+    privateMediaBucket: environment.WHATSAPP_PRIVATE_MEDIA_BUCKET ?? "",
+    publicWebhookUrl: environment.WHATSAPP_WEBHOOK_PUBLIC_URL ?? "",
+    requestTimeoutMs: Number(environment.WHATSAPP_REQUEST_TIMEOUT_MS ?? "8000"),
   };
 }
 
@@ -45,6 +56,10 @@ export function canSendToMeta(config: WhatsAppConfig) {
 
 export function canRunWhatsAppWorker(config: WhatsAppConfig) {
   return config.syntheticMode || canSendToMeta(config);
+}
+
+export function canQueueWhatsAppOutbound(config: WhatsAppConfig) {
+  return !config.outboundKillSwitch && canRunWhatsAppWorker(config);
 }
 
 export function readWhatsAppWorkerSecret(environment: Environment) {

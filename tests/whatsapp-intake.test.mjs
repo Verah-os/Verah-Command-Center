@@ -8,6 +8,7 @@ import {
   readWhatsAppConfig,
 } from "../services/whatsapp/config.ts";
 import { createMetaWhatsAppAdapter } from "../services/whatsapp/meta-adapter.ts";
+import { renderWhatsAppTemplate } from "../services/whatsapp/message-catalog.ts";
 import { handleOutboundMessage } from "../services/whatsapp/outbound-handler.ts";
 import { parseWhatsAppInboundPayload } from "../services/whatsapp/payload.ts";
 import {
@@ -137,14 +138,20 @@ test("webhook challenge requires the configured token", () => {
 
 test("outbound endpoint enforces operational roles and queues instead of sending", async () => {
   let queued = 0;
+  let queuedBody = null;
+  const renderedBody = renderWhatsAppTemplate("intake_acknowledgement", {});
   const request = () =>
     new Request("https://example.test/api/integrations/whatsapp/messages", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         conversationId: "77777777-7777-4777-8777-777777777777",
-        body: "Mensagem operacional sintética.",
+        body: renderedBody,
         idempotencyKey: "synthetic-outbound-1",
+        templateKey: "intake_acknowledgement",
+        variables: {},
+        basis: "transactional",
+        origin: "human",
       }),
     });
 
@@ -152,8 +159,10 @@ test("outbound endpoint enforces operational roles and queues instead of sending
     async getProfile() {
       return { status: "authenticated", profile: { role: "provider" } };
     },
-    async queue() {
+    outboundEnabled: true,
+    async queue(input) {
       queued += 1;
+      queuedBody = input.body;
     },
   });
   assert.equal(denied.status, 403);
@@ -163,16 +172,80 @@ test("outbound endpoint enforces operational roles and queues instead of sending
     async getProfile() {
       return { status: "authenticated", profile: { role: "concierge" } };
     },
-    async queue() {
+    outboundEnabled: true,
+    async queue(input) {
       queued += 1;
+      queuedBody = input.body;
     },
   });
   assert.equal(accepted.status, 202);
   assert.equal(queued, 1);
+  assert.equal(queuedBody, renderedBody);
   assert.deepEqual(await accepted.json(), {
     accepted: true,
     delivery: "outbox",
   });
+});
+
+test("catalogued outbound rejects divergent bodies, missing variables and sensitive values", async () => {
+  const profile = async () => ({ status: "authenticated", profile: { role: "concierge" } });
+  let queuedBody = null;
+  const send = (payload) => handleOutboundMessage(new Request("https://example.test/messages", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      conversationId: "77777777-7777-4777-8777-777777777777",
+      idempotencyKey: "template-gate",
+      basis: "transactional",
+      origin: "human",
+      ...payload,
+    }),
+  }), {
+    getProfile: profile,
+    outboundEnabled: true,
+    async queue(input) { queuedBody = input.body; },
+  });
+
+  assert.equal((await send({ templateKey: "intake_acknowledgement", variables: {}, body: "Texto arbitrário" })).status, 400);
+  assert.equal((await send({ templateKey: "information_needed", variables: {}, body: "Qual informação?" })).status, 400);
+  assert.equal((await send({ templateKey: "information_needed", variables: { requested_information: "access_token=segredo" }, body: "irrelevante" })).status, 400);
+
+  const variables = { requested_information: "quilometragem atual" };
+  const expected = renderWhatsAppTemplate("information_needed", variables);
+  assert.equal((await send({ templateKey: "information_needed", variables, body: expected })).status, 202);
+  assert.equal(queuedBody, expected);
+});
+
+test("outbound kill switch and agent origin cannot bypass enqueue gates", async () => {
+  const renderedBody = renderWhatsAppTemplate("intake_acknowledgement", {});
+  const request = (origin = "human") => new Request("https://example.test/api/integrations/whatsapp/messages", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      conversationId: "77777777-7777-4777-8777-777777777777",
+      body: renderedBody,
+      idempotencyKey: `gate-${origin}`,
+      templateKey: "intake_acknowledgement",
+      variables: {},
+      basis: "transactional",
+      origin,
+    }),
+  });
+  let queued = 0;
+  const profile = async () => ({ status: "authenticated", profile: { role: "concierge" } });
+  const killed = await handleOutboundMessage(request(), {
+    getProfile: profile,
+    outboundEnabled: false,
+    async queue() { queued += 1; },
+  });
+  assert.equal(killed.status, 503);
+  const agent = await handleOutboundMessage(request("agent_proposal"), {
+    getProfile: profile,
+    outboundEnabled: true,
+    async queue() { queued += 1; },
+  });
+  assert.equal(agent.status, 400);
+  assert.equal(queued, 0);
 });
 
 test("configuration has an explicit safe fallback without Meta credentials", async () => {
