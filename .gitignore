@@ -10,3 +10,8 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 .verah-os/
+.poc-cache/
+.venv-eval/
+pocs/omniroute/out/combo-matrix.log
+!pocs/agency-agents/out/
+!pocs/omniroute/out/

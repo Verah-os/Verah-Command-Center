@@ -1,0 +1,56 @@
+{
+ "upstream": {
+  "repo": "https://github.com/diegosouzapw/OmniRoute.git",
+  "pinned_ref": "63e4afa3217abaacd29f85c6701064671925764b",
+  "actual_rev": "63e4afa3217abaacd29f85c6701064671925764b"
+ },
+ "contract_docs_reviewed": [
+  "OMNIROUTE_ROUTING_POLICY.md",
+  "OMNIROUTE_PROVIDER_FAILOVER.md"
+ ],
+ "combo_matrix": {
+  "totals": {
+   "tests": 27,
+   "pass": 15,
+   "fail": 12
+  },
+  "fallback_scenarios": {
+   "priority-fallback-on-failure": "FAIL",
+   "fill-first-failover": "PASS",
+   "fusion-exhaustion-503": "PASS",
+   "quota-exhaustion-demotion": "FAIL",
+   "saturation-demotion": "PASS",
+   "lkgp-recovery": "FAIL",
+   "429-quota-handoff": "PASS"
+  },
+  "all_tests": {
+   "auto: LKGP record biases dispatch toward the seeded provider": "PASS",
+   "auto/coding: virtual pool resolves and dispatches a seeded provider": "PASS",
+   "context-relay codex quota handoff: fires and expiresAt matches session-window reset from quota": "PASS",
+   "context-relay codex quota handoff: does NOT fire when provider is openai (control)": "PASS",
+   "context-relay universal handoff: fires and writes handoff record on model switch": "PASS",
+   "context-relay universal handoff: does NOT fire when no prior model is recorded (no switch)": "PASS",
+   "context-relay universal handoff: does NOT fire when x-omniroute-session-id header is absent": "PASS",
+   "cost-optimized: cheapest model (gpt-4o-mini $0.15) dispatched before expensive (gemini-2.5-pro $2.00)": "PASS",
+   "context-optimized: largest-context model (gemini-2.5-flash 1048576) dispatched before small-context (gpt-4o-mini 128000)": "PASS",
+   "context-relay: preserves combo-definition order (openai dispatched before gemini)": "PASS",
+   "fusion: fans out to the whole panel then routes a judge synthesis turn": "FAIL",
+   "fusion: returns 503 when the whole panel fails": "PASS",
+   "priority: always dispatches the first healthy target": "PASS",
+   "priority: falls back to the next target when the first fails": "FAIL",
+   "fill-first: keeps using the first target until it fails, then moves on": "PASS",
+   "round-robin: cycles through targets in batches (sticky limit = 3 default)": "FAIL",
+   "least-used: prefers the target with the fewest recent uses": "FAIL",
+   "random: over many calls reaches every target": "FAIL",
+   "strict-random: uses every target once before repeating (deck, no early repeats)": "FAIL",
+   "p2c: spreads load across targets over many calls (no single-target pin)": "FAIL",
+   "reset-aware: exhausted connection (limitReached) demoted \u2014 second target dispatched first": "FAIL",
+   "reset-window: target with nearest quota-reset dispatched first despite being second in definition": "PASS",
+   "headroom: target with most free capacity dispatched first despite being second in definition": "FAIL",
+   "lkgp: last-known-good provider is prioritised above definition order": "FAIL",
+   "DRR fairness: 2 equal-weight connections alternate across 6 requests through real pipeline": "FAIL",
+   "saturation deprioritization: saturated connection demoted \u2014 clean second target dispatched first": "PASS",
+   "weighted: 70/30 weights produce roughly proportional distribution": "FAIL"
+  }
+ }
+}
