@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "name": "VERAH Control Plane unattended dry-run",
+  "mode": "sandbox-dry-run",
+  "sourceOfTruth": "github",
+  "domainImplementation": "services/control-plane/unattended-queue.ts",
+  "nodes": [
+    { "id": "github-intake", "kind": "github-event-or-poll" },
+    { "id": "classify-gate", "kind": "domain-call", "operation": "classifyControlPlaneGate" },
+    { "id": "enqueue", "kind": "domain-call", "operation": "LangflowControlPlaneAdapter.accept" },
+    { "id": "run-cycle", "kind": "domain-call", "operation": "LangflowControlPlaneAdapter.run" },
+    { "id": "summary", "kind": "domain-call", "operation": "LangflowControlPlaneAdapter.report" }
+  ],
+  "edges": [
+    ["github-intake", "classify-gate"],
+    ["classify-gate", "enqueue"],
+    ["enqueue", "run-cycle"],
+    ["run-cycle", "summary"]
+  ],
+  "policy": {
+    "criticalLogicInUi": false,
+    "executorRouting": "availability-task-kind-cost",
+    "maxParallelPerIssue": 1,
+    "maxAttempts": 2,
+    "persistentFailure": "dead_letter",
+    "humanGate": "blocked",
+    "killSwitchDefault": true,
+    "productionAuthorized": false,
+    "mergeAuthorized": false
+  }
+}

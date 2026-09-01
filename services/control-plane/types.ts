@@ -141,6 +141,7 @@ export type AgentExecutionRequest = {
 
 export type AgentExecutionResult = {
   status: "completed" | "failed";
+  executorId?: string;
   handoff?: string;
   errorCode?: string;
   costMicrounits?: number;
@@ -150,7 +151,7 @@ export type AgentExecutionResult = {
 
 export type AgentExecutor = {
   id: string;
-  availability(): Promise<ExecutorAvailability>;
+  availability(task?: AgentTask): Promise<ExecutorAvailability>;
   execute(request: AgentExecutionRequest): Promise<AgentExecutionResult>;
   cancel?(idempotencyKey: string): Promise<void>;
 };
