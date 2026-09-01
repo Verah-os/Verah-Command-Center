@@ -122,7 +122,7 @@ export async function completeCustomerOnboarding(formData: FormData) {
     p_terms_version: "pilot-alpha-onboarding-v1",
   });
   if (error) redirect("/onboarding/cliente?error=save_failed" as Route);
-  redirect("/demo/cliente/veiculos");
+  redirect("/onboarding/cliente?step=vehicle" as Route);
 }
 
 export async function signOut() {
