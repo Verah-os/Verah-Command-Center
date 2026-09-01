@@ -11,7 +11,8 @@ credentials, real payments, real messages, remote migrations or the dispatcher.
   operational report built from the unattended queue snapshot:
   - totals (completed/blocked/dead-letter/queued/retryable, runs, rework,
     cost in microunits, executor duration);
-  - per-executor and per-model breakdowns (runs, cost, duration, outcome);
+  - per-executor and per-model breakdowns (runs, rework, cost, duration,
+    outcome); rework is attributed from `AgentRun.attempt` (attempt > 1);
   - gate outcomes, including every fail-closed HUMAN block with its reason;
   - per-item outcome: branch, attempts, executors used, handoff delivered,
     Draft PR URL, check status, review-gate result, blocker;
@@ -26,7 +27,9 @@ credentials, real payments, real messages, remote migrations or the dispatcher.
   deliveries, dead-letters a persistent failure after bounded retries, stops
   fail-closed at a HUMAN gate with zero executor side effects, then prints the
   operational report (markdown + JSON). Exits non-zero if any safety violation
-  is detected (external effects, non-dry-run, HUMAN execution, shared branch).
+  is detected (external effects — including attempts sanitized into the
+  `executor_side_effect_contract_violation` blocker — non-dry-run, HUMAN
+  execution, shared branch).
 
 ## How to run
 

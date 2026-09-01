@@ -42,6 +42,14 @@ const KNOWN_EFFECTS = new Set([
   ...HUMAN_EFFECTS,
 ]);
 
+/**
+ * Blocker recorded on a run when an executor attempts external side effects.
+ * Recorded runs always carry an empty `externalEffects` list (the guard
+ * sanitizes them), so this blocker is the durable evidence of the attempt.
+ */
+export const EXECUTOR_SIDE_EFFECT_CONTRACT_VIOLATION =
+  "executor_side_effect_contract_violation";
+
 export const VERAH_CURATED_ROLES: readonly AgentRole[] = [
   {
     id: "coding",
@@ -272,7 +280,7 @@ export class GuardedControlPlane {
         dryRun: true,
       });
       if ((result.externalEffects?.length ?? 0) > 0) {
-        throw new Error("executor_side_effect_contract_violation");
+        throw new Error(EXECUTOR_SIDE_EFFECT_CONTRACT_VIOLATION);
       }
       const sanitized = sanitizePayload({ handoff: result.handoff ?? "" }) as {
         handoff?: string;

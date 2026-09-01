@@ -15,6 +15,7 @@ import { pathToFileURL } from "node:url";
 
 import {
   AgentRoleRegistry,
+  EXECUTOR_SIDE_EFFECT_CONTRACT_VIOLATION,
   GuardedControlPlane,
   InMemoryAgentLeaseStore,
 } from "../services/control-plane/foundation.ts";
@@ -147,7 +148,7 @@ export async function runUnattendedDemo(now: () => number = Date.now): Promise<U
   };
 }
 
-function findSafetyViolations(
+export function findSafetyViolations(
   report: ControlPlaneOperationalReport,
   items: ReturnType<UnattendedControlPlaneQueue["snapshot"]>,
 ): string[] {
@@ -157,6 +158,11 @@ function findSafetyViolations(
     for (const run of item.runs) {
       if (!run.dryRun) violations.push(`run_not_dry_run:${run.id}`);
       if (run.externalEffects.length > 0) violations.push(`external_effects:${run.id}`);
+      // GuardedControlPlane sanitizes recorded externalEffects into an empty
+      // list, so the blocker is the durable evidence of an attempted side effect.
+      if (run.blocker === EXECUTOR_SIDE_EFFECT_CONTRACT_VIOLATION) {
+        violations.push(`attempted_external_effects:${run.id}`);
+      }
     }
     const humanRuns = item.runs.filter((run) => run.gate === "HUMAN");
     if (humanRuns.some((run) => run.status === "completed" || run.status === "failed_recoverable")) {

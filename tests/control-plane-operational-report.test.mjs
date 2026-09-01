@@ -21,7 +21,7 @@ import {
   LangflowControlPlaneAdapter,
   UnattendedControlPlaneQueue,
 } from "../services/control-plane/unattended-queue.ts";
-import { runUnattendedDemo } from "../scripts/control-plane-unattended-demo.ts";
+import { findSafetyViolations, runUnattendedDemo } from "../scripts/control-plane-unattended-demo.ts";
 
 const task = (number, overrides = {}) => ({
   issueKey: `Verah-os/Verah-Command-Center#report-${number}`,
@@ -107,6 +107,7 @@ test("operational report breaks down cost, duration and runs per executor and mo
   const openhandsMetric = report.perExecutor.find((metric) => metric.executorId === "openhands");
   assert.ok(openhandsMetric);
   assert.equal(openhandsMetric.runs, 2);
+  assert.equal(openhandsMetric.reworkAttempts, 0);
   assert.equal(openhandsMetric.completed, 2);
   assert.equal(openhandsMetric.costMicrounits, 40);
   assert.equal(openhandsMetric.durationMs, 10);
@@ -115,6 +116,7 @@ test("operational report breaks down cost, duration and runs per executor and mo
     model: "fixture-low",
     source: "internal",
     runs: 2,
+    reworkAttempts: 0,
     costMicrounits: 40,
     durationMs: 10,
   }]);
@@ -187,7 +189,44 @@ test("rework attempts are attributed to the retrying executor", async () => {
   assert.equal(report.totals.reworkAttempts, 1);
   const codexMetric = report.perExecutor.find((metric) => metric.executorId === "codex");
   assert.equal(codexMetric.failedRecoverable, 2);
+  assert.equal(codexMetric.reworkAttempts, 1);
+  assert.deepEqual(
+    codexMetric.models.map((model) => [model.model, model.runs, model.reworkAttempts]),
+    [["fixture-low", 2, 1]],
+  );
   assert.equal(report.items[0].attempts, 2);
+});
+
+test("attempted executor side effects count as demo safety violations", async () => {
+  const codex = fakeExecutor("codex", {
+    result: {
+      status: "completed",
+      handoff: "attempted a real side effect",
+      externalEffects: ["sent_real_whatsapp_message"],
+    },
+  });
+  const active = harness({ codex });
+  active.adapter.accept({ source: "github", deliveryId: "side-effect", task: task(10) });
+  await active.adapter.run();
+
+  const snapshot = active.unattended.snapshot();
+  const runs = snapshot[0].runs;
+  assert.equal(runs.length, 2);
+  for (const run of runs) {
+    // GuardedControlPlane sanitizes recorded externalEffects into the blocker.
+    assert.equal(run.externalEffects.length, 0);
+    assert.equal(run.blocker, "executor_side_effect_contract_violation");
+  }
+
+  const report = buildOperationalReport({
+    items: snapshot,
+    totals: active.unattended.report(),
+  });
+  const violations = findSafetyViolations(report, snapshot);
+  assert.deepEqual(
+    violations.filter((violation) => violation.startsWith("attempted_external_effects:")),
+    runs.map((run) => `attempted_external_effects:${run.id}`),
+  );
 });
 
 test("kill switch keeps the report halted with no runs", async () => {
@@ -243,7 +282,8 @@ test("markdown rendering covers totals, gates, executors, items and safety postu
     assert.ok(markdown.includes(section), `missing section: ${section}`);
   }
   assert.match(markdown, /HUMAN \(fail-closed, never executed\): 1/);
-  assert.match(markdown, /openhands: runs=1 completed=1/);
+  assert.match(markdown, /openhands: runs=1 rework=0 completed=1/);
+  assert.match(markdown, /model fixture\/fixture-low \(internal\): runs=1 rework=0/);
   for (const rule of OPERATIONAL_SAFETY_POSTURE) {
     assert.ok(markdown.includes(`- ${rule}`), `missing safety rule: ${rule}`);
   }
@@ -303,6 +343,13 @@ test("end-to-end unattended demo completes with zero safety violations", async (
 
   const branches = result.report.items.map((item) => item.branchName);
   assert.equal(new Set(branches).size, branches.length);
+
+  const openhandsMetric = result.report.perExecutor.find((metric) => metric.executorId === "openhands");
+  assert.ok(openhandsMetric);
+  assert.equal(openhandsMetric.runs, 3);
+  assert.equal(openhandsMetric.reworkAttempts, 1);
+  assert.equal(openhandsMetric.models.reduce((total, model) => total + model.reworkAttempts, 0), 1);
+
   assert.ok(result.markdown.includes("## Per-executor metrics"));
   assert.ok(result.json.includes('"environment": "non-production"'));
 });

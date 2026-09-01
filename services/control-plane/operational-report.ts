@@ -7,6 +7,7 @@ export type ExecutorModelMetric = {
   model: string;
   source: "internal" | "omniroute";
   runs: number;
+  reworkAttempts: number;
   costMicrounits: number;
   durationMs: number;
 };
@@ -14,6 +15,7 @@ export type ExecutorModelMetric = {
 export type ExecutorMetric = {
   executorId: string;
   runs: number;
+  reworkAttempts: number;
   completed: number;
   blocked: number;
   failedRecoverable: number;
@@ -146,14 +148,16 @@ export function renderOperationalReportMarkdown(report: ControlPlaneOperationalR
   }
   for (const metric of report.perExecutor) {
     lines.push(
-      `- ${metric.executorId}: runs=${metric.runs} completed=${metric.completed}`
+      `- ${metric.executorId}: runs=${metric.runs} rework=${metric.reworkAttempts}`
+      + ` completed=${metric.completed}`
       + ` blocked=${metric.blocked} failed_recoverable=${metric.failedRecoverable}`
       + ` cost=${metric.costMicrounits} microunits duration=${metric.durationMs} ms`,
     );
     for (const model of metric.models) {
       lines.push(
         `  - model ${model.provider}/${model.model} (${model.source}):`
-        + ` runs=${model.runs} cost=${model.costMicrounits} duration=${model.durationMs} ms`,
+        + ` runs=${model.runs} rework=${model.reworkAttempts}`
+        + ` cost=${model.costMicrounits} duration=${model.durationMs} ms`,
       );
     }
   }
@@ -216,6 +220,7 @@ function executorMetrics(runs: readonly AgentRun[]): ExecutorMetric[] {
     .map(([executorId, group]) => ({
       executorId,
       runs: group.length,
+      reworkAttempts: countReworkAttempts(group),
       completed: group.filter((run) => run.status === "completed").length,
       blocked: group.filter((run) => run.status === "blocked").length,
       failedRecoverable: group.filter((run) => run.status === "failed_recoverable").length,
@@ -243,10 +248,15 @@ function modelMetrics(runs: readonly AgentRun[]): ExecutorModelMetric[] {
         model: route?.model ?? "unknown",
         source: route?.source ?? "internal",
         runs: group.length,
+        reworkAttempts: countReworkAttempts(group),
         costMicrounits: group.reduce((total, run) => total + (run.costMicrounits ?? 0), 0),
         durationMs: group.reduce((total, run) => total + (run.executorDurationMs ?? 0), 0),
       };
     });
+}
+
+function countReworkAttempts(runs: readonly AgentRun[]): number {
+  return runs.filter((run) => run.attempt > 1).length;
 }
 
 function gateMetrics(items: readonly OperationalReportItem[]): GateMetrics {
