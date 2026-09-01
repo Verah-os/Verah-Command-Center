@@ -97,3 +97,134 @@ export type DryRunReport = {
 export type DryRunPersistence = {
   process(command: DryRunCommand): Promise<DryRunReport>;
 };
+
+export const CONTROL_PLANE_GATES = ["AUTO", "AUTO_PR", "HUMAN"] as const;
+export type ControlPlaneGate = (typeof CONTROL_PLANE_GATES)[number];
+
+export type AgentRole = {
+  id: string;
+  name: string;
+  capabilities: readonly string[];
+  reviewStatus: "internal-approved" | "pending-review";
+};
+
+export type ExecutorAvailability =
+  | "available"
+  | "busy"
+  | "unavailable"
+  | "rate_limited";
+
+export type ModelRoute = {
+  provider: string;
+  model: string;
+  source: "internal" | "omniroute";
+  rationale: string;
+  estimatedCostMicrounits?: number;
+  fallbackCount?: number;
+};
+
+export type AgentTask = {
+  issueKey: string;
+  idempotencyKey: string;
+  title: string;
+  roleId: string;
+  kind: string;
+  branchName?: string;
+  effects?: readonly string[];
+  contextRefs?: readonly string[];
+};
+
+export type AgentCheckResult = {
+  name: string;
+  status: "passed" | "failed" | "pending" | "skipped";
+};
+
+export type AgentRunArtifacts = {
+  draftPrUrl?: string;
+  checks?: readonly AgentCheckResult[];
+};
+
+export type AgentExecutionRequest = {
+  task: AgentTask;
+  role: AgentRole;
+  modelRoute: ModelRoute;
+  context: readonly string[];
+  dryRun: true;
+};
+
+export type AgentExecutionResult = {
+  status: "completed" | "failed";
+  executorId?: string;
+  handoff?: string;
+  errorCode?: string;
+  costMicrounits?: number;
+  durationMs?: number;
+  artifacts?: AgentRunArtifacts;
+  externalEffects?: readonly string[];
+};
+
+export type AgentExecutor = {
+  id: string;
+  availability(task?: AgentTask): Promise<ExecutorAvailability>;
+  execute(request: AgentExecutionRequest): Promise<AgentExecutionResult>;
+  cancel?(idempotencyKey: string): Promise<void>;
+};
+
+export type ModelRouter = {
+  route(task: AgentTask, role: AgentRole): Promise<ModelRoute>;
+};
+
+export type AgentMemory = {
+  loadContext(task: AgentTask): Promise<readonly string[]>;
+};
+
+export type AgentRunStatus =
+  | "blocked"
+  | "completed"
+  | "failed_recoverable";
+
+export type AgentRun = {
+  id: string;
+  issueKey: string;
+  idempotencyKey: string;
+  roleId: string;
+  branchName?: string;
+  executorId: string;
+  modelRoute: ModelRoute | null;
+  gate: ControlPlaneGate;
+  status: AgentRunStatus;
+  attempt: number;
+  dryRun: true;
+  startedAt: string;
+  completedAt: string;
+  executorDurationMs?: number;
+  costMicrounits?: number;
+  handoff?: string;
+  artifacts?: AgentRunArtifacts;
+  blocker?: string;
+  deduplicated: boolean;
+  externalEffects: readonly [];
+};
+
+export type AgentLease = {
+  id: string;
+  issueKey: string;
+  owner: string;
+  runId: string;
+  acquiredAt: string;
+  expiresAt: string;
+};
+
+export type LeaseClaim = {
+  acquired: boolean;
+  lease: AgentLease | null;
+  recoveredLeaseId: string | null;
+};
+
+export type ControlPlaneAuditEvent = {
+  type: string;
+  issueKey: string;
+  runId: string;
+  at: string;
+  details: Record<string, unknown>;
+};

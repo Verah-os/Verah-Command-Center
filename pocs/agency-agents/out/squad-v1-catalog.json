@@ -1,0 +1,152 @@
+{
+ "upstream": {
+  "repo": "https://github.com/msitarzewski/agency-agents.git",
+  "rev": "3c9588880b7cafaec325a104899fd8bbe27e7d72",
+  "license": "MIT",
+  "roleCount": 258,
+  "divisions": [
+   "academic",
+   "design",
+   "engineering",
+   "finance",
+   "game-development",
+   "gis",
+   "healthcare",
+   "marketing",
+   "paid-media",
+   "product",
+   "project-management",
+   "research",
+   "sales",
+   "security",
+   "spatial-computing",
+   "specialized",
+   "support",
+   "testing"
+  ]
+ },
+ "records": [
+  {
+   "verahRole": "Software Architect",
+   "upstreamName": "Software Architect",
+   "upstreamDescription": "Expert software architect specializing in system design, domain-driven design, architectural patterns, and technical decision-making for scalable, maintainable systems.",
+   "upstreamPath": "engineering/engineering-software-architect.md",
+   "upstreamRev": "3c9588880b7cafaec325a104899fd8bbe27e7d72",
+   "sha256": "b85121691776147bacde26673e68fbbacd6a7f0816d1ca8e203c264d25ce1d30",
+   "reviewStatus": "pending-review",
+   "model": null,
+   "executor": null
+  },
+  {
+   "verahRole": "Backend Engineer",
+   "upstreamName": "Backend Architect",
+   "upstreamDescription": "Senior backend architect specializing in scalable system design, database architecture, API development, and cloud infrastructure. Builds robust, secure, performant server-side applications and microservices",
+   "upstreamPath": "engineering/engineering-backend-architect.md",
+   "upstreamRev": "3c9588880b7cafaec325a104899fd8bbe27e7d72",
+   "sha256": "18f237d054fa91f72a5dcda46a52ddcf7354ea3a3e39e0247629f4ea0f446917",
+   "reviewStatus": "pending-review",
+   "model": null,
+   "executor": null
+  },
+  {
+   "verahRole": "Frontend Engineer",
+   "upstreamName": "Frontend Developer",
+   "upstreamDescription": "Expert frontend developer specializing in modern web technologies, React/Vue/Angular frameworks, UI implementation, and performance optimization",
+   "upstreamPath": "engineering/engineering-frontend-developer.md",
+   "upstreamRev": "3c9588880b7cafaec325a104899fd8bbe27e7d72",
+   "sha256": "35961da50f408e00eb6189c87825ac5e62e6b1bf9de3dee198a95536c6d2619e",
+   "reviewStatus": "pending-review",
+   "model": null,
+   "executor": null
+  },
+  {
+   "verahRole": "Security Engineer",
+   "upstreamName": "Application Security Engineer",
+   "upstreamDescription": "AppSec specialist who secures the software development lifecycle through threat modeling, secure code review, SAST/DAST integration, and developer security education that makes secure code the default.",
+   "upstreamPath": "security/security-appsec-engineer.md",
+   "upstreamRev": "3c9588880b7cafaec325a104899fd8bbe27e7d72",
+   "sha256": "f3ee22350c9e0e7289d2d4747e7c1a8fe196d70340feec7b176b13bacc3deb77",
+   "reviewStatus": "pending-review",
+   "model": null,
+   "executor": null
+  },
+  {
+   "verahRole": "QA Engineer",
+   "upstreamName": "Test Automation Engineer",
+   "upstreamDescription": "Expert end-to-end test automation engineer for Playwright and Cypress \u2014 resilient selectors, flake elimination, isolated test data, CI parallelization, and trace-driven failure debugging.",
+   "upstreamPath": "testing/testing-test-automation-engineer.md",
+   "upstreamRev": "3c9588880b7cafaec325a104899fd8bbe27e7d72",
+   "sha256": "479ba12efa5c19e87b60e3b154170c124ac38c46b95c342f0e3b62537113c0a7",
+   "reviewStatus": "pending-review",
+   "model": null,
+   "executor": null
+  },
+  {
+   "verahRole": "Product Manager",
+   "upstreamName": "Product Manager",
+   "upstreamDescription": "Holistic product leader who owns the full product lifecycle \u2014 from discovery and strategy through roadmap, stakeholder alignment, go-to-market, and outcome measurement. Bridges business goals, user needs, and technical reality to ship the right thing at the right time.",
+   "upstreamPath": "product/product-manager.md",
+   "upstreamRev": "3c9588880b7cafaec325a104899fd8bbe27e7d72",
+   "sha256": "4a3fe4661e72e5173877bcba7c362392181774b20efc27ac1789171e98676c9d",
+   "reviewStatus": "pending-review",
+   "model": null,
+   "executor": null
+  },
+  {
+   "verahRole": "UX Researcher",
+   "upstreamName": "UX Researcher",
+   "upstreamDescription": "Expert user experience researcher specializing in user behavior analysis, usability testing, and data-driven design insights. Provides actionable research findings that improve product usability and user satisfaction",
+   "upstreamPath": "design/design-ux-researcher.md",
+   "upstreamRev": "3c9588880b7cafaec325a104899fd8bbe27e7d72",
+   "sha256": "25f59c4333df2d0f1170ff7a1b11ea8415fd3d0ef80c3e0985209aeb4018680f",
+   "reviewStatus": "pending-review",
+   "model": null,
+   "executor": null
+  },
+  {
+   "verahRole": "UI Designer",
+   "upstreamName": "UI Designer",
+   "upstreamDescription": "Expert UI designer specializing in visual design systems, component libraries, and pixel-perfect interface creation. Creates beautiful, consistent, accessible user interfaces that enhance UX and reflect brand identity",
+   "upstreamPath": "design/design-ui-designer.md",
+   "upstreamRev": "3c9588880b7cafaec325a104899fd8bbe27e7d72",
+   "sha256": "3130768958d3b3d38178aaec91cf789e01ecca4984c8674d4aaea446b6cba240",
+   "reviewStatus": "pending-review",
+   "model": null,
+   "executor": null
+  },
+  {
+   "verahRole": "Brand Guardian",
+   "upstreamName": "Brand Guardian",
+   "upstreamDescription": "Expert brand strategist and guardian specializing in brand identity development, consistency maintenance, and strategic brand positioning",
+   "upstreamPath": "design/design-brand-guardian.md",
+   "upstreamRev": "3c9588880b7cafaec325a104899fd8bbe27e7d72",
+   "sha256": "d1d5c78af85d4d35be94b93d5c011d17e3cf5dcb69b2037a3ebf3059803b893e",
+   "reviewStatus": "pending-review",
+   "model": null,
+   "executor": null
+  },
+  {
+   "verahRole": "Research Agent",
+   "upstreamName": "Research Synthesist",
+   "upstreamDescription": "Expert in literature review, source evaluation, and evidence synthesis \u2014 turns a scattered pile of sources into a structured, honestly-weighted map of what the evidence actually supports",
+   "upstreamPath": "research/research-synthesist.md",
+   "upstreamRev": "3c9588880b7cafaec325a104899fd8bbe27e7d72",
+   "sha256": "3618b4a2a73523147731ae38ac4096cea0e83a7de930f55ea9ea6c69e3c77f30",
+   "reviewStatus": "pending-review",
+   "model": null,
+   "executor": null
+  },
+  {
+   "verahRole": "Documentation Agent",
+   "upstreamName": "Technical Writer",
+   "upstreamDescription": "Expert technical writer specializing in developer documentation, API references, README files, and tutorials. Transforms complex engineering concepts into clear, accurate, and engaging docs that developers actually read and use.",
+   "upstreamPath": "engineering/engineering-technical-writer.md",
+   "upstreamRev": "3c9588880b7cafaec325a104899fd8bbe27e7d72",
+   "sha256": "70c8a29cddf7de486b41185693b4961af3fcccbc632b8df13ec43572859edc43",
+   "reviewStatus": "pending-review",
+   "model": null,
+   "executor": null
+  }
+ ],
+ "missing": []
+}

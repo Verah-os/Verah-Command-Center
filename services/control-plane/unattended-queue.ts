@@ -1,0 +1,330 @@
+import { classifyControlPlaneGate, GuardedControlPlane } from "./foundation.ts";
+import { sanitizeText } from "./sanitization.ts";
+import type { PostExecutionReviewGate, ReviewGateResult } from "./review-gates.ts";
+import type { PreExecutionPlanningGate, SquadPlanResult } from "./product-squad.ts";
+import type { AgentRun, AgentTask } from "./types.ts";
+
+export type QueueItemStatus =
+  | "queued"
+  | "running"
+  | "retryable"
+  | "completed"
+  | "blocked"
+  | "dead_letter";
+
+export type GitHubQueueEvent = {
+  source: "github";
+  deliveryId: string;
+  task: AgentTask;
+};
+
+export type UnattendedQueueItem = {
+  deliveryId: string;
+  task: AgentTask;
+  status: QueueItemStatus;
+  attempts: number;
+  blocker: string | null;
+  runs: AgentRun[];
+  reviewGate: ReviewGateResult | null;
+  squadPlan: SquadPlanResult | null;
+};
+
+export type UnattendedQueueReport = {
+  queued: number;
+  retryable: number;
+  completed: number;
+  blocked: number;
+  deadLetter: number;
+  totalRuns: number;
+  totalCostMicrounits: number;
+  totalExecutorDurationMs: number;
+  reworkAttempts: number;
+  killSwitchActive: boolean;
+};
+
+type QueueOptions = {
+  enabled?: boolean;
+  killSwitch?: boolean;
+  dryRun?: boolean;
+  maxAttempts?: number;
+  maxParallel?: number;
+};
+
+export class UnattendedControlPlaneQueue {
+  private readonly plane: GuardedControlPlane;
+  private readonly items = new Map<string, UnattendedQueueItem>();
+  private readonly issueDeliveries = new Map<string, string>();
+  private readonly branchDeliveries = new Map<string, string>();
+  private readonly options: Required<QueueOptions>;
+  private readonly reviewGate?: PostExecutionReviewGate;
+  private readonly planningGate?: PreExecutionPlanningGate;
+
+  constructor(
+    plane: GuardedControlPlane,
+    options: QueueOptions = {},
+    reviewGate?: PostExecutionReviewGate,
+    planningGate?: PreExecutionPlanningGate,
+  ) {
+    this.plane = plane;
+    this.options = {
+      enabled: options.enabled ?? false,
+      killSwitch: options.killSwitch ?? true,
+      dryRun: options.dryRun ?? true,
+      maxAttempts: positiveAttempts(options.maxAttempts ?? 2),
+      maxParallel: positiveParallelism(options.maxParallel ?? 1),
+    };
+    this.reviewGate = reviewGate;
+    this.planningGate = planningGate;
+  }
+
+  enqueue(event: GitHubQueueEvent) {
+    if (event.source !== "github") throw new Error("github_source_required");
+    if (!event.deliveryId.trim()) throw new Error("delivery_id_required");
+    const duplicate = this.items.get(event.deliveryId);
+    if (duplicate) return { item: duplicate, deduplicated: true };
+
+    const activeDelivery = this.issueDeliveries.get(event.task.issueKey);
+    if (activeDelivery) {
+      const active = this.items.get(activeDelivery);
+      if (active && !terminal(active.status)) return { item: active, deduplicated: true };
+    }
+    const branchKey = event.task.branchName ?? event.task.issueKey;
+    const branchDelivery = this.branchDeliveries.get(branchKey);
+    if (branchDelivery) {
+      const active = this.items.get(branchDelivery);
+      if (active && !terminal(active.status)) return { item: active, deduplicated: true };
+    }
+
+    const item: UnattendedQueueItem = {
+      deliveryId: event.deliveryId,
+      task: Object.freeze({ ...event.task }),
+      status: "queued",
+      attempts: 0,
+      blocker: null,
+      runs: [],
+      reviewGate: null,
+      squadPlan: null,
+    };
+    this.items.set(event.deliveryId, item);
+    this.issueDeliveries.set(event.task.issueKey, event.deliveryId);
+    this.branchDeliveries.set(branchKey, event.deliveryId);
+    return { item, deduplicated: false };
+  }
+
+  async processNext(): Promise<UnattendedQueueItem | null> {
+    if (!this.options.enabled || this.options.killSwitch || !this.options.dryRun) return null;
+    const item = [...this.items.values()].find((candidate) =>
+      candidate.status === "queued" || candidate.status === "retryable");
+    if (!item) return null;
+
+    return this.processItem(item);
+  }
+
+  async processBatch(maxParallel = this.options.maxParallel): Promise<UnattendedQueueItem[]> {
+    if (!this.options.enabled || this.options.killSwitch || !this.options.dryRun) return [];
+    const limit = positiveParallelism(maxParallel);
+    const selected: UnattendedQueueItem[] = [];
+    const issues = new Set<string>();
+    const branches = new Set<string>();
+    for (const item of this.items.values()) {
+      if (item.status !== "queued" && item.status !== "retryable") continue;
+      const branch = item.task.branchName ?? item.task.issueKey;
+      if (issues.has(item.task.issueKey) || branches.has(branch)) continue;
+      selected.push(item);
+      issues.add(item.task.issueKey);
+      branches.add(branch);
+      if (selected.length >= limit) break;
+    }
+    return Promise.all(selected.map((item) => this.processItem(item)));
+  }
+
+  private async processItem(item: UnattendedQueueItem): Promise<UnattendedQueueItem> {
+
+    item.status = "running";
+    const taskGate = classifyControlPlaneGate(item.task);
+    if (taskGate.gate !== "HUMAN" && this.planningGate && !item.squadPlan) {
+      try {
+        item.squadPlan = await this.planningGate.plan(item.task);
+      } catch {
+        item.status = "blocked";
+        item.blocker = "squad_planning_failed";
+        return item;
+      }
+      if (item.squadPlan.status === "blocked") {
+        item.status = "blocked";
+        item.blocker = item.squadPlan.blocker ?? "squad_planning_blocked";
+        return item;
+      }
+    }
+    item.attempts += 1;
+    const attemptTask: AgentTask = {
+      ...item.task,
+      idempotencyKey: `${item.task.idempotencyKey}:attempt:${item.attempts}`,
+      contextRefs: [
+        ...(item.task.contextRefs ?? []),
+        ...(item.squadPlan?.contextRefs ?? []),
+      ],
+    };
+    const run = await this.plane.run(attemptTask);
+    item.runs.push(run);
+    item.blocker = run.blocker ?? null;
+
+    if (run.status === "completed") {
+      if (this.reviewGate) {
+        try {
+          item.reviewGate = await this.reviewGate.evaluate(run);
+        } catch {
+          item.status = "blocked";
+          item.blocker = "review_gate_failed";
+          return item;
+        }
+        if (item.reviewGate.status === "blocked") {
+          item.status = "blocked";
+          item.blocker = item.reviewGate.blocker ?? "review_gate_blocked";
+        } else {
+          item.status = "completed";
+        }
+      } else {
+        item.status = "completed";
+      }
+    } else if (run.gate === "HUMAN") {
+      item.status = "blocked";
+    } else if (item.attempts >= this.options.maxAttempts) {
+      item.status = "dead_letter";
+    } else {
+      item.status = "retryable";
+    }
+    return item;
+  }
+
+  async drain(maxSteps = 100): Promise<UnattendedQueueReport> {
+    if (!Number.isInteger(maxSteps) || maxSteps < 1) throw new Error("invalid_queue_step_limit");
+    let steps = 0;
+    while (steps < maxSteps) {
+      const processed = await this.processBatch(Math.min(this.options.maxParallel, maxSteps - steps));
+      if (processed.length === 0) break;
+      steps += processed.length;
+    }
+    return this.report();
+  }
+
+  report(): UnattendedQueueReport {
+    const values = [...this.items.values()];
+    return {
+      queued: values.filter((item) => item.status === "queued").length,
+      retryable: values.filter((item) => item.status === "retryable").length,
+      completed: values.filter((item) => item.status === "completed").length,
+      blocked: values.filter((item) => item.status === "blocked").length,
+      deadLetter: values.filter((item) => item.status === "dead_letter").length,
+      totalRuns: values.reduce((total, item) => total + item.runs.length, 0),
+      totalCostMicrounits: values.reduce((total, item) => total
+        + item.runs.reduce((subtotal, run) => subtotal + (run.costMicrounits ?? 0), 0), 0),
+      totalExecutorDurationMs: values.reduce((total, item) => total
+        + item.runs.reduce((subtotal, run) => subtotal + (run.executorDurationMs ?? 0), 0), 0),
+      reworkAttempts: values.reduce((total, item) => total + Math.max(0, item.attempts - 1), 0),
+      killSwitchActive: !this.options.enabled || this.options.killSwitch || !this.options.dryRun,
+    };
+  }
+
+  snapshot() {
+    return [...this.items.values()].map((item) => ({
+      ...item,
+      task: { ...item.task },
+      runs: [...item.runs],
+      reviewGate: item.reviewGate ? {
+        ...item.reviewGate,
+        assessments: [...item.reviewGate.assessments],
+        checks: [...item.reviewGate.checks],
+      } : null,
+      squadPlan: item.squadPlan ? {
+        ...item.squadPlan,
+        contributions: [...item.squadPlan.contributions],
+        contextRefs: [...item.squadPlan.contextRefs],
+      } : null,
+    }));
+  }
+}
+
+export class LangflowControlPlaneAdapter {
+  private readonly queue: UnattendedControlPlaneQueue;
+
+  constructor(queue: UnattendedControlPlaneQueue) {
+    this.queue = queue;
+  }
+
+  accept(input: unknown) {
+    const event = normalizeGitHubQueueEvent(input);
+    const gate = classifyControlPlaneGate(event.task);
+    return { ...this.queue.enqueue(event), gate };
+  }
+
+  run() {
+    return this.queue.drain();
+  }
+
+  report() {
+    return this.queue.report();
+  }
+}
+
+function positiveAttempts(value: number) {
+  if (!Number.isInteger(value) || value < 1 || value > 10) {
+    throw new Error("invalid_queue_attempt_limit");
+  }
+  return value;
+}
+
+function positiveParallelism(value: number) {
+  if (!Number.isInteger(value) || value < 1 || value > 8) {
+    throw new Error("invalid_queue_parallelism");
+  }
+  return value;
+}
+
+function terminal(status: QueueItemStatus) {
+  return status === "completed" || status === "blocked" || status === "dead_letter";
+}
+
+function normalizeGitHubQueueEvent(input: unknown): GitHubQueueEvent {
+  if (!input || typeof input !== "object") throw new Error("invalid_github_event");
+  const event = input as Record<string, unknown>;
+  if ("command" in event) throw new Error("arbitrary_commands_forbidden");
+  if (event.source !== "github" || typeof event.deliveryId !== "string") {
+    throw new Error("invalid_github_event");
+  }
+  if (!event.task || typeof event.task !== "object") throw new Error("invalid_agent_task");
+  const task = event.task as Record<string, unknown>;
+  if ("command" in task || "commands" in task || "script" in task) {
+    throw new Error("arbitrary_commands_forbidden");
+  }
+  const required = ["issueKey", "idempotencyKey", "title", "roleId", "kind"] as const;
+  if (required.some((key) => typeof task[key] !== "string" || !(task[key] as string).trim())) {
+    throw new Error("invalid_agent_task");
+  }
+  const effects = optionalStringArray(task.effects, "invalid_task_effects");
+  const contextRefs = optionalStringArray(task.contextRefs, "invalid_context_refs");
+  return {
+    source: "github",
+    deliveryId: sanitizeText(event.deliveryId, 200),
+    task: {
+      issueKey: sanitizeText(task.issueKey as string, 300),
+      idempotencyKey: sanitizeText(task.idempotencyKey as string, 300),
+      title: sanitizeText(task.title as string, 500),
+      roleId: sanitizeText(task.roleId as string, 100),
+      kind: sanitizeText(task.kind as string, 100),
+      branchName: typeof task.branchName === "string"
+        ? sanitizeText(task.branchName, 300)
+        : undefined,
+      effects,
+      contextRefs,
+    },
+  };
+}
+
+function optionalStringArray(value: unknown, errorCode: string) {
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value) || value.length > 50 || value.some((item) => typeof item !== "string")) {
+    throw new Error(errorCode);
+  }
+  return value.map((item) => sanitizeText(item, 300));
+}
