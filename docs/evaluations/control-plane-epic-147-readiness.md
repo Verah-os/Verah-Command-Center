@@ -1,7 +1,7 @@
 # Readiness do EPIC #147 — VERAH AI Control Plane
 
 - Data: 2026-09-01
-- Base auditada: `main` após as Fases 0–5 do #147 + fixture da Fase 6
+- Base auditada: `main` após as Fases 0–6 do #147 + fixture da Fase 7
 - Ambiente demonstrado: fixtures locais em sandbox/dry-run
 
 ## Critérios de aceite
@@ -16,7 +16,7 @@
 | PR/checks/handoff padronizados | atendido no contrato | `AgentRunArtifacts` e handoff; executores reais ainda precisam preencher |
 | HUMAN fail-closed | atendido | bloqueio anterior a modelo, memória e executor |
 | custo/tempo/rework observáveis | atendido | run + resumo agregado da fila |
-| memória não concorre com GitHub/Supabase | atendido | Cognee permanece adapter/cache TRIAL, sem runtime canônico |
+| memória não concorre com GitHub/Supabase | atendido | catálogo curado exige referência canônica, provenance, TTL e supersession; Cognee permanece cache `TRIAL` desabilitado |
 | unattended não produtivo end-to-end | atendido por fixture | lote de 3 tarefas e batch paralelo; instância Langflow real ainda não importada |
 | produção/efeitos reais bloqueados | atendido | dry-run, kill switch e gates; zero efeito externo nos testes |
 
@@ -31,7 +31,7 @@
 | 4 — Review/QA/Security agents | gate independente concluído por fixture; agentes/modelos reais pendentes de sandbox |
 | 5 — Design/Research/Product squads | planejamento pré-execução concluído por fixture; agentes/modelos reais pendentes de sandbox |
 | 6 — Cost Router/OmniRoute | router interno e gate concluídos por fixture; OmniRoute desabilitado (`TRIAL`, 15/27) até POC verde |
-| 7 — Shared Memory/Cognee | pendente; depende de piloto controlado |
+| 7 — Shared Memory/Cognee | memória curada e gate concluídos por fixture; Cognee desabilitado (`TRIAL`) até provenance/TTL validados |
 | 8 — unattended operacional | fixture concluída; runtime isolado e relatório real pendentes |
 
 ## Decisão
@@ -42,4 +42,6 @@ proveniência e conflitos entre Research, Design e Product. A Fase 6 entrega
 seleção interna por custo com fallback e mantém OmniRoute fora do runtime porque
 a matriz canônica atual falha em 12/27 casos. Agentes/modelos reais e
 OpenHands/Langflow reais continuam atrás dos stop gates até existir ambiente
-isolado.
+isolado. A Fase 7 adiciona memória compartilhada curada sem criar uma nova fonte
+de verdade: o índice semântico só pode apontar para conteúdo canônico já
+validado, e Cognee segue desabilitado enquanto seu gate estiver incompleto.
