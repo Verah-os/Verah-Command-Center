@@ -5,7 +5,7 @@
   especificação Langflow e runbook.
 - **Behavior delivered:** Research com proveniência informa Design/Product; o
   Control Plane agrega contexto ou bloqueia lacunas/conflitos antes do executor.
-- **Focused tests:** 42/42 em squad, fila, review gates, foundation e OpenHands.
+- **Focused tests:** 44/44 em squad, fila, review gates, foundation e OpenHands.
 - **Required checks:** typecheck, lint e build aprovados; avisos legados apenas.
 - **Invariant/decision:** squad define papel e contexto, nunca modelo/executor;
   GitHub/documentação seguem como fontes canônicas.

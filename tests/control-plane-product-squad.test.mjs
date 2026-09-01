@@ -54,6 +54,68 @@ test("missing canonical evidence stops after Research and fails closed", async (
   assert.deepEqual(calls, ["research"]);
 });
 
+test("agents cannot invent evidence outside the canonical task context", async () => {
+  const researchAgents = createFixtureProductSquadAgents();
+  researchAgents[0] = {
+    ...researchAgents[0],
+    async contribute(context) {
+      return {
+        roleId: "research",
+        agentId: "custom-research",
+        targetIssueKey: context.issueKey,
+        status: "ready",
+        artifacts: [{
+          kind: "research_brief",
+          summary: "Invented evidence",
+          evidenceRefs: ["invented:source"],
+        }],
+        decisions: {},
+        risks: [],
+        externalEffects: [],
+      };
+    },
+  };
+  assert.equal(
+    (await new CrossFunctionalProductSquad(researchAgents).plan(task())).blocker,
+    "squad_research_blocked",
+  );
+
+  const designAgents = createFixtureProductSquadAgents();
+  const design = designAgents[1];
+  designAgents[1] = {
+    ...design,
+    async contribute(context) {
+      const contribution = await design.contribute(context);
+      return {
+        ...contribution,
+        artifacts: [{ ...contribution.artifacts[0], evidenceRefs: ["invented:design-source"] }],
+      };
+    },
+  };
+  assert.equal(
+    (await new CrossFunctionalProductSquad(designAgents).plan(task())).blocker,
+    "squad_design_blocked",
+  );
+});
+
+test("unknown artifact kinds remain invalid and fail closed", async () => {
+  const agents = createFixtureProductSquadAgents();
+  const product = agents[2];
+  agents[2] = {
+    ...product,
+    async contribute(context) {
+      const contribution = await product.contribute(context);
+      return {
+        ...contribution,
+        artifacts: [{ ...contribution.artifacts[0], kind: "totally_invalid" }],
+      };
+    },
+  };
+  const result = await new CrossFunctionalProductSquad(agents).plan(task());
+  assert.equal(result.status, "blocked");
+  assert.equal(result.blocker, "squad_product_blocked");
+});
+
 test("missing, pending, throwing or side-effecting agents block the squad", async () => {
   const base = createFixtureProductSquadAgents();
   const missing = await new CrossFunctionalProductSquad(base.filter((item) => item.roleId !== "design"))

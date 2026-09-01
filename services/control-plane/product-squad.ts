@@ -65,7 +65,10 @@ export class CrossFunctionalProductSquad implements PreExecutionPlanningGate {
   async plan(task: AgentTask): Promise<SquadPlanResult> {
     const base = immutableContext(task, []);
     const research = await this.contribution("research", base);
-    if (!contributionReady(research)) return blocked("squad_research_blocked", [research]);
+    if (!contributionReady(research)
+      || !evidenceRefsAreCanonical(research, base.evidenceRefs)) {
+      return blocked("squad_research_blocked", [research]);
+    }
 
     const informed = immutableContext(task, [research]);
     const [design, product] = await Promise.all([
@@ -73,7 +76,10 @@ export class CrossFunctionalProductSquad implements PreExecutionPlanningGate {
       this.contribution("product", informed),
     ]);
     const contributions = [research, design, product];
-    const failing = contributions.find((item) => !contributionReady(item));
+    const canonicalResearchRefs = researchEvidence(informed);
+    const failing = contributions.find((item) => !contributionReady(item)
+      || (item.roleId !== "research"
+        && !evidenceRefsAreCanonical(item, canonicalResearchRefs)));
     if (failing) return blocked(`squad_${failing.roleId}_blocked`, contributions);
     if (hasDecisionConflict(contributions)) return blocked("squad_conflict_unresolved", contributions);
 
@@ -168,7 +174,7 @@ function normalizeContribution(
   }
   const artifacts = Array.isArray(contribution.artifacts)
     ? contribution.artifacts.slice(0, 20).map((artifact: SquadArtifact) => ({
-      kind: validArtifactKind(artifact.kind) ? artifact.kind : artifactKindFor(agent.roleId),
+      kind: sanitizeText(String(artifact.kind ?? ""), 100) as SquadArtifact["kind"],
       summary: sanitizeText(artifact.summary ?? "Invalid squad artifact.", 500),
       evidenceRefs: Object.freeze(Array.isArray(artifact.evidenceRefs)
         ? artifact.evidenceRefs.slice(0, 50).map((ref: string) => sanitizeText(ref, 300))
@@ -220,6 +226,15 @@ function hasDecisionConflict(contributions: readonly SquadContribution[]) {
   return false;
 }
 
+function evidenceRefsAreCanonical(
+  contribution: SquadContribution,
+  canonicalRefs: readonly string[],
+) {
+  const allowed = new Set(canonicalRefs);
+  return contribution.artifacts.every((artifact) =>
+    artifact.evidenceRefs.every((ref) => allowed.has(ref)));
+}
+
 function failedContribution(
   roleId: ProductSquadRole,
   risk: string,
@@ -249,10 +264,6 @@ function researchEvidence(context: SquadPlanningContext) {
 
 function failedArtifact(kind: SquadArtifact["kind"], summary: string): SquadArtifact[] {
   return [{ kind, summary, evidenceRefs: [] }];
-}
-
-function validArtifactKind(value: string): value is SquadArtifact["kind"] {
-  return ["research_brief", "design_spec", "product_plan"].includes(value);
 }
 
 function artifactKindFor(roleId: ProductSquadRole): SquadArtifact["kind"] {
