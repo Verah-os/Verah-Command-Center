@@ -28,7 +28,7 @@ revisão.
   (`OMNIROUTE_ROUTING_POLICY.md`, `OMNIROUTE_PROVIDER_FAILOVER.md`).
 - Fallback/429: o handoff de quota (context-relay) dispara corretamente e
   registra `expiresAt` na janela de reset — cenário central para #148/#149.
-  Porém, **15/27 testes do combo-matrix falham no snapshot pinado**,
+  Porém, **12/27 testes do combo-matrix falham no snapshot pinado** (15 passam),
   incluindo o caso canônico `priority: falls back to the next target when
   the first fails` (502 em vez de 200), `lkgp`, `reset-aware` e `headroom`.
   Os testes de distribuição mostram ruído estatístico; os de fallback
@@ -47,7 +47,7 @@ revisão.
 
 - Upstream: `topoteretes/cognee` (Apache-2.0), versão pinada `1.5.3`.
 - Ingestão validada com 2 Context Packs/ADR/handoff em dataset dedicado
-  (`verah-context-packs`), sem LLM real: pipeline determinístico
+  (`verah-context-packs`), sem tráfego para provedor de LLM/embedding: pipeline determinístico
   `classify_documents → extract_chunks_from_documents → add_data_points`
   (espelha a rota não-LLM da própria biblioteca). A rota padrão `cognify`
   exige LLM — dependência dura registrada como achado.
@@ -61,8 +61,9 @@ revisão.
   de verdade; o adapter deve tratar Cognee como cache semântico somente
   leitura de artefatos curados.
 - Gate de TRIAL: pilotar com o pipeline determinístico (sem extração de
-  grafo) antes de investir na rota com LLM; medir relevância com embeddings
-  reais no piloto.
+  grafo) antes de investir na rota com LLM; o primeiro import pode baixar o
+  vocabulário público do tokenizer para `.poc-cache/tiktoken`; medir relevância
+  com embeddings reais no piloto.
 
 ### agency-agents — TRIAL
 
@@ -78,7 +79,7 @@ revisão.
   Writer. Nenhum candidato ficou sem correspondência.
 - Adapter: catálogo metadata-only (`pocs/agency-agents/out/squad-v1-catalog.json`):
   cada registro carrega `verahRole`, descrição, caminho upstream, rev e
-  sha256 como âncora de revisão, com `reviewStatus: pending` e
+  sha256 como âncora de revisão, com `reviewStatus: pending-review` e
   `model/executor: null` — papel é dado; modelo e executor continuam
   decisões de runtime. Nenhum corpo de prompt de terceiro foi copiado.
 - Gate de TRIAL: revisão humana dos 11 papéis antes de qualquer adoção em

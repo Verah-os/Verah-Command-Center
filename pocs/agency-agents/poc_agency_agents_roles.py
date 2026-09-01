@@ -38,6 +38,7 @@ REPO_ROOT = POC_DIR.parents[1]
 OUT_DIR = POC_DIR / "out"
 CACHE = REPO_ROOT / ".poc-cache" / "agency-agents"
 UPSTREAM_URL = "https://github.com/msitarzewski/agency-agents.git"
+PINNED_REF = "3c9588880b7cafaec325a104899fd8bbe27e7d72"
 
 # Squad v1 from the issue -> candidate role in the upstream catalog
 # (name match; path is resolved from disk, never hard-coded).
@@ -77,7 +78,8 @@ def ensure_source(src: str | None) -> Path:
         return Path(src)
     if not (CACHE / ".git").exists():
         CACHE.parent.mkdir(parents=True, exist_ok=True)
-        subprocess.run(["git", "clone", "--depth", "1", UPSTREAM_URL, str(CACHE)], check=True)
+        subprocess.run(["git", "clone", "--filter=blob:none", "--no-checkout", UPSTREAM_URL, str(CACHE)], check=True)
+    subprocess.run(["git", "-C", str(CACHE), "checkout", "--detach", PINNED_REF], check=True)
     return CACHE
 
 
@@ -113,7 +115,7 @@ def main() -> int:
             "verahRole": squad_role,
             "upstreamName": fm["name"],
             "upstreamDescription": fm["description"],
-            "upstreamPath": str(path.relative_to(src)),
+            "upstreamPath": path.relative_to(src).as_posix(),
             "upstreamRev": upstream_rev,
             "sha256": sha256(path),
             # Adapter boundary: role is data about the specialty; model and

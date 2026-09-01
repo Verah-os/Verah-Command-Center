@@ -48,10 +48,11 @@ FALLBACK_SCENARIOS = {
 
 def ensure_clone() -> None:
     if (CACHE / ".git").exists():
+        subprocess.run(["git", "-C", str(CACHE), "checkout", "--detach", PINNED_REF], check=True)
         return
     CACHE.parent.mkdir(parents=True, exist_ok=True)
     subprocess.run(["git", "clone", "--filter=blob:none", "--no-checkout", UPSTREAM_URL, str(CACHE)], check=True)
-    subprocess.run(["git", "-C", str(CACHE), "checkout", PINNED_REF], check=True)
+    subprocess.run(["git", "-C", str(CACHE), "checkout", "--detach", PINNED_REF], check=True)
 
 
 def run_matrix() -> None:
