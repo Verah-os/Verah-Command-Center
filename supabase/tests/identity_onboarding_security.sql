@@ -71,8 +71,10 @@ do $$ begin
     raise exception 'Incomplete onboarding did not remain resumable';
   end if;
 end $$;
-insert into public.customer_vehicles(owner_id, brand, model, year)
-values ('a1000000-0000-4000-8000-000000000001', 'Volkswagen', 'Polo', 2022);
+select public.confirm_customer_vehicle(
+  'IDT1A23', 'Volkswagen', 'Polo', 2022,
+  p_customer_confirmed => true
+);
 do $$ begin
   if (public.refresh_customer_onboarding() ->> 'onboarding_status') <> 'completed'
     or (public.refresh_customer_onboarding() ->> 'vehicle_status') <> 'registered' then
