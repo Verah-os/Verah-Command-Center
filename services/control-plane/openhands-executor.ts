@@ -3,6 +3,7 @@ import type {
   AgentExecutionRequest,
   AgentExecutionResult,
   AgentExecutor,
+  AgentRunArtifacts,
   ExecutorAvailability,
 } from "./types.ts";
 
@@ -17,6 +18,7 @@ export type OpenHandsTransportResult = {
   handoff?: string;
   errorCode?: string;
   costMicrounits?: number;
+  artifacts?: AgentRunArtifacts;
   logs?: readonly string[];
   externalEffects?: readonly string[];
 };
@@ -126,6 +128,9 @@ export class OpenHandsExecutor implements AgentExecutor {
         errorCode: sanitizeOptionalCode(result.errorCode),
         costMicrounits: validCost(result.costMicrounits),
         durationMs,
+        artifacts: result.artifacts
+          ? sanitizePayload(result.artifacts) as AgentRunArtifacts
+          : undefined,
         externalEffects: [],
       };
     } catch (error) {

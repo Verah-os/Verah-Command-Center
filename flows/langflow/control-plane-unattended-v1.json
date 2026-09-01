@@ -21,6 +21,7 @@
     "criticalLogicInUi": false,
     "executorRouting": "availability-task-kind-cost",
     "maxParallelPerIssue": 1,
+    "maxParallelIndependentIssues": 2,
     "maxAttempts": 2,
     "persistentFailure": "dead_letter",
     "humanGate": "blocked",

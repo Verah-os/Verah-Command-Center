@@ -12,3 +12,7 @@
 Resumo esperado: 1 completed, 1 blocked, 1 dead-letter, 4 runs. O piloto prova
 processamento sem copiar/colar humano, fallback dentro do mesmo lease,
 idempotência e limite de retry. Não representa Langflow/OpenHands em produção.
+
+Um segundo cenário executa duas Issues sintéticas em paralelo com branches,
+executores e leases distintos. Ambas geram handoff, Draft PR/check estruturado,
+custo e duração; a reserva impede que o mesmo executor seja usado duas vezes.

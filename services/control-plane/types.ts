@@ -127,8 +127,19 @@ export type AgentTask = {
   title: string;
   roleId: string;
   kind: string;
+  branchName?: string;
   effects?: readonly string[];
   contextRefs?: readonly string[];
+};
+
+export type AgentCheckResult = {
+  name: string;
+  status: "passed" | "failed" | "pending" | "skipped";
+};
+
+export type AgentRunArtifacts = {
+  draftPrUrl?: string;
+  checks?: readonly AgentCheckResult[];
 };
 
 export type AgentExecutionRequest = {
@@ -146,6 +157,7 @@ export type AgentExecutionResult = {
   errorCode?: string;
   costMicrounits?: number;
   durationMs?: number;
+  artifacts?: AgentRunArtifacts;
   externalEffects?: readonly string[];
 };
 
@@ -174,6 +186,7 @@ export type AgentRun = {
   issueKey: string;
   idempotencyKey: string;
   roleId: string;
+  branchName?: string;
   executorId: string;
   modelRoute: ModelRoute | null;
   gate: ControlPlaneGate;
@@ -185,6 +198,7 @@ export type AgentRun = {
   executorDurationMs?: number;
   costMicrounits?: number;
   handoff?: string;
+  artifacts?: AgentRunArtifacts;
   blocker?: string;
   deduplicated: boolean;
   externalEffects: readonly [];
