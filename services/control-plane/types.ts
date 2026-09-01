@@ -119,6 +119,8 @@ export type ModelRoute = {
   model: string;
   source: "internal" | "omniroute";
   rationale: string;
+  estimatedCostMicrounits?: number;
+  fallbackCount?: number;
 };
 
 export type AgentTask = {

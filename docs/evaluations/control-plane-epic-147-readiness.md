@@ -1,7 +1,7 @@
 # Readiness do EPIC #147 — VERAH AI Control Plane
 
 - Data: 2026-09-01
-- Base auditada: `main` após as Fases 0–5 do #147
+- Base auditada: `main` após as Fases 0–5 do #147 + fixture da Fase 6
 - Ambiente demonstrado: fixtures locais em sandbox/dry-run
 
 ## Critérios de aceite
@@ -30,7 +30,7 @@
 | 3 — Langflow/unattended queue | especificação + fixture concluídas (#150) |
 | 4 — Review/QA/Security agents | gate independente concluído por fixture; agentes/modelos reais pendentes de sandbox |
 | 5 — Design/Research/Product squads | planejamento pré-execução concluído por fixture; agentes/modelos reais pendentes de sandbox |
-| 6 — Cost Router/OmniRoute | pendente; depende de POC verde |
+| 6 — Cost Router/OmniRoute | router interno e gate concluídos por fixture; OmniRoute desabilitado (`TRIAL`, 15/27) até POC verde |
 | 7 — Shared Memory/Cognee | pendente; depende de piloto controlado |
 | 8 — unattended operacional | fixture concluída; runtime isolado e relatório real pendentes |
 
@@ -38,6 +38,8 @@
 
 O épico permanece aberto. Fechá-lo agora confundiria paridade contratual de
 fixture com operação real. As Fases 4–5 agora bloqueiam lacunas de revisão,
-proveniência e conflitos entre Research, Design e Product; agentes/modelos reais
-e OpenHands/Langflow reais continuam atrás dos stop gates até existir ambiente
+proveniência e conflitos entre Research, Design e Product. A Fase 6 entrega
+seleção interna por custo com fallback e mantém OmniRoute fora do runtime porque
+a matriz canônica atual falha em 12/27 casos. Agentes/modelos reais e
+OpenHands/Langflow reais continuam atrás dos stop gates até existir ambiente
 isolado.
