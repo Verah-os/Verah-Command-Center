@@ -158,16 +158,18 @@ test("only explicit canonical references can load memory", async () => {
   assert.deepEqual(await memory.loadContext({ ...task, contextRefs: ["github:#999"] }), []);
 });
 
-test("memory content is bounded, marked untrusted and redacts secret-like values", async () => {
-  const content = "Bearer private-token contact owner@example.com";
+test("memory content uses canonical redaction for secret-like values", async () => {
+  const content = "Bearer private-token contact owner@example.com +5511999999999 eyJabcdefghijk.abcdefghijk.abcdefghijk";
   const memory = new GatedSharedAgentMemory([record({
     content,
     sha256: createHash("sha256").update(content).digest("hex"),
   })], { now: () => now });
 
   const context = await memory.loadContext(task);
-  assert.match(context[0], /Bearer \[redacted\]/);
+  assert.match(context[0], /Bearer \[redacted-secret\]/);
   assert.match(context[0], /\[redacted-email\]/);
+  assert.match(context[0], /\[redacted-phone\]/);
+  assert.equal(context[0].includes("eyJabcdefghijk"), false);
   assert.equal(context[0].includes("private-token"), false);
   assert.equal(context[0].includes("owner@example.com"), false);
 });
@@ -193,6 +195,16 @@ test("invalid provenance, TTL and supersession records are rejected", () => {
   );
   assert.throws(
     () => new GatedSharedAgentMemory([record({ supersedesId: "missing" })]),
+    /memory_record_supersession_invalid/,
+  );
+  assert.throws(
+    () => new GatedSharedAgentMemory([record({ observedAt: "1" })]),
+    /memory_record_timestamp_invalid/,
+  );
+  const newer = record({ id: "newer", observedAt: "2026-09-01T11:00:00Z" });
+  const stale = record({ id: "stale", supersedesId: "newer" });
+  assert.throws(
+    () => new GatedSharedAgentMemory([newer, stale]),
     /memory_record_supersession_invalid/,
   );
   assert.throws(

@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 
+import { sanitizeText } from "./sanitization.ts";
 import type { AgentMemory, AgentTask } from "./types.ts";
 
 export type MemoryDecision = "ADOPT" | "TRIAL" | "HOLD" | "REJECT";
@@ -83,7 +84,11 @@ function sha256(value: string): string {
 }
 
 function isIsoDate(value: string): boolean {
-  return value.length > 0 && Number.isFinite(Date.parse(value));
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/.test(value)) return false;
+  const parsed = Date.parse(value);
+  if (!Number.isFinite(parsed)) return false;
+  const normalizedInput = value.includes(".") ? value : value.replace("Z", ".000Z");
+  return new Date(parsed).toISOString() === normalizedInput;
 }
 
 function isBoundedLabel(value: string, maxLength: number): boolean {
@@ -132,7 +137,12 @@ function validateRecords(records: readonly CuratedMemoryRecord[]): void {
   for (const record of records) {
     if (!record.supersedesId) continue;
     const superseded = byId.get(record.supersedesId);
-    if (!superseded || superseded.sourceRef !== record.sourceRef || superseded.id === record.id) {
+    if (
+      !superseded ||
+      superseded.sourceRef !== record.sourceRef ||
+      superseded.id === record.id ||
+      Date.parse(record.observedAt) <= Date.parse(superseded.observedAt)
+    ) {
       throw new Error("memory_record_supersession_invalid");
     }
   }
@@ -164,19 +174,11 @@ export function assessCogneeEvidence(evidence: CogneeEvidence): CogneeGate {
   return { ...base, enabled: true, reason: "approved" };
 }
 
-function sanitizeMemoryText(value: string): string {
-  return value
-    .replace(/Bearer\s+[^\s]+/gi, "Bearer [redacted]")
-    .replace(/\b(?:sk|ghp|github_pat)_[A-Za-z0-9_-]+\b/g, "[redacted]")
-    .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, "[redacted-email]")
-    .slice(0, 2_000);
-}
-
 function renderRecord(record: CuratedMemoryRecord): string {
   return [
     `UNTRUSTED_MEMORY_DATA source=${record.sourceKind}:${record.sourceRef}`,
     `version=${record.sourceVersion} sha256=${record.sha256}`,
-    sanitizeMemoryText(record.content),
+    sanitizeText(record.content, 2_000),
   ].join("\n");
 }
 
