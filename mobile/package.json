@@ -1,0 +1,25 @@
+{
+  "name": "verah-mobile",
+  "version": "0.1.0",
+  "private": true,
+  "description": "VERAH mobile app (iOS/Android) — scaffold M1 do epico #164. Nao-producao.",
+  "main": "node_modules/expo/AppEntry.js",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios"
+  },
+  "dependencies": {
+    "@react-native-async-storage/async-storage": "2.1.2",
+    "@supabase/supabase-js": "^2.45.4",
+    "expo": "~53.0.0",
+    "react": "19.0.0",
+    "react-native": "0.79.5",
+    "react-native-url-polyfill": "^2.0.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.26.0",
+    "@types/react": "~19.0.10",
+    "typescript": "~5.8.3"
+  }
+}
