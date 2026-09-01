@@ -1,7 +1,7 @@
 # Handoff — Issue #167 Mobile workspace bootstrap
 
-- **Issue / PR:** #167 / (Draft PR aberto nesta sessão; ver branch `openhands/issue-167-mobile-workspace-bootstrap`)
-- **Commit:** (HEAD da branch; ver PR)
+- **Issue / PR:** #167 / #168 (Draft)
+- **Commit:** `2a1da82`
 - **Files changed:** `mobile/.npmrc` (novo), `mobile/pnpm-lock.yaml` (novo), `mobile/package.json`, `mobile/README.md`, `.github/workflows/ci.yml`, `tests/mobile-scaffold.test.mjs`
 - **Behavior delivered:** workspace `mobile/` reproduzível a partir de checkout limpo (`pnpm install --frozen-lockfile`), `expo-doctor` 18/18 e job de CI `mobile` adicionado ao gate `required`, sem tocar na CI web/database.
 - **Focused tests:** `pnpm test` (raiz) — 240/240 pass; `cd mobile && pnpm run check` — typecheck + expo-doctor OK; `pnpm install --frozen-lockfile` (raiz e mobile) OK; `pnpm lint` e `pnpm build` OK.
