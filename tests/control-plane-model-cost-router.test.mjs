@@ -132,6 +132,14 @@ test("OmniRoute requires every adoption condition", () => {
     "matrix_not_green",
   );
   assert.equal(
+    assessOmniRouteEvidence({ ...approvedEvidence, passed: 0.5, total: 0.5 }).reason,
+    "matrix_not_green",
+  );
+  assert.equal(
+    assessOmniRouteEvidence({ ...approvedEvidence, passed: 28 }).reason,
+    "matrix_not_green",
+  );
+  assert.equal(
     assessOmniRouteEvidence({ ...approvedEvidence, canonicalFallbackPassed: false }).reason,
     "canonical_fallback_failed",
   );

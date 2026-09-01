@@ -91,7 +91,14 @@ export function assessOmniRouteEvidence(evidence: OmniRouteEvidence): OmniRouteG
   if (!/^[a-f0-9]{40}$/i.test(evidence.snapshot)) {
     return { ...base, enabled: false, reason: "snapshot_not_pinned" };
   }
-  if (evidence.total <= 0 || evidence.passed !== evidence.total) {
+  if (
+    !Number.isSafeInteger(evidence.passed) ||
+    !Number.isSafeInteger(evidence.total) ||
+    evidence.passed < 0 ||
+    evidence.total <= 0 ||
+    evidence.passed > evidence.total ||
+    evidence.passed !== evidence.total
+  ) {
     return { ...base, enabled: false, reason: "matrix_not_green" };
   }
   if (!evidence.canonicalFallbackPassed) {
