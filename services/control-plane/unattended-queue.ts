@@ -1,5 +1,6 @@
 import { classifyControlPlaneGate, GuardedControlPlane } from "./foundation.ts";
 import { sanitizeText } from "./sanitization.ts";
+import type { PostExecutionReviewGate, ReviewGateResult } from "./review-gates.ts";
 import type { AgentRun, AgentTask } from "./types.ts";
 
 export type QueueItemStatus =
@@ -23,6 +24,7 @@ export type UnattendedQueueItem = {
   attempts: number;
   blocker: string | null;
   runs: AgentRun[];
+  reviewGate: ReviewGateResult | null;
 };
 
 export type UnattendedQueueReport = {
@@ -52,8 +54,13 @@ export class UnattendedControlPlaneQueue {
   private readonly issueDeliveries = new Map<string, string>();
   private readonly branchDeliveries = new Map<string, string>();
   private readonly options: Required<QueueOptions>;
+  private readonly reviewGate?: PostExecutionReviewGate;
 
-  constructor(plane: GuardedControlPlane, options: QueueOptions = {}) {
+  constructor(
+    plane: GuardedControlPlane,
+    options: QueueOptions = {},
+    reviewGate?: PostExecutionReviewGate,
+  ) {
     this.plane = plane;
     this.options = {
       enabled: options.enabled ?? false,
@@ -62,6 +69,7 @@ export class UnattendedControlPlaneQueue {
       maxAttempts: positiveAttempts(options.maxAttempts ?? 2),
       maxParallel: positiveParallelism(options.maxParallel ?? 1),
     };
+    this.reviewGate = reviewGate;
   }
 
   enqueue(event: GitHubQueueEvent) {
@@ -89,6 +97,7 @@ export class UnattendedControlPlaneQueue {
       attempts: 0,
       blocker: null,
       runs: [],
+      reviewGate: null,
     };
     this.items.set(event.deliveryId, item);
     this.issueDeliveries.set(event.task.issueKey, event.deliveryId);
@@ -136,7 +145,23 @@ export class UnattendedControlPlaneQueue {
     item.blocker = run.blocker ?? null;
 
     if (run.status === "completed") {
-      item.status = "completed";
+      if (this.reviewGate) {
+        try {
+          item.reviewGate = await this.reviewGate.evaluate(run);
+        } catch {
+          item.status = "blocked";
+          item.blocker = "review_gate_failed";
+          return item;
+        }
+        if (item.reviewGate.status === "blocked") {
+          item.status = "blocked";
+          item.blocker = item.reviewGate.blocker ?? "review_gate_blocked";
+        } else {
+          item.status = "completed";
+        }
+      } else {
+        item.status = "completed";
+      }
     } else if (run.gate === "HUMAN") {
       item.status = "blocked";
     } else if (item.attempts >= this.options.maxAttempts) {
@@ -181,6 +206,11 @@ export class UnattendedControlPlaneQueue {
       ...item,
       task: { ...item.task },
       runs: [...item.runs],
+      reviewGate: item.reviewGate ? {
+        ...item.reviewGate,
+        assessments: [...item.reviewGate.assessments],
+        checks: [...item.reviewGate.checks],
+      } : null,
     }));
   }
 }
