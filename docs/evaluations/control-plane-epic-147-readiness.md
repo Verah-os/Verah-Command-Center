@@ -1,7 +1,7 @@
 # Readiness do EPIC #147 — VERAH AI Control Plane
 
 - Data: 2026-09-01
-- Base auditada: `main` após #152, #148, #149 e #150
+- Base auditada: `main` após as Fases 0–5 do #147
 - Ambiente demonstrado: fixtures locais em sandbox/dry-run
 
 ## Critérios de aceite
@@ -29,7 +29,7 @@
 | 2 — OpenHands adapter | contrato concluído; piloto real isolado pendente (#149) |
 | 3 — Langflow/unattended queue | especificação + fixture concluídas (#150) |
 | 4 — Review/QA/Security agents | gate independente concluído por fixture; agentes/modelos reais pendentes de sandbox |
-| 5 — Design/Research/Product squads | pendente |
+| 5 — Design/Research/Product squads | planejamento pré-execução concluído por fixture; agentes/modelos reais pendentes de sandbox |
 | 6 — Cost Router/OmniRoute | pendente; depende de POC verde |
 | 7 — Shared Memory/Cognee | pendente; depende de piloto controlado |
 | 8 — unattended operacional | fixture concluída; runtime isolado e relatório real pendentes |
@@ -37,6 +37,7 @@
 ## Decisão
 
 O épico permanece aberto. Fechá-lo agora confundiria paridade contratual de
-fixture com operação real. A Fase 4 agora bloqueia a conclusão da fila quando
-Review, QA ou Security não aprova; agentes/modelos reais e OpenHands/Langflow
-reais continuam atrás dos stop gates até existir ambiente isolado.
+fixture com operação real. As Fases 4–5 agora bloqueiam lacunas de revisão,
+proveniência e conflitos entre Research, Design e Product; agentes/modelos reais
+e OpenHands/Langflow reais continuam atrás dos stop gates até existir ambiente
+isolado.

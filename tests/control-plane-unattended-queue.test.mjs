@@ -9,6 +9,10 @@ import {
 } from "../services/control-plane/foundation.ts";
 import { PolicyExecutorRouter } from "../services/control-plane/executor-router.ts";
 import {
+  createFixtureProductSquadAgents,
+  CrossFunctionalProductSquad,
+} from "../services/control-plane/product-squad.ts";
+import {
   createFixtureReviewAgents,
   IndependentReviewGate,
 } from "../services/control-plane/review-gates.ts";
@@ -56,7 +60,7 @@ function fakeExecutor(id, options = {}) {
   };
 }
 
-function harness({ codex, openhands, mode = "priority", queue = {}, reviewGate }) {
+function harness({ codex, openhands, mode = "priority", queue = {}, reviewGate, planningGate }) {
   const leases = new InMemoryAgentLeaseStore();
   const router = new PolicyExecutorRouter([
     {
@@ -88,7 +92,7 @@ function harness({ codex, openhands, mode = "priority", queue = {}, reviewGate }
     dryRun: true,
     maxAttempts: 2,
     ...queue,
-  }, reviewGate);
+  }, reviewGate, planningGate);
   return { adapter: new LangflowControlPlaneAdapter(unattended), unattended, leases };
 }
 
@@ -366,4 +370,66 @@ test("unexpected post-run gate failure leaves the queue fail-closed", async () =
   assert.equal(report.blocked, 1);
   assert.equal(item.status, "blocked");
   assert.equal(item.blocker, "review_gate_failed");
+});
+
+test("Product squad planning enriches executor context before one delivery", async () => {
+  const codex = fakeExecutor("codex", {
+    result: (request) => {
+      assert.equal(request.context.filter((ref) => ref.startsWith("squad-plan:")).length, 3);
+      return { status: "completed", handoff: "planned fixture", externalEffects: [] };
+    },
+  });
+  const planningGate = new CrossFunctionalProductSquad(createFixtureProductSquadAgents());
+  const active = harness({ codex, openhands: fakeExecutor("openhands"), planningGate });
+  active.adapter.accept({ source: "github", deliveryId: "squad-ready", task: task(20) });
+  const report = await active.adapter.run();
+  const item = active.unattended.snapshot()[0];
+  assert.equal(report.completed, 1);
+  assert.equal(item.attempts, 1);
+  assert.equal(item.squadPlan.status, "ready");
+  assert.deepEqual(item.squadPlan.contributions.map((entry) => entry.roleId), ["research", "design", "product"]);
+});
+
+test("blocked or unavailable Product squad never invokes an executor", async () => {
+  const codex = fakeExecutor("codex");
+  const blockedGate = new CrossFunctionalProductSquad(createFixtureProductSquadAgents());
+  const blocked = harness({ codex, openhands: fakeExecutor("openhands"), planningGate: blockedGate });
+  blocked.adapter.accept({
+    source: "github",
+    deliveryId: "squad-blocked",
+    task: task(21, { contextRefs: [] }),
+  });
+  assert.equal((await blocked.adapter.run()).blocked, 1);
+  assert.equal(blocked.unattended.snapshot()[0].attempts, 0);
+  assert.equal(codex.availabilityCalls, 0);
+
+  const unavailable = harness({
+    codex,
+    openhands: fakeExecutor("openhands"),
+    planningGate: { async plan() { throw new Error("planning unavailable"); } },
+  });
+  unavailable.adapter.accept({ source: "github", deliveryId: "squad-error", task: task(22) });
+  assert.equal((await unavailable.adapter.run()).blocked, 1);
+  assert.equal(unavailable.unattended.snapshot()[0].blocker, "squad_planning_failed");
+  assert.equal(codex.availabilityCalls, 0);
+});
+
+test("HUMAN gate blocks before Product squad planning", async () => {
+  const codex = fakeExecutor("codex");
+  const active = harness({
+    codex,
+    openhands: fakeExecutor("openhands"),
+    planningGate: { async plan() { throw new Error("must_not_plan"); } },
+  });
+  active.adapter.accept({
+    source: "github",
+    deliveryId: "squad-human",
+    task: task(23, { effects: ["real_payment"] }),
+  });
+  const report = await active.adapter.run();
+  const item = active.unattended.snapshot()[0];
+  assert.equal(report.blocked, 1);
+  assert.equal(item.blocker, "high_risk_effect");
+  assert.equal(item.squadPlan, null);
+  assert.equal(codex.availabilityCalls, 0);
 });

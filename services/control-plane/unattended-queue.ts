@@ -1,6 +1,7 @@
 import { classifyControlPlaneGate, GuardedControlPlane } from "./foundation.ts";
 import { sanitizeText } from "./sanitization.ts";
 import type { PostExecutionReviewGate, ReviewGateResult } from "./review-gates.ts";
+import type { PreExecutionPlanningGate, SquadPlanResult } from "./product-squad.ts";
 import type { AgentRun, AgentTask } from "./types.ts";
 
 export type QueueItemStatus =
@@ -25,6 +26,7 @@ export type UnattendedQueueItem = {
   blocker: string | null;
   runs: AgentRun[];
   reviewGate: ReviewGateResult | null;
+  squadPlan: SquadPlanResult | null;
 };
 
 export type UnattendedQueueReport = {
@@ -55,11 +57,13 @@ export class UnattendedControlPlaneQueue {
   private readonly branchDeliveries = new Map<string, string>();
   private readonly options: Required<QueueOptions>;
   private readonly reviewGate?: PostExecutionReviewGate;
+  private readonly planningGate?: PreExecutionPlanningGate;
 
   constructor(
     plane: GuardedControlPlane,
     options: QueueOptions = {},
     reviewGate?: PostExecutionReviewGate,
+    planningGate?: PreExecutionPlanningGate,
   ) {
     this.plane = plane;
     this.options = {
@@ -70,6 +74,7 @@ export class UnattendedControlPlaneQueue {
       maxParallel: positiveParallelism(options.maxParallel ?? 1),
     };
     this.reviewGate = reviewGate;
+    this.planningGate = planningGate;
   }
 
   enqueue(event: GitHubQueueEvent) {
@@ -98,6 +103,7 @@ export class UnattendedControlPlaneQueue {
       blocker: null,
       runs: [],
       reviewGate: null,
+      squadPlan: null,
     };
     this.items.set(event.deliveryId, item);
     this.issueDeliveries.set(event.task.issueKey, event.deliveryId);
@@ -135,10 +141,29 @@ export class UnattendedControlPlaneQueue {
   private async processItem(item: UnattendedQueueItem): Promise<UnattendedQueueItem> {
 
     item.status = "running";
+    const taskGate = classifyControlPlaneGate(item.task);
+    if (taskGate.gate !== "HUMAN" && this.planningGate && !item.squadPlan) {
+      try {
+        item.squadPlan = await this.planningGate.plan(item.task);
+      } catch {
+        item.status = "blocked";
+        item.blocker = "squad_planning_failed";
+        return item;
+      }
+      if (item.squadPlan.status === "blocked") {
+        item.status = "blocked";
+        item.blocker = item.squadPlan.blocker ?? "squad_planning_blocked";
+        return item;
+      }
+    }
     item.attempts += 1;
     const attemptTask: AgentTask = {
       ...item.task,
       idempotencyKey: `${item.task.idempotencyKey}:attempt:${item.attempts}`,
+      contextRefs: [
+        ...(item.task.contextRefs ?? []),
+        ...(item.squadPlan?.contextRefs ?? []),
+      ],
     };
     const run = await this.plane.run(attemptTask);
     item.runs.push(run);
@@ -210,6 +235,11 @@ export class UnattendedControlPlaneQueue {
         ...item.reviewGate,
         assessments: [...item.reviewGate.assessments],
         checks: [...item.reviewGate.checks],
+      } : null,
+      squadPlan: item.squadPlan ? {
+        ...item.squadPlan,
+        contributions: [...item.squadPlan.contributions],
+        contextRefs: [...item.squadPlan.contextRefs],
       } : null,
     }));
   }
