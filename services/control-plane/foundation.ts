@@ -282,6 +282,7 @@ export class GuardedControlPlane {
         modelRoute,
         handoff: sanitized.handoff,
         costMicrounits: result.costMicrounits,
+        executorDurationMs: result.durationMs,
       });
       this.runsByIdempotency.set(task.idempotencyKey, run);
       return run;
@@ -314,6 +315,7 @@ export class GuardedControlPlane {
     modelRoute: AgentRun["modelRoute"];
     handoff?: string;
     costMicrounits?: number;
+    executorDurationMs?: number;
   }): AgentRun {
     const completedAtMs = (this.options.now ?? Date.now)();
     const run: AgentRun = {
@@ -329,6 +331,7 @@ export class GuardedControlPlane {
       dryRun: true,
       startedAt: new Date(input.startedAtMs).toISOString(),
       completedAt: new Date(completedAtMs).toISOString(),
+      executorDurationMs: input.executorDurationMs,
       costMicrounits: input.costMicrounits,
       handoff: input.handoff,
       blocker: input.blocker,
@@ -344,6 +347,7 @@ export class GuardedControlPlane {
         gate: run.gate,
         executorId: run.executorId,
         model: run.modelRoute?.model,
+        executorDurationMs: run.executorDurationMs,
         blocker: run.blocker,
         handoff: run.handoff,
       }) as Record<string, unknown>,

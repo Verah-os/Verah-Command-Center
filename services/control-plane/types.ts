@@ -144,6 +144,7 @@ export type AgentExecutionResult = {
   handoff?: string;
   errorCode?: string;
   costMicrounits?: number;
+  durationMs?: number;
   externalEffects?: readonly string[];
 };
 
@@ -151,6 +152,7 @@ export type AgentExecutor = {
   id: string;
   availability(): Promise<ExecutorAvailability>;
   execute(request: AgentExecutionRequest): Promise<AgentExecutionResult>;
+  cancel?(idempotencyKey: string): Promise<void>;
 };
 
 export type ModelRouter = {
@@ -179,6 +181,7 @@ export type AgentRun = {
   dryRun: true;
   startedAt: string;
   completedAt: string;
+  executorDurationMs?: number;
   costMicrounits?: number;
   handoff?: string;
   blocker?: string;
