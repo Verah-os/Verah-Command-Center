@@ -250,7 +250,7 @@ export class GuardedControlPlane {
 
     let selectedModelRoute: AgentRun["modelRoute"] = null;
     try {
-      const availability = await this.executor.availability();
+      const availability = await this.executor.availability(task);
       if (availability !== "available") return block(`executor_${availability}`);
 
       const [modelRoute, context] = await Promise.all([
@@ -283,6 +283,7 @@ export class GuardedControlPlane {
         handoff: sanitized.handoff,
         costMicrounits: result.costMicrounits,
         executorDurationMs: result.durationMs,
+        executorId: result.executorId,
       });
       this.runsByIdempotency.set(task.idempotencyKey, run);
       return run;
@@ -316,6 +317,7 @@ export class GuardedControlPlane {
     handoff?: string;
     costMicrounits?: number;
     executorDurationMs?: number;
+    executorId?: string;
   }): AgentRun {
     const completedAtMs = (this.options.now ?? Date.now)();
     const run: AgentRun = {
@@ -323,7 +325,7 @@ export class GuardedControlPlane {
       issueKey: input.task.issueKey,
       idempotencyKey: input.task.idempotencyKey,
       roleId: input.task.roleId,
-      executorId: this.executor.id,
+      executorId: input.executorId ?? this.executor.id,
       modelRoute: input.modelRoute,
       gate: input.gate,
       status: input.status,
