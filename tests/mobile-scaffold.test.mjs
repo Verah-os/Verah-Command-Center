@@ -52,7 +52,14 @@ test("mobile client uses persisted session on the shared anon + RLS contract", a
 
 test("mobile workspace contains no server-only secrets or privileged keys", async () => {
   const entries = await readdir(new URL("../mobile", import.meta.url), { recursive: true });
-  const files = entries.filter((entry) => /\.(ts|tsx|js|json|md)$/.test(entry));
+  // Vendored install/build artifacts are gitignored and never shipped as app
+  // source; scanning them yields false positives (e.g. "private key" in the
+  // TypeScript compiler's own license header).
+  const files = entries.filter(
+    (entry) =>
+      /\.(ts|tsx|js|json|md)$/.test(entry) &&
+      !/^(node_modules|\.expo|dist|build)\//.test(entry),
+  );
   assert.ok(files.length > 0);
   const forbidden = /SUPABASE_SERVICE_ROLE_KEY|service_role_key|WHATSAPP_|N8N_|GITHUB_TOKEN|CONTROL_PLANE_|VERAH_OS_|PRIVATE KEY/i;
   for (const file of files) {
