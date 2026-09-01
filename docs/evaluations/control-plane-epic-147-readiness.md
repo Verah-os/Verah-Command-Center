@@ -28,7 +28,7 @@
 | 1 — foundation | concluída (#148) |
 | 2 — OpenHands adapter | contrato concluído; piloto real isolado pendente (#149) |
 | 3 — Langflow/unattended queue | especificação + fixture concluídas (#150) |
-| 4 — Review/QA/Security agents | pendente |
+| 4 — Review/QA/Security agents | gate independente concluído por fixture; agentes/modelos reais pendentes de sandbox |
 | 5 — Design/Research/Product squads | pendente |
 | 6 — Cost Router/OmniRoute | pendente; depende de POC verde |
 | 7 — Shared Memory/Cognee | pendente; depende de piloto controlado |
@@ -37,5 +37,6 @@
 ## Decisão
 
 O épico permanece aberto. Fechá-lo agora confundiria paridade contratual de
-fixture com operação real. A próxima entrega recomendada é a Fase 4, mantendo
-OpenHands/Langflow reais atrás dos stop gates até existir ambiente isolado.
+fixture com operação real. A Fase 4 agora bloqueia a conclusão da fila quando
+Review, QA ou Security não aprova; agentes/modelos reais e OpenHands/Langflow
+reais continuam atrás dos stop gates até existir ambiente isolado.

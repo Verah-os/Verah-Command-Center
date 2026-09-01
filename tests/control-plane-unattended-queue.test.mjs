@@ -9,6 +9,10 @@ import {
 } from "../services/control-plane/foundation.ts";
 import { PolicyExecutorRouter } from "../services/control-plane/executor-router.ts";
 import {
+  createFixtureReviewAgents,
+  IndependentReviewGate,
+} from "../services/control-plane/review-gates.ts";
+import {
   LangflowControlPlaneAdapter,
   UnattendedControlPlaneQueue,
 } from "../services/control-plane/unattended-queue.ts";
@@ -52,7 +56,7 @@ function fakeExecutor(id, options = {}) {
   };
 }
 
-function harness({ codex, openhands, mode = "priority", queue = {} }) {
+function harness({ codex, openhands, mode = "priority", queue = {}, reviewGate }) {
   const leases = new InMemoryAgentLeaseStore();
   const router = new PolicyExecutorRouter([
     {
@@ -84,7 +88,7 @@ function harness({ codex, openhands, mode = "priority", queue = {} }) {
     dryRun: true,
     maxAttempts: 2,
     ...queue,
-  });
+  }, reviewGate);
   return { adapter: new LangflowControlPlaneAdapter(unattended), unattended, leases };
 }
 
@@ -312,4 +316,54 @@ test("two independent issues run concurrently on reserved executors and branches
     reworkAttempts: 0,
     killSwitchActive: false,
   });
+});
+
+test("post-run Review, QA and Security gate controls terminal queue status", async () => {
+  const passing = fakeExecutor("codex", {
+    result: {
+      status: "completed",
+      handoff: "Safe fixture handoff",
+      artifacts: {
+        draftPrUrl: "https://github.com/Verah-os/Verah-Command-Center/pull/159",
+        checks: [{ name: "Required", status: "passed" }],
+      },
+      externalEffects: [],
+    },
+  });
+  const gate = new IndependentReviewGate(createFixtureReviewAgents());
+  const approved = harness({ codex: passing, openhands: fakeExecutor("openhands"), reviewGate: gate });
+  approved.adapter.accept({ source: "github", deliveryId: "review-pass", task: task(17) });
+  assert.equal((await approved.adapter.run()).completed, 1);
+  assert.equal(approved.unattended.snapshot()[0].reviewGate.checks.length, 3);
+
+  const missingChecks = fakeExecutor("codex", {
+    result: {
+      status: "completed",
+      handoff: "Incomplete fixture handoff",
+      artifacts: { draftPrUrl: "https://github.com/Verah-os/Verah-Command-Center/pull/159" },
+      externalEffects: [],
+    },
+  });
+  const blocked = harness({ codex: missingChecks, openhands: fakeExecutor("openhands"), reviewGate: gate });
+  blocked.adapter.accept({ source: "github", deliveryId: "review-block", task: task(18) });
+  const report = await blocked.adapter.run();
+  const item = blocked.unattended.snapshot()[0];
+  assert.equal(report.blocked, 1);
+  assert.equal(report.completed, 0);
+  assert.equal(item.status, "blocked");
+  assert.equal(item.blocker, "review_qa_blocked");
+});
+
+test("unexpected post-run gate failure leaves the queue fail-closed", async () => {
+  const completed = fakeExecutor("codex", {
+    result: { status: "completed", handoff: "fixture", externalEffects: [] },
+  });
+  const reviewGate = { async evaluate() { throw new Error("review service unavailable"); } };
+  const active = harness({ codex: completed, openhands: fakeExecutor("openhands"), reviewGate });
+  active.adapter.accept({ source: "github", deliveryId: "review-error", task: task(19) });
+  const report = await active.adapter.run();
+  const item = active.unattended.snapshot()[0];
+  assert.equal(report.blocked, 1);
+  assert.equal(item.status, "blocked");
+  assert.equal(item.blocker, "review_gate_failed");
 });

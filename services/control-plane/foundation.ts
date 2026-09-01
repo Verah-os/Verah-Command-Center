@@ -68,6 +68,12 @@ export const VERAH_CURATED_ROLES: readonly AgentRole[] = [
     reviewStatus: "internal-approved",
   },
   {
+    id: "review",
+    name: "Code Reviewer",
+    capabilities: ["code-review", "maintainability"],
+    reviewStatus: "internal-approved",
+  },
+  {
     id: "product",
     name: "Product Manager",
     capabilities: ["scope", "acceptance-criteria"],
