@@ -32,6 +32,9 @@ export type UnattendedQueueReport = {
   blocked: number;
   deadLetter: number;
   totalRuns: number;
+  totalCostMicrounits: number;
+  totalExecutorDurationMs: number;
+  reworkAttempts: number;
   killSwitchActive: boolean;
 };
 
@@ -40,12 +43,14 @@ type QueueOptions = {
   killSwitch?: boolean;
   dryRun?: boolean;
   maxAttempts?: number;
+  maxParallel?: number;
 };
 
 export class UnattendedControlPlaneQueue {
   private readonly plane: GuardedControlPlane;
   private readonly items = new Map<string, UnattendedQueueItem>();
   private readonly issueDeliveries = new Map<string, string>();
+  private readonly branchDeliveries = new Map<string, string>();
   private readonly options: Required<QueueOptions>;
 
   constructor(plane: GuardedControlPlane, options: QueueOptions = {}) {
@@ -55,6 +60,7 @@ export class UnattendedControlPlaneQueue {
       killSwitch: options.killSwitch ?? true,
       dryRun: options.dryRun ?? true,
       maxAttempts: positiveAttempts(options.maxAttempts ?? 2),
+      maxParallel: positiveParallelism(options.maxParallel ?? 1),
     };
   }
 
@@ -69,6 +75,12 @@ export class UnattendedControlPlaneQueue {
       const active = this.items.get(activeDelivery);
       if (active && !terminal(active.status)) return { item: active, deduplicated: true };
     }
+    const branchKey = event.task.branchName ?? event.task.issueKey;
+    const branchDelivery = this.branchDeliveries.get(branchKey);
+    if (branchDelivery) {
+      const active = this.items.get(branchDelivery);
+      if (active && !terminal(active.status)) return { item: active, deduplicated: true };
+    }
 
     const item: UnattendedQueueItem = {
       deliveryId: event.deliveryId,
@@ -80,6 +92,7 @@ export class UnattendedControlPlaneQueue {
     };
     this.items.set(event.deliveryId, item);
     this.issueDeliveries.set(event.task.issueKey, event.deliveryId);
+    this.branchDeliveries.set(branchKey, event.deliveryId);
     return { item, deduplicated: false };
   }
 
@@ -88,6 +101,29 @@ export class UnattendedControlPlaneQueue {
     const item = [...this.items.values()].find((candidate) =>
       candidate.status === "queued" || candidate.status === "retryable");
     if (!item) return null;
+
+    return this.processItem(item);
+  }
+
+  async processBatch(maxParallel = this.options.maxParallel): Promise<UnattendedQueueItem[]> {
+    if (!this.options.enabled || this.options.killSwitch || !this.options.dryRun) return [];
+    const limit = positiveParallelism(maxParallel);
+    const selected: UnattendedQueueItem[] = [];
+    const issues = new Set<string>();
+    const branches = new Set<string>();
+    for (const item of this.items.values()) {
+      if (item.status !== "queued" && item.status !== "retryable") continue;
+      const branch = item.task.branchName ?? item.task.issueKey;
+      if (issues.has(item.task.issueKey) || branches.has(branch)) continue;
+      selected.push(item);
+      issues.add(item.task.issueKey);
+      branches.add(branch);
+      if (selected.length >= limit) break;
+    }
+    return Promise.all(selected.map((item) => this.processItem(item)));
+  }
+
+  private async processItem(item: UnattendedQueueItem): Promise<UnattendedQueueItem> {
 
     item.status = "running";
     item.attempts += 1;
@@ -113,9 +149,11 @@ export class UnattendedControlPlaneQueue {
 
   async drain(maxSteps = 100): Promise<UnattendedQueueReport> {
     if (!Number.isInteger(maxSteps) || maxSteps < 1) throw new Error("invalid_queue_step_limit");
-    for (let step = 0; step < maxSteps; step += 1) {
-      const processed = await this.processNext();
-      if (!processed) break;
+    let steps = 0;
+    while (steps < maxSteps) {
+      const processed = await this.processBatch(Math.min(this.options.maxParallel, maxSteps - steps));
+      if (processed.length === 0) break;
+      steps += processed.length;
     }
     return this.report();
   }
@@ -129,6 +167,11 @@ export class UnattendedControlPlaneQueue {
       blocked: values.filter((item) => item.status === "blocked").length,
       deadLetter: values.filter((item) => item.status === "dead_letter").length,
       totalRuns: values.reduce((total, item) => total + item.runs.length, 0),
+      totalCostMicrounits: values.reduce((total, item) => total
+        + item.runs.reduce((subtotal, run) => subtotal + (run.costMicrounits ?? 0), 0), 0),
+      totalExecutorDurationMs: values.reduce((total, item) => total
+        + item.runs.reduce((subtotal, run) => subtotal + (run.executorDurationMs ?? 0), 0), 0),
+      reworkAttempts: values.reduce((total, item) => total + Math.max(0, item.attempts - 1), 0),
       killSwitchActive: !this.options.enabled || this.options.killSwitch || !this.options.dryRun,
     };
   }
@@ -171,6 +214,13 @@ function positiveAttempts(value: number) {
   return value;
 }
 
+function positiveParallelism(value: number) {
+  if (!Number.isInteger(value) || value < 1 || value > 8) {
+    throw new Error("invalid_queue_parallelism");
+  }
+  return value;
+}
+
 function terminal(status: QueueItemStatus) {
   return status === "completed" || status === "blocked" || status === "dead_letter";
 }
@@ -202,6 +252,9 @@ function normalizeGitHubQueueEvent(input: unknown): GitHubQueueEvent {
       title: sanitizeText(task.title as string, 500),
       roleId: sanitizeText(task.roleId as string, 100),
       kind: sanitizeText(task.kind as string, 100),
+      branchName: typeof task.branchName === "string"
+        ? sanitizeText(task.branchName, 300)
+        : undefined,
       effects,
       contextRefs,
     },

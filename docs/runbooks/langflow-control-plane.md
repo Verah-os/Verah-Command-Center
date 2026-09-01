@@ -14,8 +14,8 @@ qualidade e o flow não possui operação de merge/deploy.
 
 ## Política v1
 
-- execução serial por padrão; portanto nunca há duas Issues na mesma
-  branch/executor. Paralelismo futuro só pode usar chaves de Issue distintas;
+- execução serial por padrão; `maxParallel=2` pode ser habilitado somente para
+  Issues e branches distintas. O router reserva um executor por run;
 - router filtra por tipo de tarefa e ordena por prioridade ou menor custo;
 - fallback acontece antes da execução e dentro do mesmo lease. Uma falha após
   início não é entregue a outro executor, evitando reprocessamento parcial;

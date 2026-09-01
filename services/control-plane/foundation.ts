@@ -284,6 +284,9 @@ export class GuardedControlPlane {
         costMicrounits: result.costMicrounits,
         executorDurationMs: result.durationMs,
         executorId: result.executorId,
+        artifacts: result.artifacts
+          ? sanitizePayload(result.artifacts) as AgentRun["artifacts"]
+          : undefined,
       });
       this.runsByIdempotency.set(task.idempotencyKey, run);
       return run;
@@ -301,6 +304,11 @@ export class GuardedControlPlane {
       this.runsByIdempotency.set(task.idempotencyKey, run);
       return run;
     } finally {
+      try {
+        await this.executor.cancel?.(task.idempotencyKey);
+      } catch {
+        // Lease release is authoritative even when executor cleanup fails.
+      }
       this.leases.release(task.issueKey, claim.lease.id, (this.options.now ?? Date.now)());
     }
   }
@@ -318,6 +326,7 @@ export class GuardedControlPlane {
     costMicrounits?: number;
     executorDurationMs?: number;
     executorId?: string;
+    artifacts?: AgentRun["artifacts"];
   }): AgentRun {
     const completedAtMs = (this.options.now ?? Date.now)();
     const run: AgentRun = {
@@ -325,6 +334,7 @@ export class GuardedControlPlane {
       issueKey: input.task.issueKey,
       idempotencyKey: input.task.idempotencyKey,
       roleId: input.task.roleId,
+      branchName: input.task.branchName,
       executorId: input.executorId ?? this.executor.id,
       modelRoute: input.modelRoute,
       gate: input.gate,
@@ -336,6 +346,7 @@ export class GuardedControlPlane {
       executorDurationMs: input.executorDurationMs,
       costMicrounits: input.costMicrounits,
       handoff: input.handoff,
+      artifacts: input.artifacts,
       blocker: input.blocker,
       deduplicated: false,
       externalEffects: [],
@@ -352,6 +363,7 @@ export class GuardedControlPlane {
         executorDurationMs: run.executorDurationMs,
         blocker: run.blocker,
         handoff: run.handoff,
+        artifacts: run.artifacts,
       }) as Record<string, unknown>,
     });
     return Object.freeze(run);

@@ -20,6 +20,7 @@ export class PolicyExecutorRouter implements AgentExecutor {
   private readonly candidates: readonly ExecutorCandidate[];
   private readonly mode: ExecutorRoutingMode;
   private readonly selections = new Map<string, AgentExecutor>();
+  private readonly reservations = new Map<string, string>();
 
   constructor(candidates: readonly ExecutorCandidate[], mode: ExecutorRoutingMode = "priority") {
     if (candidates.length === 0) throw new Error("executor_candidates_required");
@@ -36,11 +37,25 @@ export class PolicyExecutorRouter implements AgentExecutor {
 
     const observed: ExecutorAvailability[] = [];
     for (const candidate of candidates) {
-      const availability = await candidate.executor.availability(task);
+      const reservedBy = this.reservations.get(candidate.executor.id);
+      if (reservedBy && reservedBy !== task.idempotencyKey) {
+        observed.push("busy");
+        continue;
+      }
+      this.reservations.set(candidate.executor.id, task.idempotencyKey);
+      let availability: ExecutorAvailability;
+      try {
+        availability = await candidate.executor.availability(task);
+      } catch {
+        availability = "unavailable";
+      }
       observed.push(availability);
       if (availability === "available") {
         this.selections.set(task.idempotencyKey, candidate.executor);
         return "available";
+      }
+      if (this.reservations.get(candidate.executor.id) === task.idempotencyKey) {
+        this.reservations.delete(candidate.executor.id);
       }
     }
 
@@ -66,12 +81,18 @@ export class PolicyExecutorRouter implements AgentExecutor {
       return { ...result, executorId: executor.id };
     } finally {
       this.selections.delete(key);
+      this.reservations.delete(executor.id);
     }
   }
 
   async cancel(idempotencyKey: string): Promise<void> {
     const executor = this.selections.get(idempotencyKey);
-    await executor?.cancel?.(idempotencyKey);
+    try {
+      await executor?.cancel?.(idempotencyKey);
+    } finally {
+      this.selections.delete(idempotencyKey);
+      if (executor) this.reservations.delete(executor.id);
+    }
   }
 
   private eligible(task: AgentTask) {

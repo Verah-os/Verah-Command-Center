@@ -19,6 +19,7 @@ const task = (number, overrides = {}) => ({
   title: `Synthetic task ${number}`,
   roleId: "coding",
   kind: "isolated_code",
+  branchName: `agent/synthetic-${number}`,
   effects: ["local_files", "repository_branch", "sandbox"],
   contextRefs: ["AGENTS.md", `fixture:${number}`],
   ...overrides,
@@ -225,6 +226,9 @@ test("three-task unattended fixture reports fallback, HUMAN block and dead-lette
     blocked: 1,
     deadLetter: 1,
     totalRuns: 4,
+    totalCostMicrounits: 20,
+    totalExecutorDurationMs: 0,
+    reworkAttempts: 1,
     killSwitchActive: false,
   });
 });
@@ -251,4 +255,61 @@ test("cost and task-kind policies remain versioned outside Langflow UI", async (
   assert.equal(specification.domainImplementation, "services/control-plane/unattended-queue.ts");
   assert.equal(specification.policy.criticalLogicInUi, false);
   assert.equal(specification.policy.killSwitchDefault, true);
+  assert.equal(specification.policy.maxParallelIndependentIssues, 2);
+});
+
+test("two independent issues run concurrently on reserved executors and branches", async () => {
+  const bothStarted = Promise.withResolvers();
+  const release = Promise.withResolvers();
+  let started = 0;
+  const concurrentResult = async (input) => {
+    started += 1;
+    if (started === 2) bothStarted.resolve();
+    await release.promise;
+    return {
+      status: "completed",
+      handoff: `${input.task.branchName} complete`,
+      durationMs: 10,
+      costMicrounits: 5,
+      artifacts: {
+        draftPrUrl: `https://github.com/Verah-os/Verah-Command-Center/pull/${started}`,
+        checks: [{ name: "Required", status: "passed" }],
+      },
+      externalEffects: [],
+    };
+  };
+  const active = harness({
+    codex: fakeExecutor("codex", { result: concurrentResult }),
+    openhands: fakeExecutor("openhands", { result: concurrentResult }),
+    queue: { maxParallel: 2 },
+  });
+  active.adapter.accept({ source: "github", deliveryId: "parallel-a", task: task(15) });
+  active.adapter.accept({ source: "github", deliveryId: "parallel-b", task: task(16) });
+
+  const processing = active.unattended.processBatch();
+  await Promise.race([
+    bothStarted.promise,
+    new Promise((_resolve, reject) => setTimeout(() => reject(new Error("parallel_start_timeout")), 1_000)),
+  ]);
+  assert.equal(active.leases.audit.filter((event) => event.type === "lease_acquired").length, 2);
+  assert.equal(active.leases.audit.filter((event) => event.type === "lease_released").length, 0);
+  release.resolve();
+  await processing;
+
+  const items = active.unattended.snapshot();
+  assert.deepEqual(new Set(items.map((item) => item.runs[0].executorId)), new Set(["codex", "openhands"]));
+  assert.equal(new Set(items.map((item) => item.task.branchName)).size, 2);
+  assert.equal(items.every((item) => item.runs[0].artifacts.checks[0].status === "passed"), true);
+  assert.deepEqual(active.adapter.report(), {
+    queued: 0,
+    retryable: 0,
+    completed: 2,
+    blocked: 0,
+    deadLetter: 0,
+    totalRuns: 2,
+    totalCostMicrounits: 10,
+    totalExecutorDurationMs: 20,
+    reworkAttempts: 0,
+    killSwitchActive: false,
+  });
 });
