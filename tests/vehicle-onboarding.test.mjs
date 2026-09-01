@@ -7,6 +7,10 @@ import {
   normalizeBrazilianPlate,
   prepareManualVehicle,
 } from "../services/customer-vehicles/onboarding.ts";
+import {
+  createLocalVehicleIntelligenceProvider,
+  DEMO_VEHICLE_PLATE,
+} from "../services/vehicle-intelligence/local-provider.ts";
 
 test("Brazilian plates are normalized without becoming vehicle identity", () => {
   assert.equal(normalizeBrazilianPlate("abc-1234"), "ABC1234");
@@ -87,4 +91,53 @@ test("service creation reuses a confirmed canonical vehicle instead of creating 
   assert.match(source, /\.from\("customer_vehicles"\)[\s\S]*\.eq\("id", selectedVehicleId\)[\s\S]*\.eq\("active", true\)/);
   assert.match(source, /Cadastre e confirme seu veículo antes de abrir o atendimento/);
   assert.doesNotMatch(source, /\.from\("customer_vehicles"\)\s*\.insert/);
+});
+
+test("documented demo plate reaches the synthetic suggestion without weakening plate validation", async () => {
+  assert.equal(normalizeBrazilianPlate(DEMO_VEHICLE_PLATE), DEMO_VEHICLE_PLATE);
+
+  const result = await lookupVehicleForOnboarding(DEMO_VEHICLE_PLATE, [
+    createLocalVehicleIntelligenceProvider(),
+  ]);
+
+  assert.equal(result.status, "suggested");
+  assert.equal(result.plate, DEMO_VEHICLE_PLATE);
+  assert.equal(result.provenance.provider, "verah_local_fixture");
+  assert.equal(result.provenance.synthetic, true);
+  assert.equal(result.customerConfirmationRequired, true);
+});
+
+test("service requests require a confirmed canonical vehicle and skip the fixed catalog for it", async () => {
+  const source = await readFile(
+    new URL("../services/service-requests/actions.ts", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(
+    source,
+    /\.not\("customer_confirmed_at", "is", null\)/,
+  );
+  assert.match(
+    source,
+    /!canonicalVehicleSelected && !isValidVehicle\(vehicleBrand, vehicleModel\)/,
+  );
+});
+
+test("canonical vehicle confirmation promotes matching backend-created vehicles", async () => {
+  const migration = await readFile(
+    new URL(
+      "../supabase/migrations/20260827040000_vehicle_onboarding.sql",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+
+  assert.match(
+    migration,
+    /update public\.customer_vehicles[\s\S]*data_source = 'customer_confirmed'[\s\S]*perform public\.refresh_customer_onboarding\(\);[\s\S]*'created', false/,
+  );
+  assert.match(
+    migration,
+    /on public\.service_requests[\s\S]*vehicle\.customer_confirmed_at is not null/,
+  );
 });

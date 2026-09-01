@@ -113,7 +113,9 @@ export function ServiceRequestForm({
       return setError(
         "Preencha seu nome e conte o que aconteceu com um pouco mais de detalhe.",
       );
-    if (!isValidVehicle(values.vehicleBrand, values.vehicleModel))
+    // A selected canonical vehicle was already confirmed during onboarding;
+    // the fixed catalog only constrains manually typed vehicle data.
+    if (selectedVehicleId === "new" && !isValidVehicle(values.vehicleBrand, values.vehicleModel))
       return setError("Selecione uma marca e um modelo válidos da lista.");
     if (!isValidLocation(values.state, values.city))
       return setError("Selecione um estado e uma cidade válidos da lista.");

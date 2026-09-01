@@ -55,6 +55,10 @@ async function createServiceRequestFromForm(
     "hasRoadsideAssistance",
   );
   const insurerName = value(formData, "insurerName");
+  const selectedVehicleId =
+    origin === "customer" ? value(formData, "vehicleId") : "";
+  const canonicalVehicleSelected =
+    selectedVehicleId !== "" && selectedVehicleId !== "new";
   if (
     !customerName ||
     !vehicleBrand ||
@@ -74,7 +78,9 @@ async function createServiceRequestFromForm(
     fail("O nome da seguradora deve ter no máximo 120 caracteres.", origin);
   if (customerReport.length < 15)
     fail("Conte um pouco mais sobre o que aconteceu.", origin);
-  if (!isValidVehicle(vehicleBrand, vehicleModel))
+  // A confirmed canonical vehicle already passed onboarding validation, so
+  // the fixed catalog only constrains free-form (concierge) vehicle data.
+  if (!canonicalVehicleSelected && !isValidVehicle(vehicleBrand, vehicleModel))
     fail("Selecione uma marca e um modelo válidos.", origin);
   if (!isValidLocation(state, city))
     fail("Selecione um estado e uma cidade válidos.", origin);
@@ -98,13 +104,13 @@ async function createServiceRequestFromForm(
   let vehicleId: string | null = null;
   let vehiclePlate = value(formData, "vehiclePlate") || null;
   if (origin === "customer") {
-    const selectedVehicleId = value(formData, "vehicleId");
-    if (selectedVehicleId && selectedVehicleId !== "new") {
+    if (canonicalVehicleSelected) {
       const { data: selectedVehicle } = await supabase
         .from("customer_vehicles")
         .select("id,brand,model,year,plate")
         .eq("id", selectedVehicleId)
         .eq("active", true)
+        .not("customer_confirmed_at", "is", null)
         .maybeSingle();
       if (!selectedVehicle)
         fail("O veículo selecionado não está disponível.", origin);

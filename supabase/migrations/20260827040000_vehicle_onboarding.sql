@@ -140,6 +140,14 @@ begin
       or existing_vehicle.source_synthetic is distinct from p_source_synthetic then
       raise exception using errcode = '23505', message = 'Confirmed vehicle already exists with different data';
     end if;
+    -- A matching confirmation promotes a backend-created (legacy) vehicle to
+    -- customer-confirmed state instead of leaving onboarding incomplete.
+    update public.customer_vehicles
+    set data_source = 'customer_confirmed',
+      customer_confirmed_at = coalesce(customer_confirmed_at, pg_catalog.now()),
+      updated_at = pg_catalog.now()
+    where id = existing_vehicle.id;
+    perform public.refresh_customer_onboarding();
     return pg_catalog.jsonb_build_object('vehicle_id', existing_vehicle.id, 'created', false);
   end if;
 
@@ -166,3 +174,37 @@ revoke execute on function public.confirm_customer_vehicle(
 grant execute on function public.confirm_customer_vehicle(
   text, text, text, integer, text, text, text, text, text, timestamptz, boolean, boolean
 ) to authenticated;
+
+-- Customer service requests must be backed by an active, owned and
+-- customer-confirmed canonical vehicle.
+drop policy if exists "Customers can create their service requests" on public.service_requests;
+create policy "Customers can create their service requests"
+  on public.service_requests
+  for insert
+  to authenticated
+  with check (
+    created_by = (select auth.uid())
+    and service_stage = 'solicitado'
+    and (
+      (
+        (select public.current_verah_role()) = 'customer'
+        and origin = 'customer'
+        and (
+          vehicle_id is null
+          or exists (
+            select 1
+            from public.customer_vehicles vehicle
+            where vehicle.id = vehicle_id
+              and vehicle.owner_id = (select auth.uid())
+              and vehicle.active
+              and vehicle.customer_confirmed_at is not null
+          )
+        )
+      )
+      or (
+        (select public.current_verah_role()) in ('concierge', 'admin')
+        and origin = 'concierge'
+        and vehicle_id is null
+      )
+    )
+  );

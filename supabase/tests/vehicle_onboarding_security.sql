@@ -100,6 +100,66 @@ do $$ begin
     ) then raise exception 'Multiple vehicles or synthetic provenance failed'; end if;
 end $$;
 
+-- A backend-created/unconfirmed vehicle with the same plate is promoted to
+-- customer-confirmed state when the customer confirms matching details.
+reset role;
+insert into public.customer_vehicles(owner_id, brand, model, year, plate)
+values ('a1400000-0000-4000-8000-000000000001', 'BYD', 'Dolphin', 2024, 'BCK2E34');
+set local role authenticated;
+select pg_catalog.set_config('request.jwt.claim.role', 'authenticated', true);
+select pg_catalog.set_config('request.jwt.claim.sub', 'a1400000-0000-4000-8000-000000000001', true);
+
+-- An unconfirmed canonical vehicle cannot back a customer service request.
+select vehicle_onboarding_test.expect_error($statement$
+  insert into public.service_requests(
+    reference_code, customer_name, vehicle_brand, vehicle_model, city,
+    customer_report, perceived_urgency, service_stage, created_by, vehicle_id, origin
+  ) values (
+    'VRH-VEH-PENDING', 'Cliente Veículo Um', 'BYD', 'Dolphin', 'Franca',
+    'Atendimento sintético com veículo ainda não confirmado', 'baixa', 'solicitado',
+    'a1400000-0000-4000-8000-000000000001',
+    (select id from public.customer_vehicles where plate = 'BCK2E34'), 'customer'
+  )
+$statement$);
+
+create temporary table promoted_vehicle as
+select public.confirm_customer_vehicle(
+  'bck2e34', 'BYD', 'Dolphin', 2024, null, null, null,
+  'manual', null, null, false, true
+) as result;
+
+do $$ begin
+  if (select result ->> 'created' from promoted_vehicle) <> 'false'
+    or (select count(*) from public.customer_vehicles where plate = 'BCK2E34') <> 1 then
+    raise exception 'Matching confirmation duplicated a backend-created vehicle';
+  end if;
+  if not exists (
+    select 1 from public.customer_vehicles
+    where plate = 'BCK2E34'
+      and data_source = 'customer_confirmed'
+      and customer_confirmed_at is not null
+  ) then
+    raise exception 'Matching confirmation did not promote the existing vehicle';
+  end if;
+end $$;
+
+-- The promoted canonical vehicle, even outside the fixed catalog, backs a service request.
+insert into public.service_requests(
+  reference_code, customer_name, vehicle_brand, vehicle_model, city,
+  customer_report, perceived_urgency, service_stage, created_by, vehicle_id, origin
+)
+select
+  'VRH-VEH-PROMOTED', 'Cliente Veículo Um', vehicle.brand, vehicle.model, 'Franca',
+  'Atendimento sintético com veículo promovido e confirmado', 'baixa', 'solicitado',
+  'a1400000-0000-4000-8000-000000000001', vehicle.id, 'customer'
+from public.customer_vehicles vehicle
+where vehicle.plate = 'BCK2E34';
+do $$ begin
+  if not exists (select 1 from public.service_requests where reference_code = 'VRH-VEH-PROMOTED') then
+    raise exception 'Promoted canonical vehicle was not accepted by service request';
+  end if;
+end $$;
+
 -- A second customer may confirm the same plate without learning or taking ownership of the first record.
 select pg_catalog.set_config('request.jwt.claim.sub', 'a1400000-0000-4000-8000-000000000002', true);
 select public.start_customer_onboarding('Cliente Veículo Dois');
