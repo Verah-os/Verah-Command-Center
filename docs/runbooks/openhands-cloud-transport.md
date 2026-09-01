@@ -15,6 +15,8 @@ seleciona OpenHands Cloud. Também falha fechado quando:
 
 - `NODE_ENV=production` (bloqueado independentemente das flags);
 - flag, credencial ou base URL ausentes/inválidos;
+- `GITHUB_TOKEN`/`GH_TOKEN` ausente (o artefato Draft PR é verificado via
+  GitHub API; sem token não há como provar exatamente um Draft PR);
 - autenticação rejeitada (401/403) ou capacidade não verificável;
 - a tarefa não tem branch isolada (`branchName` obrigatório);
 - a `issueKey` não identifica um repositório `owner/repo#numero`.
@@ -25,7 +27,9 @@ seleciona OpenHands Cloud. Também falha fechado quando:
    destinada a trabalho **não-produção**.
 2. Registrar a key no secret store do ambiente do Control Plane — nunca em
    `.env` versionado, logs, testes, PR bodies ou handoffs.
-3. Definir as variáveis abaixo no ambiente não-produção e reiniciar o processo
+3. Garantir `GITHUB_TOKEN`/`GH_TOKEN` no mesmo secret store (necessário para
+   verificar o artefato Draft PR via GitHub API).
+4. Definir as variáveis abaixo no ambiente não-produção e reiniciar o processo
    do Control Plane.
 
 Nada mais é exigido: a partir daí o fallback do router invoca OpenHands Cloud
@@ -37,6 +41,7 @@ automaticamente, sem copy/paste do fundador.
 |---|---|---|---|
 | `OPENHANDS_CLOUD_TRANSPORT_ENABLED` | sim | — | deve ser exatamente `true` |
 | `OPENHANDS_CLOUD_API_KEY` | sim | — | fallback legado: `OPENHANDS_API_KEY` |
+| `GITHUB_TOKEN`/`GH_TOKEN` | sim | — | auth da verificação do Draft PR |
 | `OPENHANDS_CLOUD_BASE_URL` | não | `https://app.all-hands.dev` | somente `https://host[:porta]` |
 | `OPENHANDS_CLOUD_MAX_RUNNING_CONVERSATIONS` | não | `4` | acima disso o readiness vira `busy` |
 | `OPENHANDS_CLOUD_REQUEST_TIMEOUT_MS` | não | `15000` | timeout por chamada HTTP |
@@ -46,17 +51,21 @@ automaticamente, sem copy/paste do fundador.
 ## Como o Control Plane invoca (wiring)
 
 ```ts
-import { createOpenHandsCloudExecutor } from "./services/control-plane/openhands-cloud-transport.ts";
+import { createControlPlaneExecutorRouter } from "./services/control-plane/composition.ts";
 
-const openhands = createOpenHandsCloudExecutor(process.env); // null => fail closed
-const candidates = [
-  { executor: codexExecutor, priority: 1, estimatedCostMicrounits: 10 },
-  ...(openhands
-    ? [{ executor: openhands, priority: 2, estimatedCostMicrounits: 20 }]
-    : []),
-];
-const router = new PolicyExecutorRouter(candidates);
+const router = createControlPlaneExecutorRouter(process.env, {
+  primaryCandidates: [
+    { executor: codexExecutor, priority: 1, estimatedCostMicrounits: 10 },
+  ],
+});
+// null => fail closed: nenhum executor disponível
 ```
+
+`createControlPlaneExecutorRouter` é o ponto único de composição do runtime
+(`services/control-plane/composition.ts`): quando o ambiente está configurado
+ele registra o OpenHands Cloud como fallback com prioridade baixa; sem
+primários abiertos e sem ambiente, retorna `null` e o host falha fechado em
+vez de construir um router vazio.
 
 O repositório alvo é derivado da `issueKey` (GitHub continua fonte operacional)
 e a branch vem do lease da tarefa (`task.branchName`), preservando uma Issue →
@@ -71,12 +80,20 @@ um executor lease → uma branch isolada.
    nunca bypassar CI/review, sem produção/pagamentos/mensagens/migrations,
    HUMAN gates fail-closed, handoff padronizado).
 3. Poll do start-task até `READY` e da conversa até `finished`/`stopped`/`error`.
-4. Em `finished`, o handoff vem da última mensagem do assistente, o Draft PR é
-   extraído do texto, e `metrics.accumulated_cost` (USD) vira `costMicrounits`
-   quando presente; duração é medida pelo `OpenHandsExecutor` e tudo alimenta o
-   registro executor/modelo/duração/custo/rework já existente.
-5. Timeout/cancelamento abortam os polls e fazem best-effort de
-   `POST /api/v1/sandboxes/{id}/pause`.
+4. Em `finished`, o handoff vem da última mensagem do assistente e
+   `metrics.accumulated_cost` (USD) vira `costMicrounits` quando presente;
+   duração é medida pelo `OpenHandsExecutor`. O artefato Draft PR é
+   **verificado via GitHub API** (`GET /repos/{owner}/{repo}/pulls?head=...`):
+   somente exatamente um PR aberto em draft cuja `head.ref` é a branch do
+   lease (e `head.repo` bate com o repositório alvo) completa a execução;
+   URLs mencionadas pelo assistente nunca são confiáveis. Sem candidato
+   (`draft_pr_missing`), mais de um (`draft_pr_ambiguous`) ou verificação
+   impossível (`draft_pr_unverified`) a execução falha recuperavelmente.
+5. Timeout/cancelamento abortam os polls e terminam a conversa remota mesmo
+   antes do `sandbox_id` existir: se conhecido, `POST /api/v1/sandboxes/{id}/pause`;
+   sem sandbox, `DELETE /api/v1/app-conversations/{conversation_id}` (o start-task
+   id é retido para recuperar o conversation id); sem alvo remoto, o evento
+   `openhands_cloud_cancel_unconfirmed` é registrado (fail-closed honesto).
 
 ## Limites preservados
 

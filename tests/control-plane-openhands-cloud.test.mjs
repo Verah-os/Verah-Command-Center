@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import {
+  createControlPlaneExecutorRouter,
+} from "../services/control-plane/composition.ts";
 import { PolicyExecutorRouter } from "../services/control-plane/executor-router.ts";
 import {
   AgentRoleRegistry,
@@ -15,10 +18,12 @@ import {
 } from "../services/control-plane/openhands-cloud-transport.ts";
 
 const TEST_KEY = "test-openhands-cloud-key-000000000000";
+const TEST_GH_TOKEN = "test-github-token-000000000000";
 
 const ENABLED_ENV = {
   OPENHANDS_CLOUD_TRANSPORT_ENABLED: "true",
   OPENHANDS_CLOUD_API_KEY: TEST_KEY,
+  GITHUB_TOKEN: TEST_GH_TOKEN,
 };
 
 function config(overrides = {}) {
@@ -41,7 +46,8 @@ function fakeCloud(handlers) {
         && init.method === (handler.method ?? "GET")
       ) {
         if (handler.error) throw handler.error;
-        return response(handler.status, handler.body ?? {});
+        const body = handler.bodyFn ? handler.bodyFn() : handler.body ?? {};
+        return response(handler.status, body);
       }
     }
     return response(500, { unmatched: url });
@@ -50,6 +56,35 @@ function fakeCloud(handlers) {
 }
 
 const instant = { sleep: async () => undefined };
+
+function hangUntilAbort(signal) {
+  return new Promise((_resolve, reject) => {
+    signal.addEventListener(
+      "abort",
+      () => reject(new Error("openhands_aborted")),
+      { once: true },
+    );
+  });
+}
+
+function draftPr(number = 777, overrides = {}) {
+  return {
+    draft: true,
+    html_url: `https://github.com/Verah-os/Verah-Command-Center/pull/${number}`,
+    head: {
+      ref: "agent/openhands/issue-147",
+      repo: { full_name: "Verah-os/Verah-Command-Center" },
+      ...overrides.head,
+    },
+    ...overrides,
+  };
+}
+
+const verifiedPr = {
+  match: "/repos/Verah-os/Verah-Command-Center/pulls",
+  status: 200,
+  body: [draftPr()],
+};
 
 const happyPath = [
   { match: "/api/v1/users/me", status: 200, body: { id: "user-1" } },
@@ -106,6 +141,7 @@ const happyPath = [
       ],
     },
   },
+  verifiedPr,
 ];
 
 function task(overrides = {}) {
@@ -142,6 +178,18 @@ function request(overrides = {}) {
   };
 }
 
+function transport(env, handlers, options = {}) {
+  const cloud = fakeCloud(handlers);
+  const executor = new OpenHandsExecutor(
+    new OpenHandsCloudTransport(config(env), {
+      fetchFn: cloud.fetchFn,
+      ...instant,
+      ...options,
+    }),
+  );
+  return { cloud, executor };
+}
+
 test("config fails closed unless explicitly and safely enabled", () => {
   assert.deepEqual(readOpenHandsCloudConfig({}), {
     enabled: false,
@@ -167,13 +215,21 @@ test("config fails closed unless explicitly and safely enabled", () => {
     }).reason,
     "base_url_invalid",
   );
+  assert.equal(
+    readOpenHandsCloudConfig({
+      OPENHANDS_CLOUD_TRANSPORT_ENABLED: "true",
+      OPENHANDS_CLOUD_API_KEY: TEST_KEY,
+    }).reason,
+    "github_token_missing",
+  );
   const parsed = readOpenHandsCloudConfig(ENABLED_ENV);
   assert.equal(parsed.enabled, true);
   assert.equal(parsed.baseUrl, "https://app.all-hands.dev");
   assert.equal(
     readOpenHandsCloudConfig({
       OPENHANDS_CLOUD_TRANSPORT_ENABLED: "true",
-      OPENHANDS_API_KEY: TEST_KEY,
+      OPENHANDS_CLOUD_API_KEY: TEST_KEY,
+      GH_TOKEN: TEST_GH_TOKEN,
     }).enabled,
     true,
   );
@@ -246,16 +302,11 @@ test("readiness maps cloud states and verifies capacity before ready", async () 
   assert.equal(disabled.calls.length, 0);
 });
 
-test("execute drives the full cloud lifecycle with cost, duration and draft PR", async () => {
-  const cloud = fakeCloud(happyPath);
+test("execute drives the full cloud lifecycle with verified draft PR", async () => {
   const audit = [];
-  const executor = new OpenHandsExecutor(
-    new OpenHandsCloudTransport(config(), {
-      fetchFn: cloud.fetchFn,
-      logger: (event) => audit.push(event),
-      ...instant,
-    }),
-  );
+  const { cloud, executor } = transport({}, happyPath, {
+    logger: (event) => audit.push(event),
+  });
   const result = await executor.execute(request());
   assert.equal(result.status, "completed");
   assert.equal(result.costMicrounits, 2_500);
@@ -280,15 +331,18 @@ test("execute drives the full cloud lifecycle with cost, duration and draft PR",
   assert.match(prompt, /HUMAN gate/);
   assert.equal(prompt.includes(TEST_KEY), false);
 
+  const verification = cloud.calls.find((call) =>
+    call.url.includes("/repos/Verah-os/Verah-Command-Center/pulls"));
+  assert.ok(verification);
+  assert.equal(verification.init.headers.authorization, `Bearer ${TEST_GH_TOKEN}`);
+
   const serialized = JSON.stringify({ result, audit });
   assert.equal(serialized.includes(TEST_KEY), false);
+  assert.equal(serialized.includes(TEST_GH_TOKEN), false);
 });
 
 test("execution fails closed without an isolated branch and without HTTP", async () => {
-  const cloud = fakeCloud(happyPath);
-  const executor = new OpenHandsExecutor(
-    new OpenHandsCloudTransport(config(), { fetchFn: cloud.fetchFn, ...instant }),
-  );
+  const { cloud, executor } = transport({}, happyPath);
   const result = await executor.execute(
     request({ task: { ...task(), branchName: undefined } }),
   );
@@ -327,7 +381,86 @@ test("rejected start and failed conversation map to recoverable errors", async (
   assert.equal(failed.errorCode, "openhands_cloud_conversation_failed");
 });
 
-test("cancellation pauses the sandbox and returns a recoverable result", async () => {
+test("completion requires exactly one verified draft PR on the lease branch", async () => {
+  const finishing = (verification) => {
+    const handlers = happyPath.filter((handler) => handler !== verifiedPr);
+    if (verification) handlers.push(verification);
+    return transport({}, handlers);
+  };
+  const cases = [
+    { expected: "openhands_cloud_draft_pr_unverified", verification: null },
+    { expected: "openhands_cloud_draft_pr_missing", verification: { match: "/pulls", status: 200, body: [] } },
+    { expected: "openhands_cloud_draft_pr_missing", verification: { match: "/pulls", status: 200, body: [{ ...draftPr(), draft: false }] } },
+    { expected: "openhands_cloud_draft_pr_ambiguous", verification: { match: "/pulls", status: 200, body: [draftPr(777), draftPr(778)] } },
+    {
+      expected: "openhands_cloud_draft_pr_missing",
+      verification: {
+        match: "/pulls",
+        status: 200,
+        body: [{
+          head: { ref: "agent/openhands/other", repo: { full_name: "Verah-os/Verah-Command-Center" } },
+          draft: true,
+        }],
+      },
+    },
+    {
+      expected: "openhands_cloud_draft_pr_missing",
+      verification: {
+        match: "/pulls",
+        status: 200,
+        body: [draftPr(777, { head: { ref: "agent/openhands/issue-147", repo: { full_name: "fork/Verah-Command-Center" } } })],
+      },
+    },
+  ];
+  for (const { expected, verification } of cases) {
+    const { executor } = finishing(verification);
+    const result = await executor.execute(request());
+    assert.equal(result.status, "failed");
+    assert.equal(result.errorCode, expected);
+    assert.equal(result.artifacts?.draftPrUrl, undefined);
+  }
+
+  const { executor } = finishing({
+    match: "/pulls",
+    status: 200,
+    body: [draftPr(777), { ...draftPr(778), draft: false }],
+  });
+  const ok = await executor.execute(request());
+  assert.equal(ok.status, "completed");
+  assert.equal(
+    ok.artifacts?.draftPrUrl,
+    "https://github.com/Verah-os/Verah-Command-Center/pull/777",
+  );
+});
+
+test("assistant-mentioned PR URLs are never trusted for the artifact", async () => {
+  const misleading = [
+    ...happyPath.filter((handler) => handler !== verifiedPr),
+    {
+      match: "/conversation/conv-1/events/search",
+      status: 200,
+      body: {
+        items: [{
+          kind: "MessageEvent",
+          source: "assistant",
+          message: {
+            content: "Handoff mentions https://github.com/other/repo/pull/1",
+          },
+        }],
+      },
+    },
+    verifiedPr,
+  ];
+  const { executor } = transport({}, misleading);
+  const result = await executor.execute(request());
+  assert.equal(result.status, "completed");
+  assert.equal(
+    result.artifacts?.draftPrUrl,
+    "https://github.com/Verah-os/Verah-Command-Center/pull/777",
+  );
+});
+
+test("cancellation pauses the sandbox when its id is known", async () => {
   const started = Promise.withResolvers();
   const cloud = fakeCloud([
     {
@@ -354,13 +487,7 @@ test("cancellation pauses the sandbox and returns a recoverable result", async (
       fetchFn: cloud.fetchFn,
       sleep: async (_ms, signal) => {
         started.resolve();
-        await new Promise((resolve, reject) => {
-          signal.addEventListener(
-            "abort",
-            () => reject(new Error("openhands_aborted")),
-            { once: true },
-          );
-        });
+        await hangUntilAbort(signal);
       },
     }),
     { executionTimeoutMs: 5_000 },
@@ -376,6 +503,128 @@ test("cancellation pauses the sandbox and returns a recoverable result", async (
     && call.url.includes("/api/v1/sandboxes/sandbox-1/pause")));
 });
 
+test("cancellation terminates the conversation even before a sandbox id exists", async () => {
+  const started = Promise.withResolvers();
+  const cloud = fakeCloud([
+    {
+      match: "/api/v1/app-conversations",
+      method: "POST",
+      status: 201,
+      body: { app_conversation_id: "conv-1" },
+    },
+    {
+      match: "/api/v1/app-conversations?ids=conv-1",
+      status: 200,
+      body: { items: [{ id: "conv-1", execution_status: "running" }] },
+    },
+    { match: "/api/v1/app-conversations/conv-1", method: "DELETE", status: 200 },
+  ]);
+  const executor = new OpenHandsExecutor(
+    new OpenHandsCloudTransport(config(), {
+      fetchFn: cloud.fetchFn,
+      sleep: async (_ms, signal) => {
+        started.resolve();
+        await hangUntilAbort(signal);
+      },
+    }),
+    { executionTimeoutMs: 5_000 },
+  );
+  const running = executor.execute(request());
+  await started.promise;
+  await executor.cancel("issue-147-cloud-1");
+  const result = await running;
+  assert.equal(result.errorCode, "openhands_cancelled");
+  assert.ok(cloud.calls.some((call) =>
+    call.init.method === "DELETE"
+    && call.url.includes("/api/v1/app-conversations/conv-1")));
+});
+
+test("cancellation recovers the conversation id from a pending start-task", async () => {
+  const started = Promise.withResolvers();
+  let polls = 0;
+  const cloud = fakeCloud([
+    {
+      match: "/api/v1/app-conversations",
+      method: "POST",
+      status: 201,
+      body: { id: "start-task-1" },
+    },
+    {
+      match: "/api/v1/app-conversations/start-tasks",
+      status: 200,
+      bodyFn: () => {
+        polls += 1;
+        return polls < 2
+          ? { items: [{ id: "start-task-1", status: "WORKING" }] }
+          : {
+            items: [{
+              id: "start-task-1",
+              status: "READY",
+              app_conversation_id: "conv-1",
+            }],
+          };
+      },
+    },
+    { match: "/api/v1/app-conversations/conv-1", method: "DELETE", status: 200 },
+  ]);
+  const executor = new OpenHandsExecutor(
+    new OpenHandsCloudTransport(config(), {
+      fetchFn: cloud.fetchFn,
+      sleep: async (_ms, signal) => {
+        started.resolve();
+        await hangUntilAbort(signal);
+      },
+    }),
+    { executionTimeoutMs: 5_000 },
+  );
+  const running = executor.execute(request());
+  await started.promise;
+  await executor.cancel("issue-147-cloud-1");
+  const result = await running;
+  assert.equal(result.errorCode, "openhands_cancelled");
+  assert.ok(polls >= 2);
+  assert.ok(cloud.calls.some((call) =>
+    call.init.method === "DELETE"
+    && call.url.includes("/api/v1/app-conversations/conv-1")));
+});
+
+test("cancellation reports honestly when remote termination cannot be confirmed", async () => {
+  const started = Promise.withResolvers();
+  const audit = [];
+  const cloud = fakeCloud([
+    {
+      match: "/api/v1/app-conversations",
+      method: "POST",
+      status: 201,
+      body: { id: "start-task-1" },
+    },
+    {
+      match: "/api/v1/app-conversations/start-tasks",
+      status: 200,
+      body: { items: [{ id: "start-task-1", status: "WORKING" }] },
+    },
+  ]);
+  const executor = new OpenHandsExecutor(
+    new OpenHandsCloudTransport(config(), {
+      fetchFn: cloud.fetchFn,
+      logger: (event) => audit.push(event),
+      sleep: async (_ms, signal) => {
+        started.resolve();
+        await hangUntilAbort(signal);
+      },
+    }),
+    { executionTimeoutMs: 5_000 },
+  );
+  const running = executor.execute(request());
+  await started.promise;
+  await executor.cancel("issue-147-cloud-1");
+  const result = await running;
+  assert.equal(result.errorCode, "openhands_cancelled");
+  assert.equal(cloud.calls.some((call) => call.init.method === "DELETE"), false);
+  assert.ok(audit.some((event) =>
+    event.type === "openhands_cloud_cancel_unconfirmed"));
+});
+
 test("factory returns no executor when configuration is absent", () => {
   assert.equal(createOpenHandsCloudExecutor({}), null);
   assert.equal(
@@ -388,7 +637,19 @@ test("factory returns no executor when configuration is absent", () => {
   assert.ok(executor instanceof OpenHandsExecutor);
 });
 
-test("fallback: router selects OpenHands Cloud when the primary executor is down", async () => {
+test("runtime composition activates the fallback from the environment", () => {
+  assert.equal(createControlPlaneExecutorRouter({}), null);
+  assert.equal(
+    createControlPlaneExecutorRouter({ ...ENABLED_ENV, NODE_ENV: "production" }),
+    null,
+  );
+  const router = createControlPlaneExecutorRouter(ENABLED_ENV, {
+    openhands: { fetchFn: async () => response(500) },
+  });
+  assert.ok(router instanceof PolicyExecutorRouter);
+});
+
+test("fallback: environment-wired router selects OpenHands Cloud when the primary is down", async () => {
   const cloud = fakeCloud(happyPath);
   const codex = {
     id: "codex",
@@ -401,13 +662,13 @@ test("fallback: router selects OpenHands Cloud when the primary executor is down
       return { status: "failed", errorCode: "should_not_run", externalEffects: [] };
     },
   };
-  const openhands = new OpenHandsExecutor(
-    new OpenHandsCloudTransport(config(), { fetchFn: cloud.fetchFn, ...instant }),
-  );
-  const router = new PolicyExecutorRouter([
-    { executor: codex, priority: 1, estimatedCostMicrounits: 10 },
-    { executor: openhands, priority: 2, estimatedCostMicrounits: 20 },
-  ]);
+  const router = createControlPlaneExecutorRouter(ENABLED_ENV, {
+    primaryCandidates: [
+      { executor: codex, priority: 1, estimatedCostMicrounits: 10 },
+    ],
+    openhands: { fetchFn: cloud.fetchFn, ...instant },
+  });
+  assert.ok(router);
   const leases = new InMemoryAgentLeaseStore();
   const plane = new GuardedControlPlane(
     new AgentRoleRegistry(),
@@ -430,6 +691,43 @@ test("fallback: router selects OpenHands Cloud when the primary executor is down
   assert.deepEqual(run.externalEffects, []);
   assert.equal(codex.executions, 0);
   assert.equal(leases.audit.at(-1).type, "lease_released");
+});
+
+test("composition never invokes the fallback while any primary is available", async () => {
+  const cloud = fakeCloud(happyPath);
+  const codex = {
+    id: "codex",
+    async availability() {
+      return "available";
+    },
+    async execute() {
+      return {
+        status: "completed",
+        handoff: "primary result",
+        externalEffects: [],
+      };
+    },
+  };
+  const router = createControlPlaneExecutorRouter(ENABLED_ENV, {
+    primaryCandidates: [
+      { executor: codex, priority: 1, estimatedCostMicrounits: 10 },
+    ],
+    openhands: { fetchFn: cloud.fetchFn, ...instant },
+  });
+  assert.ok(router);
+  const leases = new InMemoryAgentLeaseStore();
+  const plane = new GuardedControlPlane(
+    new AgentRoleRegistry(),
+    leases,
+    { async route() { return request().modelRoute; } },
+    { async loadContext() { return []; } },
+    router,
+    { enabled: true, killSwitch: false, dryRun: true },
+  );
+  const run = await plane.run(task());
+  assert.equal(run.status, "completed");
+  assert.equal(run.executorId, "codex");
+  assert.equal(cloud.calls.length, 0);
 });
 
 test("fail-closed transport keeps the queue blocked without manual intervention", async () => {

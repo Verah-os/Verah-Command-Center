@@ -9,6 +9,7 @@ import {
 import type { AgentExecutionRequest } from "./types.ts";
 
 export const OPENHANDS_CLOUD_DEFAULT_BASE_URL = "https://app.all-hands.dev";
+export const OPENHANDS_CLOUD_GITHUB_API_BASE_URL = "https://api.github.com";
 
 export type OpenHandsCloudConfig =
   | { enabled: false; reason: string }
@@ -17,6 +18,7 @@ export type OpenHandsCloudConfig =
       reason: "configured";
       baseUrl: string;
       apiKey: string;
+      githubToken: string;
       maxRunningConversations: number;
       requestTimeoutMs: number;
       pollIntervalMs: number;
@@ -56,11 +58,16 @@ export function readOpenHandsCloudConfig(
   if (!/^https:\/\/[A-Za-z0-9.-]+(?::\d+)?$/.test(baseUrl)) {
     return { enabled: false, reason: "base_url_invalid" };
   }
+  // The mandatory Draft PR artifact can only be validated through the GitHub
+  // API; without a token the transport would complete on trust alone.
+  const githubToken = (source.GITHUB_TOKEN ?? source.GH_TOKEN ?? "").trim();
+  if (!githubToken) return { enabled: false, reason: "github_token_missing" };
   return {
     enabled: true,
     reason: "configured",
     baseUrl,
     apiKey,
+    githubToken,
     maxRunningConversations: boundedInteger(
       source.OPENHANDS_CLOUD_MAX_RUNNING_CONVERSATIONS,
       4,
@@ -134,6 +141,7 @@ class CloudHttpError extends Error {
 }
 
 type ActiveConversation = {
+  startTaskId: string | null;
   conversationId: string | null;
   sandboxId: string | null;
 };
@@ -200,7 +208,11 @@ export class OpenHandsCloudTransport implements OpenHandsTransport {
     const branch = request.task.branchName?.trim();
     if (!branch) return this.failed("openhands_cloud_branch_required");
 
-    const state: ActiveConversation = { conversationId: null, sandboxId: null };
+    const state: ActiveConversation = {
+      startTaskId: null,
+      conversationId: null,
+      sandboxId: null,
+    };
     this.active.set(input.executionId, state);
     try {
       const started = await this.request("POST", "/api/v1/app-conversations", {
@@ -210,6 +222,7 @@ export class OpenHandsCloudTransport implements OpenHandsTransport {
         selected_repository: repository,
         selected_branch: branch,
       }, signal);
+      state.startTaskId = readString(started, "id") ?? null;
       this.log({
         type: "openhands_cloud_start",
         executionId: input.executionId,
@@ -217,7 +230,11 @@ export class OpenHandsCloudTransport implements OpenHandsTransport {
         branch,
       });
 
-      const conversationId = await this.resolveConversationId(started, signal);
+      const conversationId = await this.resolveConversationId(
+        started,
+        state,
+        signal,
+      );
       state.conversationId = conversationId;
 
       const record = await this.pollConversation(conversationId, state, signal);
@@ -233,11 +250,18 @@ export class OpenHandsCloudTransport implements OpenHandsTransport {
         undefined,
         signal,
       );
-      const texts = assistantTexts(extractItems(events));
-      const handoff = texts.at(-1) ?? "";
-      const draftPrUrl = texts
-        .map((text) => /https:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/pull\/\d+/.exec(text)?.[0])
-        .find((match) => match !== undefined);
+      const handoff = assistantTexts(extractItems(events)).at(-1) ?? "";
+      // The contract demands exactly one Draft PR on the lease branch. The
+      // artifact is verified against the GitHub API; URLs merely mentioned by
+      // the assistant are never trusted.
+      const verification = await this.verifyExpectedDraftPr(
+        repository,
+        branch,
+        signal,
+      );
+      if (!verification.ok) {
+        return this.failed(verification.errorCode, [verification.log]);
+      }
       const costUsd = readCostUsd(record);
       return {
         status: "completed",
@@ -246,7 +270,7 @@ export class OpenHandsCloudTransport implements OpenHandsTransport {
           ? undefined
           : Math.round(costUsd * 1_000_000),
         artifacts: {
-          draftPrUrl,
+          draftPrUrl: verification.url,
           checks: [],
         },
         logs: [`conversation ${conversationId} finished`],
@@ -269,30 +293,88 @@ export class OpenHandsCloudTransport implements OpenHandsTransport {
 
   async cancel(executionId: string): Promise<void> {
     const state = this.active.get(executionId);
-    if (!state?.sandboxId || !this.config.enabled) return;
+    if (!state || !this.config.enabled) return;
+    const signal = AbortSignal.timeout(10_000);
     try {
-      await this.request(
-        "POST",
-        `/api/v1/sandboxes/${state.sandboxId}/pause`,
-        undefined,
-        AbortSignal.timeout(5_000),
-      );
-      this.log({ type: "openhands_cloud_paused", executionId });
+      // Cancellation can race the start-task poll: the conversation may exist
+      // remotely before its id (or the sandbox id) reached us. Resolve the
+      // termination target from the retained start-task id first so the remote
+      // conversation is never left running after a local cancel/timeout.
+      if (!state.conversationId && state.startTaskId) {
+        await this.resolveTerminationTarget(state, signal);
+      }
+      if (state.sandboxId) {
+        await this.request(
+          "POST",
+          `/api/v1/sandboxes/${state.sandboxId}/pause`,
+          undefined,
+          signal,
+        );
+        this.log({ type: "openhands_cloud_paused", executionId });
+        return;
+      }
+      if (state.conversationId) {
+        // Conversation-level termination: the app server stops the agent and
+        // cleans up the sandbox even when its id was never exposed to us.
+        await this.request(
+          "DELETE",
+          `/api/v1/app-conversations/${state.conversationId}`,
+          undefined,
+          signal,
+        );
+        this.log({ type: "openhands_cloud_conversation_terminated", executionId });
+        return;
+      }
+      // Fail-closed honesty: never report a cancelled local run as remotely
+      // stopped when no remote termination could be confirmed.
+      this.log({ type: "openhands_cloud_cancel_unconfirmed", executionId });
     } catch (error) {
       this.log({
-        type: "openhands_cloud_pause_failed",
+        type: "openhands_cloud_cancel_failed",
         executionId,
         error: error instanceof Error ? error.message : "unknown",
       });
     }
   }
 
+  private async resolveTerminationTarget(
+    state: ActiveConversation,
+    signal: AbortSignal,
+  ) {
+    const startTaskId = state.startTaskId;
+    if (!startTaskId) return;
+    for (let attempt = 0; attempt < 3 && !state.conversationId; attempt += 1) {
+      const tasks = await this.request(
+        "GET",
+        `/api/v1/app-conversations/start-tasks?ids=${encodeURIComponent(startTaskId)}`,
+        undefined,
+        signal,
+      );
+      const task = extractItems(tasks).find((item) =>
+        readString(item, "id") === startTaskId
+      ) ?? (readString(tasks, "id") === startTaskId && isRecord(tasks)
+        ? tasks
+        : null);
+      if (!task) continue;
+      const conversationId = readString(task, "app_conversation_id");
+      const sandboxId = readString(task, "sandbox_id");
+      if (conversationId) state.conversationId = conversationId;
+      if (sandboxId) state.sandboxId = sandboxId;
+      if (readString(task, "status") === "ERROR") return;
+    }
+  }
+
   private async resolveConversationId(
     started: unknown,
+    state: ActiveConversation,
     signal: AbortSignal,
   ): Promise<string> {
     const direct = readString(started, "app_conversation_id");
-    if (direct) return direct;
+    if (direct) {
+      const sandboxId = readString(started, "sandbox_id");
+      if (sandboxId) state.sandboxId = sandboxId;
+      return direct;
+    }
     const startTaskId = readString(started, "id");
     if (!startTaskId || !this.config.enabled) {
       throw new Error("openhands_cloud_start_task_missing");
@@ -309,13 +391,104 @@ export class OpenHandsCloudTransport implements OpenHandsTransport {
         readString(item, "id") === startTaskId
       ) ?? (readString(tasks, "id") === startTaskId ? tasks : null);
       const conversationId = task ? readString(task, "app_conversation_id") : null;
+      const sandboxId = task ? readString(task, "sandbox_id") : null;
       const status = task ? readString(task, "status") : null;
+      if (sandboxId) state.sandboxId = sandboxId;
       if (conversationId) return conversationId;
       if (status && status !== "READY" && status !== "PENDING" && status !== "WORKING") {
         throw new Error("openhands_cloud_start_task_failed");
       }
     }
     throw new Error("openhands_cloud_start_task_timeout");
+  }
+
+  private async verifyExpectedDraftPr(
+    repository: string,
+    branch: string,
+    signal: AbortSignal,
+  ): Promise<
+    | { ok: true; url: string }
+    | { ok: false; errorCode: string; log: string }
+  > {
+    let payload: unknown;
+    const owner = repository.split("/")[0];
+    try {
+      const query = new URLSearchParams({
+        state: "open",
+        head: `${owner}:${branch}`,
+        per_page: "20",
+      });
+      payload = await this.githubRequest(
+        `/repos/${repository}/pulls?${query.toString()}`,
+        signal,
+      );
+    } catch {
+      return {
+        ok: false,
+        errorCode: "openhands_cloud_draft_pr_unverified",
+        log: "draft PR verification request failed",
+      };
+    }
+    const candidates = (Array.isArray(payload) ? payload : extractItems(payload))
+      .filter(isRecord)
+      .filter((pr) => pr.draft === true)
+      .filter((pr) => {
+        if (!isRecord(pr.head) || readString(pr.head, "ref") !== branch) {
+          return false;
+        }
+        const headRepo = isRecord(pr.head.repo) ? pr.head.repo : null;
+        const fullName = headRepo ? readString(headRepo, "full_name") : undefined;
+        return fullName === undefined
+          || fullName.toLowerCase() === repository.toLowerCase();
+      });
+    if (candidates.length === 0) {
+      return {
+        ok: false,
+        errorCode: "openhands_cloud_draft_pr_missing",
+        log: `no open draft PR on branch ${branch} of ${repository}`,
+      };
+    }
+    if (candidates.length > 1) {
+      return {
+        ok: false,
+        errorCode: "openhands_cloud_draft_pr_ambiguous",
+        log: `${candidates.length} open draft PRs on branch ${branch} of ${repository}`,
+      };
+    }
+    const url = readString(candidates[0], "html_url");
+    if (!url || !url.startsWith("https://github.com/")) {
+      return {
+        ok: false,
+        errorCode: "openhands_cloud_draft_pr_unverified",
+        log: "draft PR payload missing html_url",
+      };
+    }
+    return { ok: true, url };
+  }
+
+  private async githubRequest(
+    path: string,
+    signal: AbortSignal,
+  ): Promise<unknown> {
+    if (!this.config.enabled) throw new Error("openhands_cloud_disabled");
+    const combined = AbortSignal.any([
+      signal,
+      AbortSignal.timeout(this.config.requestTimeoutMs),
+    ]);
+    const response = await this.fetchFn(
+      `${OPENHANDS_CLOUD_GITHUB_API_BASE_URL}${path}`,
+      {
+        method: "GET",
+        headers: {
+          accept: "application/vnd.github+json",
+          authorization: `Bearer ${this.config.githubToken}`,
+          "x-github-api-version": "2022-11-28",
+        },
+        signal: combined,
+      },
+    );
+    if (!response.ok) throw new CloudHttpError(response.status);
+    return response.json();
   }
 
   private async pollConversation(
