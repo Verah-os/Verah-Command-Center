@@ -7,7 +7,7 @@
 - **Focused tests:** `node --experimental-strip-types --test tests/mobile-scaffold.test.mjs` — 6/6; suíte completa `pnpm test` — 232/232.
 - **Required checks:** CI remota (application) pendente no PR; nenhuma mudança de SQL/RLS, então `ci:database` não é afetado.
 - **Invariant/decision discovered:** a RLS/grants existentes já autorizam cliente mobile direto via anon key + RPCs de onboarding; Server Actions/RSC são web-only e não se portam — o app fala PostgREST/Auth direto.
-- **Remaining blocker/risk:** PR #139 (onboarding canônico de veículo) aberto pode ajustar o contrato de garagem; contas Apple/Google e EAS production são HUMAN gates.
+- **Remaining blocker/risk:** ~~PR #139 aberto~~ resolvido — #139 mergeado em `7f0b987` (ver `2026-09-01-issue-164-rebase-139.md`); contas Apple/Google e EAS production são HUMAN gates.
 - **Codex usage:** n/a.
 
 ## Next session

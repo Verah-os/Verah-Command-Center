@@ -1,6 +1,8 @@
 # Auditoria obrigatória — SHIP VERAH Release 1.0 (Issue #164)
 
-Data: 2026-09-01. Base: `main` em `4245ba6` (feat: gated shared agent memory, #162).
+Data: 2026-09-01. Base original: `main` em `4245ba6` (#162); revisada em
+2026-09-01 para `main` em `7f0b987`, com o onboarding canônico de veículo
+(#139) já mergeado.
 Método: auditoria baseada em evidências do código (migrations, serviços, rotas,
 testes). Nenhuma capacidade foi inferida de documentação aspiracional.
 
@@ -19,7 +21,7 @@ duplicar o Command Center.
 | --- | --- | --- | --- |
 | 1 | Cadastro/login | JÁ EXISTE (web) / FALTA (mobile) | Supabase Auth email/senha; `services/auth/actions.ts` (`signUpCustomerWithEmail`, `signInWithEmail`); `app/entrar/cliente/cadastro`; `user_profiles` + `verah_identities` (migrações `20260712210000`, `20260730150101`) |
 | 2 | Onboarding | JÁ EXISTE (web + RPC) / FALTA (mobile) | State machine `identity_onboarding` + RPCs `start_customer_onboarding`, `complete_customer_basic_onboarding`, `refresh_customer_onboarding` (`20260827013000`); página `app/onboarding/cliente`; teste `supabase/tests/identity_onboarding_security.sql` |
-| 3 | Cadastrar veículo / garagem | PARCIAL | Tabela `customer_vehicles` com RLS owner-based e grants `authenticated` (`20260716000000`); serviço `services/customer-vehicles/`; UI somente demo (`app/demo/cliente/veiculos`). Onboarding canônico por placa em PR aberto #139 (#114) — ainda não em `main` |
+| 3 | Cadastrar veículo / garagem | JÁ EXISTE (web + RPC) / FALTA (mobile) | Tabela `customer_vehicles` com RLS owner-based (`20260716000000`) + proveniência canônica (`data_source`, `customer_confirmed_at`, `lookup_source`/`lookup_provider`, `source_synthetic` — `20260827040000`, #139 mergeado em `7f0b987`); criação somente via RPC `confirm_customer_vehicle` (insert direto revogado de `authenticated`); onboarding por placa em `app/onboarding/cliente` + `services/customer-vehicles/`; testes `supabase/tests/vehicle_onboarding_security.sql` e `tests/vehicle-onboarding.test.mjs` |
 | 4 | Quilometragem | PARCIAL | Campo `customer_vehicles.current_mileage` atualizável via RLS (grant de update inclui `current_mileage`); snapshot em `service_requests.mileage_snapshot`. FALTA histórico de registros de km |
 | 5 | Abastecimentos e consumo | FALTA | Nenhuma tabela/serviço de abastecimento (busca em `supabase/migrations`, `services/`, `modules/`) |
 | 6 | Despesas e custo por km | FALTA | Idem. Existe apenas ledger sandbox de pagamentos (#130), fora do escopo |
@@ -43,13 +45,18 @@ pagamentos/assinaturas (#130 sandbox), automações avançadas.
   `tests/identity-onboarding.test.mjs`).
 - **Schema/RLS:** grants `authenticated` + policies owner-based em
   `customer_vehicles`, `service_requests`, anexos. O padrão RLS permite o app
-  mobile falar direto com o PostgREST usando somente a anon key.
-- **RPCs:** onboarding de cliente e leitura de estado reutilizáveis via
+  mobile falar direto com o PostgREST usando somente a anon key. Exceção
+  deliberada (#139): a criação de veículo é RPC-only
+  (`confirm_customer_vehicle`) — insert direto em `customer_vehicles` é
+  revogado de `authenticated`; leitura/update seguem owner-based.
+- **RPCs:** onboarding de cliente (`start_customer_onboarding`,
+  `complete_customer_basic_onboarding`, `refresh_customer_onboarding`) e
+  confirmação de veículo (`confirm_customer_vehicle`, #139) reutilizáveis via
   `supabase-js` sem nenhum endpoint novo.
 - **Serviços/domínio:** `services/service-copilot` (triagem determinística),
   `services/service-requests`, `data/vehicles.ts` + `data/locations.ts`
   (catálogos de validação portáveis, TS puro sem dependência Next).
-- **Testes:** 226 testes Node (`tests/*.test.mjs`) + suíte de segurança SQL
+- **Testes:** 240 testes Node (`tests/*.test.mjs`) + suíte de segurança SQL
   (`supabase/tests/*.sql`, executada por `pnpm ci:database`).
 - **UI/brand:** design system Tailwind + tokens (`components/ui`, `docs/brand`)
   como referência visual; componentes web **não** são reutilizáveis no RN.
@@ -75,8 +82,11 @@ distribuição TestFlight/Play).
 
 ## Riscos e dependências
 
-- PR #139 (onboarding canônico de veículo) aberto: o mobile deve consumir o
-  contrato final de `customer_vehicles`; garagem M1 usa os campos já estáveis.
+- PR #139 (onboarding canônico de veículo) **mergeado** em `7f0b987`: o
+  contrato final de `customer_vehicles` é canônico e estável para o mobile —
+  leitura via RLS owner-based, criação/confirmação via RPC
+  `confirm_customer_vehicle` (com proveniência obrigatória). O scaffold M1 já
+  compõe com esse contrato (anon key + RLS + RPC, sem insert direto).
 - Service role key e qualquer secret **jamais** no app: apenas
   `EXPO_PUBLIC_SUPABASE_URL` + `EXPO_PUBLIC_SUPABASE_ANON_KEY`.
 - Contas Apple/Google, signing e publicação são HUMAN gates (M4).

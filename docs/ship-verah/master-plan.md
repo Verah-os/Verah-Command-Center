@@ -27,7 +27,9 @@ Supabase.
    contrato `user_profiles`/`verah_identities`.
 3. Onboarding mobile: RPCs `start_customer_onboarding`,
    `complete_customer_basic_onboarding`, `refresh_customer_onboarding`.
-4. Garagem mobile: listar/criar veículo via `customer_vehicles` (RLS).
+4. Garagem mobile: listar veículos via `customer_vehicles` (RLS owner-based) e
+   criar/confirmar via RPC `confirm_customer_vehicle` (contrato final do #139,
+   mergeado em `7f0b987`; insert direto revogado de `authenticated`).
 5. Perfil EAS de desenvolvimento + APK interno (gate de build instalável).
 
 ### M2 — VERAH útil
@@ -60,8 +62,10 @@ Ordem de criação sugerida; cada uma cabe em um PR:
    `expo-doctor`, decisão pnpm workspaces vs. lockfile isolado, job de CI.
 2. **Auth mobile (M1)**: telas de login/cadastro + sessão Supabase; teste de
    contrato com `user_profiles`/identidade.
-3. **Onboarding + garagem mobile (M1)**: RPCs de onboarding + CRUD de
-   `customer_vehicles`; alinhar com o contrato final do PR #139 ao mergear.
+3. **Onboarding + garagem mobile (M1)**: RPCs de onboarding + garagem sobre o
+   contrato final do #139 (já mergeado em `7f0b987`): leitura de
+   `customer_vehicles` via RLS, criação/confirmação via RPC
+   `confirm_customer_vehicle` com proveniência obrigatória.
 4. **EAS dev build (M1 gate)**: `eas.json` com perfis non-prod, APK interno,
    doc de instalação; iOS dev client sem conta paga enquanto possível.
 5. **Quilometragem (M2)**: `vehicle_mileage_logs` + RLS + security test + tela.
