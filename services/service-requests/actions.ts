@@ -55,6 +55,10 @@ async function createServiceRequestFromForm(
     "hasRoadsideAssistance",
   );
   const insurerName = value(formData, "insurerName");
+  const selectedVehicleId =
+    origin === "customer" ? value(formData, "vehicleId") : "";
+  const canonicalVehicleSelected =
+    selectedVehicleId !== "" && selectedVehicleId !== "new";
   if (
     !customerName ||
     !vehicleBrand ||
@@ -74,7 +78,9 @@ async function createServiceRequestFromForm(
     fail("O nome da seguradora deve ter no máximo 120 caracteres.", origin);
   if (customerReport.length < 15)
     fail("Conte um pouco mais sobre o que aconteceu.", origin);
-  if (!isValidVehicle(vehicleBrand, vehicleModel))
+  // A confirmed canonical vehicle already passed onboarding validation, so
+  // the fixed catalog only constrains free-form (concierge) vehicle data.
+  if (!canonicalVehicleSelected && !isValidVehicle(vehicleBrand, vehicleModel))
     fail("Selecione uma marca e um modelo válidos.", origin);
   if (!isValidLocation(state, city))
     fail("Selecione um estado e uma cidade válidos.", origin);
@@ -98,14 +104,13 @@ async function createServiceRequestFromForm(
   let vehicleId: string | null = null;
   let vehiclePlate = value(formData, "vehiclePlate") || null;
   if (origin === "customer") {
-    const selectedVehicleId = value(formData, "vehicleId");
-    if (selectedVehicleId && selectedVehicleId !== "new") {
+    if (canonicalVehicleSelected) {
       const { data: selectedVehicle } = await supabase
         .from("customer_vehicles")
         .select("id,brand,model,year,plate")
         .eq("id", selectedVehicleId)
-        .eq("owner_id", user.id)
         .eq("active", true)
+        .not("customer_confirmed_at", "is", null)
         .maybeSingle();
       if (!selectedVehicle)
         fail("O veículo selecionado não está disponível.", origin);
@@ -115,41 +120,7 @@ async function createServiceRequestFromForm(
       vehicleYear = selectedVehicle.year;
       vehiclePlate = selectedVehicle.plate;
     } else {
-      const normalizedPlate = normalizePlate(vehiclePlate);
-      const { data: candidates } = await supabase
-        .from("customer_vehicles")
-        .select("id,brand,model,year,plate")
-        .eq("owner_id", user.id)
-        .eq("active", true)
-        .eq("brand", vehicleBrand)
-        .eq("model", vehicleModel);
-      const match = (candidates ?? []).find(
-        (candidate) =>
-          candidate.year === vehicleYear &&
-          (normalizedPlate
-            ? normalizePlate(candidate.plate) === normalizedPlate
-            : !normalizePlate(candidate.plate)),
-      );
-      if (match) {
-        vehicleId = match.id;
-      } else {
-        const { data: createdVehicle, error: vehicleError } = await supabase
-          .from("customer_vehicles")
-          .insert({
-            owner_id: user.id,
-            brand: vehicleBrand,
-            model: vehicleModel,
-            year: vehicleYear,
-            plate: vehiclePlate,
-            state,
-            city,
-          })
-          .select("id")
-          .single();
-        if (vehicleError || !createdVehicle)
-          fail("Não foi possível vincular o veículo. Tente novamente.", origin);
-        vehicleId = createdVehicle.id;
-      }
+      fail("Cadastre e confirme seu veículo antes de abrir o atendimento.", origin);
     }
   }
 
@@ -213,10 +184,6 @@ async function createServiceRequestFromForm(
   }
   revalidatePath("/demo/cliente");
   redirect(`/demo/cliente/atendimento/${data.id}`);
-}
-
-function normalizePlate(plate: string | null) {
-  return (plate ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
 }
 
 export async function submitServiceRequestAnswers(formData: FormData) {

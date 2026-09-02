@@ -5,6 +5,11 @@ import type {
 
 export const DEMO_VEHICLE_REFERENCE = "DEMO-VEH-001";
 
+// Documented demo plate (valid Mercosul format) mapped to the same synthetic
+// fixture so plate-first onboarding can reach the suggestion path. It is a
+// fixture alias, never a real vehicle or an official lookup result.
+export const DEMO_VEHICLE_PLATE = "VRH1A23";
+
 const demoObservation: VehicleIntelligenceObservation = {
   vehicle: {
     brand: "Volkswagen",
@@ -31,7 +36,12 @@ export function createLocalVehicleIntelligenceProvider(): VehicleIntelligencePro
     paid: false,
     estimatedCostMicrounits: 0,
     async lookup(request) {
-      if (request.vehicleReference !== DEMO_VEHICLE_REFERENCE) return null;
+      if (
+        request.vehicleReference !== DEMO_VEHICLE_REFERENCE &&
+        request.vehicleReference !== DEMO_VEHICLE_PLATE
+      ) {
+        return null;
+      }
       return {
         vehicle: { ...demoObservation.vehicle },
         evidence: { ...demoObservation.evidence },

@@ -42,6 +42,10 @@ order by name;
 
 O destino é definido pelo papel gravado em `user_profiles`, independentemente da página usada para entrar.
 
-## 4. Teste recomendado
+## 4. Placa de demonstração do onboarding
+
+No onboarding do cliente (`/onboarding/cliente`), a placa `VRH1A23` (formato Mercosul) está mapeada para a fixture sintética local de Vehicle Intelligence (`verah_local_fixture`, veículo `DEMO-VEH-001`). Use-a para percorrer o fluxo de sugestão sintética; qualquer outra placa válida cai no cadastro manual. Os dados sugeridos são sempre marcados como sintéticos e exigem confirmação explícita do cliente.
+
+## 5. Teste recomendado
 
 Abra três navegadores ou perfis separados para cliente, concierge e prestador. Entre com uma conta em cada um e percorra a jornada completa. Use uma quarta janela para o administrador quando precisar inspecionar toda a operação.
