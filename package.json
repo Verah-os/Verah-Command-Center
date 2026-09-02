@@ -29,6 +29,7 @@
     "verah:dispatcher:stop": "node --experimental-strip-types scripts/verah-os/dispatcher-cli.ts stop",
     "verah:dispatcher:status": "node --experimental-strip-types scripts/verah-os/dispatcher-cli.ts status",
     "verah:dispatcher:once": "node --experimental-strip-types scripts/verah-os/dispatcher-cli.ts once",
+    "control-plane:demo": "node --experimental-strip-types scripts/control-plane-unattended-demo.ts",
     "ci:application": "pnpm test && pnpm typecheck && pnpm lint && pnpm build",
     "ci:database": "bash scripts/ci/test-database.sh"
   },
