@@ -1,15 +1,21 @@
 import { SafeAreaView, StatusBar, StyleSheet, Text, View } from "react-native";
-import { getAuthFacade } from "./src/supabase";
+import { getAuthFacade, getCustomerJourneyFacade } from "./src/supabase";
 import { AuthGate } from "./src/AuthGate";
 
-// M1 auth (#169): fail-closed — auth UI only renders when the public anon
-// contract resolves; otherwise no backend interaction is possible.
+// M1 (#169 auth + #173 onboarding/garagem): fail-closed — the app only
+// renders when the public anon contract resolves; otherwise no backend
+// interaction is possible.
 export default function App() {
   const facade = getAuthFacade();
+  const journeyFacade = getCustomerJourneyFacade();
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" />
-      {facade ? <AuthGate facade={facade} /> : <FailClosedNotice />}
+      {facade && journeyFacade ? (
+        <AuthGate facade={facade} journeyFacade={journeyFacade} />
+      ) : (
+        <FailClosedNotice />
+      )}
     </SafeAreaView>
   );
 }

@@ -1,9 +1,10 @@
 # VERAH Mobile (M1 — épico #164)
 
-App iOS/Android da VERAH (React Native + Expo). Estado atual: **auth M1**
-(cadastro/login e-mail+senha, sessão persistida via AsyncStorage, restauração
-na abertura, sign-out) sobre o cliente Supabase fail-closed. Estritamente
-não-produção.
+App iOS/Android da VERAH (React Native + Expo). Estado atual: **auth M1
+(#169)** + **onboarding básico + garagem (#173)** — fluxo pós-login com
+perfil básico (nome de preferência + termos Pilot Alpha v1), cadastro manual
+do veículo com confirmação explícita e garagem persistida, tudo sobre o
+cliente Supabase fail-closed. Estritamente não-produção.
 
 ## Arquitetura
 
@@ -12,9 +13,25 @@ não-produção.
 - Nenhum backend paralelo, nenhuma Server Action (web-only) reutilizada.
 - Somente variáveis públicas: `EXPO_PUBLIC_SUPABASE_URL` e
   `EXPO_PUBLIC_SUPABASE_ANON_KEY`. Nunca service role ou secrets server-side.
-- Sessão persistida com AsyncStorage (`src/supabase.ts`); máquina de estado
-  de auth pura e testável em Node (`src/auth-session.ts`); telas em
-  `src/AuthGate.tsx` e `src/AuthScreen.tsx`.
+- Sessão persistida com AsyncStorage (`src/supabase.ts`); máquinas de estado
+  puras e testáveis em Node (`src/auth-session.ts`, `src/customer-journey.ts`);
+  telas em `src/AuthGate.tsx`, `src/AuthScreen.tsx` e `src/CustomerJourney.tsx`.
+
+## Jornada pós-login (contrato canônico #139)
+
+1. `refresh_customer_onboarding` restaura a jornada e roteia para a etapa
+   correta (perfil básico → veículo → garagem). Se não houver identidade de
+   cliente (cadastro feito pelo app), `start_customer_onboarding` é chamado
+   uma única vez (RPC idempotente) e a leitura é repetida; qualquer falha
+   cai em estado de erro fail-closed com retry.
+2. Perfil básico: `complete_customer_basic_onboarding` com
+   `p_terms_version = pilot-alpha-onboarding-v1` e aceite explícito.
+3. Veículo: cadastro manual (mobile não usa fixture de lookup — proveniência
+   `lookup_source = 'manual'`) via RPC `confirm_customer_vehicle` com
+   `p_customer_confirmed = true`. Criação de veículo é RPC-only; insert
+   direto em `customer_vehicles` é revogado de `authenticated`.
+4. Garagem: leitura de `customer_vehicles` sob RLS owner-based, ordenada por
+   `created_at`.
 
 ## Como rodar (desenvolvimento)
 
@@ -35,18 +52,12 @@ pnpm start
 
 Sem as variáveis o app abre em modo fail-closed (sem chamadas de backend).
 
-## Próximo passo (Onboarding + garagem mobile — M1, dependência ordenada)
-
-Auth está entregue (#169). A próxima entrega ordenada conecta as RPCs de
-onboarding (`start_customer_onboarding`, `complete_customer_basic_onboarding`,
-`refresh_customer_onboarding`) e a garagem (`customer_vehicles` via RLS,
-`confirm_customer_vehicle` via RPC, contrato final do #139). Nada aqui é
-produção; usar apenas projeto Supabase de desenvolvimento:
+## Validação local
 
 ```bash
 cd mobile
 pnpm install --frozen-lockfile
-pnpm run check   # testes de auth/sessão + typecheck + expo-doctor
+pnpm run check   # testes (auth/sessão + jornada onboarding/garagem) + typecheck + expo-doctor
 EXPO_PUBLIC_SUPABASE_URL=https://<projeto-dev>.supabase.co \
 EXPO_PUBLIC_SUPABASE_ANON_KEY=<anon-key-dev> \
 pnpm start       # Expo Go / dev client em ambiente não-prod
