@@ -1,7 +1,9 @@
-# VERAH Mobile (scaffold M1 — épico #164)
+# VERAH Mobile (M1 — épico #164)
 
-App iOS/Android da VERAH (React Native + Expo). Estado atual: **scaffold**
-com smoke screen e cliente Supabase fail-closed. Estritamente não-produção.
+App iOS/Android da VERAH (React Native + Expo). Estado atual: **auth M1**
+(cadastro/login e-mail+senha, sessão persistida via AsyncStorage, restauração
+na abertura, sign-out) sobre o cliente Supabase fail-closed. Estritamente
+não-produção.
 
 ## Arquitetura
 
@@ -10,7 +12,9 @@ com smoke screen e cliente Supabase fail-closed. Estritamente não-produção.
 - Nenhum backend paralelo, nenhuma Server Action (web-only) reutilizada.
 - Somente variáveis públicas: `EXPO_PUBLIC_SUPABASE_URL` e
   `EXPO_PUBLIC_SUPABASE_ANON_KEY`. Nunca service role ou secrets server-side.
-- Sessão persistida com AsyncStorage (`src/supabase.ts`).
+- Sessão persistida com AsyncStorage (`src/supabase.ts`); máquina de estado
+  de auth pura e testável em Node (`src/auth-session.ts`); telas em
+  `src/AuthGate.tsx` e `src/AuthScreen.tsx`.
 
 ## Como rodar (desenvolvimento)
 
@@ -31,21 +35,25 @@ pnpm start
 
 Sem as variáveis o app abre em modo fail-closed (sem chamadas de backend).
 
-## Próximo passo (Auth Mobile — M1, dependência ordenada)
+## Próximo passo (Onboarding + garagem mobile — M1, dependência ordenada)
 
-Nada aqui é produção; usar apenas projeto Supabase de desenvolvimento:
+Auth está entregue (#169). A próxima entrega ordenada conecta as RPCs de
+onboarding (`start_customer_onboarding`, `complete_customer_basic_onboarding`,
+`refresh_customer_onboarding`) e a garagem (`customer_vehicles` via RLS,
+`confirm_customer_vehicle` via RPC, contrato final do #139). Nada aqui é
+produção; usar apenas projeto Supabase de desenvolvimento:
 
 ```bash
 cd mobile
 pnpm install --frozen-lockfile
-pnpm run check   # porta de compatibilidade antes de abrir telas de auth
+pnpm run check   # testes de auth/sessão + typecheck + expo-doctor
 EXPO_PUBLIC_SUPABASE_URL=https://<projeto-dev>.supabase.co \
 EXPO_PUBLIC_SUPABASE_ANON_KEY=<anon-key-dev> \
 pnpm start       # Expo Go / dev client em ambiente não-prod
 ```
 
-O contrato de identidade é `user_profiles`/`verah_identities` do mesmo
-Supabase (ver `docs/ship-verah/master-plan.md`, marco M1 item 2).
+O contrato de identidade continua sendo `user_profiles`/`verah_identities`
+do mesmo Supabase (ver `docs/ship-verah/master-plan.md`, marco M1 item 2).
 
 ## Limites
 
