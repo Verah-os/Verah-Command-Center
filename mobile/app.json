@@ -1,0 +1,21 @@
+{
+  "expo": {
+    "name": "VERAH Dev",
+    "slug": "verah-dev",
+    "scheme": "verah-dev",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#1A1A1A",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.verah.app.dev"
+    },
+    "android": {
+      "package": "com.verah.app.dev"
+    },
+    "extra": {
+      "environment": "development"
+    }
+  }
+}
