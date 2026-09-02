@@ -58,15 +58,23 @@ export function selectNextIssue(issues: readonly VerahIssue[]): SelectionResult 
     .sort((left, right) => left.number - right.number);
   if (locks.length > 0) return { status: "locked", issue: locks[0] };
 
-  const candidates = issues.filter(isExecutableIssue).sort((left, right) => {
+  const candidates = selectExecutableIssues(issues);
+  return candidates[0]
+    ? { status: "selected", issue: candidates[0] }
+    : { status: "empty" };
+}
+
+// The full eligible set in selection order; the Control Plane runtime (#170)
+// consumes this existing contract instead of redefining eligibility.
+export function selectExecutableIssues(
+  issues: readonly VerahIssue[],
+): VerahIssue[] {
+  return issues.filter(isExecutableIssue).sort((left, right) => {
     const priority = priorityOf(left) - priorityOf(right);
     if (priority !== 0) return priority;
     const created = Date.parse(left.createdAt) - Date.parse(right.createdAt);
     return created !== 0 ? created : left.number - right.number;
   });
-  return candidates[0]
-    ? { status: "selected", issue: candidates[0] }
-    : { status: "empty" };
 }
 
 export function evaluateReleaseGates(snapshot: ReleaseSnapshot): ReleaseDecision {
