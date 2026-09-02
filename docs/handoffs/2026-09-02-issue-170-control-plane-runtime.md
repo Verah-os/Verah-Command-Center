@@ -1,6 +1,6 @@
 # Handoff — Issue #170 (Non-prod Control Plane runtime entrypoint)
 
-- **Issue / branch:** #170 / `openhands/issue-170-control-plane-runtime`
+- **Issue / branch:** #170 / PR #171 (Draft) / `openhands/issue-170-control-plane-runtime` (commit 882c3d4)
 - **Files changed:** `services/control-plane/runtime.ts` (new),
   `services/control-plane/github-queue.ts` (new),
   `scripts/control-plane-runtime.ts` (new), `scripts/verah-os/policy.ts`
