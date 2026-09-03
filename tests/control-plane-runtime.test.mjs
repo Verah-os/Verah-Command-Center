@@ -232,6 +232,62 @@ test("repository-wide delivery lock pauses selection", async () => {
   assert.equal(spy.executions.length, 0);
 });
 
+test("queue fetch fault is confined per cycle and the loop recovers", async () => {
+  const spy = spyExecutor();
+  const logs = [];
+  let failNext = true;
+  const base = githubFetch({ issues: [eligibleIssue()] });
+  const fetchFn = async (url, init) => {
+    if (failNext && !url.includes("/pulls?")) {
+      failNext = false;
+      return { ok: false, status: 500, json: async () => ({}) };
+    }
+    return base(url, init);
+  };
+  const runtime = createControlPlaneRuntime(enabledEnv(), {
+    primaryCandidates: [{ executor: spy, priority: 1, estimatedCostMicrounits: 10 }],
+    fetchFn,
+    logger: (event) => logs.push(event),
+  });
+  assert.ok(runtime);
+
+  const failed = await runtime.runCycle(1);
+  assert.equal(failed.queueStatus, "error");
+  assert.equal(failed.skippedReason, "github_queue_fetch_failed");
+  assert.equal(failed.selectedIssueKey, null);
+  assert.equal(spy.executions.length, 0);
+  assert.ok(logs.some((event) => event.type === "control_plane_queue_fetch_failed"));
+
+  const recovered = await runtime.runCycle(2);
+  assert.equal(recovered.queueStatus, "ready");
+  assert.equal(recovered.selectedIssueKey, "Verah-os/Verah-Command-Center#169");
+  assert.equal(spy.executions.length, 1);
+  assert.equal(runtime.queue.snapshot()[0].status, "completed");
+});
+
+test("after terminalization the Control Plane selects the next eligible issue", async () => {
+  const spy = spyExecutor();
+  const fetchFn = githubFetch({
+    issues: [
+      eligibleIssue(),
+      eligibleIssue({ number: 170, title: "Synthetic follow-up issue" }),
+    ],
+  });
+  const runtime = createControlPlaneRuntime(enabledEnv(), {
+    primaryCandidates: [{ executor: spy, priority: 1, estimatedCostMicrounits: 10 }],
+    fetchFn,
+  });
+  assert.ok(runtime);
+
+  const first = await runtime.runCycle(1);
+  assert.equal(first.selectedIssueKey, "Verah-os/Verah-Command-Center#169");
+  assert.equal(runtime.queue.snapshot()[0].status, "completed");
+
+  const second = await runtime.runCycle(2);
+  assert.equal(second.selectedIssueKey, "Verah-os/Verah-Command-Center#170");
+  assert.equal(spy.executions.length, 2);
+});
+
 // Normalized VerahIssue shape (post-intake) for direct mapping assertions.
 const verahIssue = (overrides = {}) => ({
   number: 169,

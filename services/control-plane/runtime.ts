@@ -57,7 +57,7 @@ const passthroughMemory: AgentMemory = {
 
 export type ControlPlaneRuntimeCycleResult = {
   cycle: number;
-  queueStatus: "ready" | "locked";
+  queueStatus: "ready" | "locked" | "error";
   selectedIssueKey: string | null;
   skippedReason: string | null;
   report: UnattendedQueueReport;
@@ -140,9 +140,29 @@ export function createControlPlaneRuntime(
   let stopRequested = false;
 
   async function runCycle(cycle: number): Promise<ControlPlaneRuntimeCycleResult> {
-    const selection = await fetchOperationalQueue(config, {
-      fetchFn: options.fetchFn,
-    });
+    // (#179 audit) Per-cycle fault confinement: a failed queue fetch skips
+    // selection for this cycle instead of killing run(); gates still fail
+    // closed, the loop keeps recurring.
+    let selection: Awaited<ReturnType<typeof fetchOperationalQueue>>;
+    try {
+      selection = await fetchOperationalQueue(config, {
+        fetchFn: options.fetchFn,
+      });
+    } catch (error) {
+      logger({
+        type: "control_plane_queue_fetch_failed",
+        cycle,
+        error: error instanceof Error ? error.message : "unknown",
+      });
+      const report = await queue.drain(config.maxQueueSteps);
+      return {
+        cycle,
+        queueStatus: "error",
+        selectedIssueKey: null,
+        skippedReason: "github_queue_fetch_failed",
+        report,
+      };
+    }
 
     let selectedIssueKey: string | null = null;
     let skippedReason: string | null = null;
