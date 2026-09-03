@@ -17,7 +17,13 @@ let cachedJourneyFacade: CustomerJourneyFacade | null = null;
 // No parallel backend, no server-side secrets in the app.
 export function getSupabaseClient(): SupabaseClient | null {
   if (cached) return cached;
-  const config = resolveSupabaseConfig(process.env);
+  // Expo only inlines EXPO_PUBLIC_* variables when referenced explicitly with
+  // dot notation. Passing process.env wholesale leaves these values undefined
+  // in the bundled app, so keep the runtime contract explicit here.
+  const config = resolveSupabaseConfig({
+    EXPO_PUBLIC_SUPABASE_URL: process.env.EXPO_PUBLIC_SUPABASE_URL,
+    EXPO_PUBLIC_SUPABASE_ANON_KEY: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
+  });
   if (!config) return null;
   cached = createClient(config.url, config.anonKey, {
     auth: {

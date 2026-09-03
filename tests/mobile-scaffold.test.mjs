@@ -48,6 +48,9 @@ test("mobile client uses persisted session on the shared anon + RLS contract", a
   assert.match(source, /persistSession: true/);
   assert.match(source, /detectSessionInUrl: false/);
   assert.match(source, /resolveSupabaseConfig/);
+  assert.match(source, /process\.env\.EXPO_PUBLIC_SUPABASE_URL/);
+  assert.match(source, /process\.env\.EXPO_PUBLIC_SUPABASE_ANON_KEY/);
+  assert.doesNotMatch(source, /resolveSupabaseConfig\(process\.env\)/);
 });
 
 test("mobile workspace contains no server-only secrets or privileged keys", async () => {
