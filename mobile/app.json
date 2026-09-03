@@ -2,6 +2,7 @@
   "expo": {
     "name": "VERAH Dev",
     "slug": "verah-dev",
+    "owner": "verah",
     "scheme": "verah-dev",
     "version": "0.1.0",
     "orientation": "portrait",
@@ -15,7 +16,10 @@
       "package": "com.verah.app.dev"
     },
     "extra": {
-      "environment": "development"
+      "environment": "development",
+      "eas": {
+        "projectId": "f971ac09-dad3-4ba5-8274-c8cbb1091cec"
+      }
     }
   }
 }
