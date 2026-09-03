@@ -11,7 +11,7 @@ test("mobile app identity is explicitly non-production", async () => {
   const appJson = await readJson("../mobile/app.json");
   const expo = appJson.expo;
   assert.match(expo.name, /Dev/);
-  assert.equal(expo.slug, "verah-dev");
+  assert.equal(expo.slug, "verah");
   assert.equal(expo.scheme, "verah-dev");
   assert.equal(expo.ios.bundleIdentifier, "com.verah.app.dev");
   assert.equal(expo.android.package, "com.verah.app.dev");
