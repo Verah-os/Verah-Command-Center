@@ -65,6 +65,7 @@ ajuste `CONTROL_PLANE_RUNTIME_POLL_INTERVAL_MS`.
 | checagem de PR indisponível | ciclo seleciona nada (nunca executa na dúvida) |
 | gate HUMAN (efeitos de risco) | item `blocked` antes de qualquer executor |
 | falha persistente do executor | retries bounded, depois `dead_letter` |
+| falha transitória na leitura da fila GitHub | ciclo pulado (`github_queue_fetch_failed`) com log `control_plane_queue_fetch_failed`; o loop `run()` nunca aborta e tenta o próximo ciclo (#179) |
 
 ## Elegibilidade (contrato GitHub existente, não reinventado)
 
