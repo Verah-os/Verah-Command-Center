@@ -1,9 +1,6 @@
 export const SERVICE_URGENCIES = ["baixa", "media", "alta", "critica"] as const;
 export type ServiceUrgency = (typeof SERVICE_URGENCIES)[number];
-export type PickupLocationSource =
-  | "manual_address"
-  | "device_location"
-  | "whatsapp_location";
+export type PickupLocationSource = "manual_address" | "device_location";
 
 export type ServiceRequestInput = {
   vehicleId: string;
