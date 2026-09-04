@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { CustomerServiceRequest, GarageVehicle } from "./customer-journey";
+import { CustomerRequests } from "./CustomerRequests";
 
 type Tab = "home" | "requests" | "vehicles" | "history" | "profile";
 
@@ -36,6 +37,7 @@ export function CustomerHome({
         style={styles.scroll}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>
           <Text style={styles.brand}>VERAH</Text>
@@ -125,19 +127,7 @@ export function CustomerHome({
 
         {tab === "requests" && (
           <Section title="Atendimentos">
-            <View style={styles.notice}>
-              <Text style={styles.noticeTitle}>Novo atendimento</Text>
-              <Text style={styles.meta}>
-                O próximo passo deste fluxo será escolher entre compartilhar a localização atual ou informar o endereço onde o veículo está, conforme o backlog #189.
-              </Text>
-            </View>
-            {requests.length ? requests.map((request) => (
-              <View key={request.id} style={styles.rowCard}>
-                <Text style={styles.reference}>{request.referenceCode}</Text>
-                <Text style={styles.rowTitle}>{request.vehicleBrand} {request.vehicleModel}</Text>
-                <Text style={styles.meta}>{stageLabels[request.serviceStage] ?? request.serviceStage}</Text>
-              </View>
-            )) : <Text style={styles.empty}>Nenhum atendimento registrado.</Text>}
+            <CustomerRequests vehicles={vehicles} requests={requests} />
           </Section>
         )}
 
@@ -240,8 +230,6 @@ const styles = StyleSheet.create({
   rowCard: { borderWidth: 1, borderColor: "#EEF0F2", borderRadius: 14, padding: 14, marginTop: 10 },
   rowTitle: { color: "#263238", fontSize: 15, fontWeight: "700" },
   empty: { color: "#7A838B", fontSize: 14, lineHeight: 21 },
-  notice: { backgroundColor: "#FFF1F3", borderRadius: 14, padding: 14, marginBottom: 12 },
-  noticeTitle: { color: "#A85F70", fontSize: 15, fontWeight: "700" },
   outlineButton: { borderWidth: 1, borderColor: "#177F78", borderRadius: 14, paddingVertical: 13, alignItems: "center", marginTop: 18 },
   outlineButtonText: { color: "#177F78", fontSize: 15, fontWeight: "700" },
   tabs: { position: "absolute", left: 0, right: 0, bottom: 0, flexDirection: "row", backgroundColor: "#FFFFFF", borderTopWidth: 1, borderTopColor: "#EEE7E8", paddingBottom: 8, paddingTop: 8 },
