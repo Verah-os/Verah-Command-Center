@@ -1,5 +1,6 @@
 import "react-native-url-polyfill/auto";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Linking } from "react-native";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { resolveSupabaseConfig } from "./config";
 import type { AuthFacade } from "./auth-session";
@@ -55,6 +56,44 @@ export function getAuthFacade(): AuthFacade | null {
     signUp: (email, password) =>
       auth.signUp({ email, password }).then(({ error }) => ({ error: error ?? null })),
     signOut: () => auth.signOut().then(({ error }) => ({ error: error ?? null })),
+    signInWithGoogle: async () => {
+      const { data, error } = await auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: "verah-dev://auth/callback",
+          skipBrowserRedirect: true,
+        },
+      });
+      if (error) return { error };
+      if (!data.url) return { error: { message: "O Google não retornou uma URL de autenticação." } };
+      try {
+        await Linking.openURL(data.url);
+        return { error: null };
+      } catch {
+        return { error: { message: "Não foi possível abrir o login do Google." } };
+      }
+    },
+    handleAuthUrl: async (url) => {
+      if (!url.startsWith("verah-dev://auth/callback")) return { error: null };
+      const parsed = new URL(url);
+      const code = parsed.searchParams.get("code");
+      if (code) {
+        const { error } = await auth.exchangeCodeForSession(code);
+        return { error: error ?? null };
+      }
+      const hash = url.includes("#") ? url.slice(url.indexOf("#") + 1) : "";
+      const params = new URLSearchParams(hash);
+      const accessToken = params.get("access_token");
+      const refreshToken = params.get("refresh_token");
+      if (accessToken && refreshToken) {
+        const { error } = await auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+        return { error: error ?? null };
+      }
+      return { error: { message: "Retorno do Google sem sessão válida." } };
+    },
   };
   return cachedFacade;
 }

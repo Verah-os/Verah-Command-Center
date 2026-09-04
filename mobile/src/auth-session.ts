@@ -1,7 +1,3 @@
-// Pure auth session state machine for the mobile M1 flow. Free of React
-// Native imports so it runs under plain `node --test` (same convention as the
-// root suite); the RN/Supabase wiring lives in `supabase.ts` / `AuthGate.tsx`.
-
 export type AuthUser = { id: string; email?: string };
 export type AuthSessionData = { user: AuthUser } | null;
 
@@ -12,17 +8,18 @@ export type AuthState =
 
 export type AuthResult = { ok: true } | { ok: false; message: string };
 
-// Minimal seam over the Supabase auth surface used by the app. Injection via
-// this interface is required for tests (Node CI has no RN runtime); the real
-// binding from SupabaseClient lives in `supabase.ts`.
+export type AuthResponse = { error: { message: string } | null };
+
 export interface AuthFacade {
   getSession(): Promise<{ session: AuthSessionData }>;
   onAuthStateChange(
     listener: (event: string, session: AuthSessionData) => void,
   ): { unsubscribe(): void };
-  signIn(email: string, password: string): Promise<{ error: { message: string } | null }>;
-  signUp(email: string, password: string): Promise<{ error: { message: string } | null }>;
-  signOut(): Promise<{ error: { message: string } | null }>;
+  signIn(email: string, password: string): Promise<AuthResponse>;
+  signUp(email: string, password: string): Promise<AuthResponse>;
+  signOut(): Promise<AuthResponse>;
+  signInWithGoogle?(): Promise<AuthResponse>;
+  handleAuthUrl?(url: string): Promise<AuthResponse>;
 }
 
 export interface AuthSessionController {
@@ -30,6 +27,7 @@ export interface AuthSessionController {
   subscribe(listener: () => void): () => void;
   signUp(email: string, password: string): Promise<AuthResult>;
   signIn(email: string, password: string): Promise<AuthResult>;
+  signInWithGoogle(): Promise<AuthResult>;
   signOut(): Promise<AuthResult>;
   dispose(): void;
 }
@@ -37,21 +35,14 @@ export interface AuthSessionController {
 export function createAuthSession(facade: AuthFacade): AuthSessionController {
   let state: AuthState = { status: "loading" };
   const listeners = new Set<() => void>();
-
-  const emit = () => {
-    for (const listener of listeners) listener();
-  };
-
+  const emit = () => { for (const listener of listeners) listener(); };
   const applySession = (session: AuthSessionData) => {
-    // Explicit guard: a null/partial session must never report signed-in.
     state = session?.user
       ? { status: "signed-in", user: session.user }
       : { status: "signed-out" };
     emit();
   };
 
-  // Subscribe before the initial getSession so no event is lost between the
-  // two calls.
   const subscription = facade.onAuthStateChange((event, session) => {
     if (event === "SIGNED_OUT") {
       state = { status: "signed-out" };
@@ -65,24 +56,26 @@ export function createAuthSession(facade: AuthFacade): AuthSessionController {
     if (state.status === "loading") applySession(session);
   });
 
-  const toResult = (response: { error: { message: string } | null }): AuthResult =>
-    response.error
-      ? { ok: false, message: response.error.message }
-      : { ok: true };
+  const toResult = (response: AuthResponse): AuthResult =>
+    response.error ? { ok: false, message: response.error.message } : { ok: true };
 
   return {
     getState: () => state,
     subscribe(listener) {
       listeners.add(listener);
-      return () => {
-        listeners.delete(listener);
-      };
+      return () => { listeners.delete(listener); };
     },
     async signIn(email, password) {
       return toResult(await facade.signIn(email, password));
     },
     async signUp(email, password) {
       return toResult(await facade.signUp(email, password));
+    },
+    async signInWithGoogle() {
+      if (!facade.signInWithGoogle) {
+        return { ok: false, message: "Login com Google ainda não está configurado nesta build." };
+      }
+      return toResult(await facade.signInWithGoogle());
     },
     async signOut() {
       const result = toResult(await facade.signOut());
