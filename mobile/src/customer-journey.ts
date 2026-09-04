@@ -2,7 +2,27 @@ export const ONBOARDING_TERMS_VERSION = "pilot-alpha-onboarding-v1";
 
 export type JourneyUser = { id: string; email?: string };
 export type GarageVehicle = { id: string; brand: string; model: string; year: number | null; plate: string | null; nickname: string | null };
-export type CustomerServiceRequest = { id: string; referenceCode: string; vehicleBrand: string; vehicleModel: string; serviceStage: string; customerMessage: string | null; probableCategory: string | null; completedAt: string | null; customerRating: number | null; createdAt: string };
+export type CustomerServiceRequest = {
+  id: string;
+  referenceCode: string;
+  vehicleBrand: string;
+  vehicleModel: string;
+  vehicleYear: number | null;
+  city: string | null;
+  state: string | null;
+  serviceStage: string;
+  customerReport: string | null;
+  customerMessage: string | null;
+  probableCategory: string | null;
+  copilotSummary: string | null;
+  perceivedUrgency: string | null;
+  conciergeAcceptedAt: string | null;
+  providerAssignedAt: string | null;
+  completedAt: string | null;
+  completionNotes: string | null;
+  customerRating: number | null;
+  createdAt: string;
+};
 export type VehicleDraft = { plate: string; brand: string; model: string; modelYear: number; version: string | null; engine: string | null; transmission: string | null };
 export type VehicleInput = { plate: string; brand: string; model: string; modelYear: string | number; version?: string; engine?: string; transmission?: string };
 export type JourneyResult = { ok: true } | { ok: false; message: string };
