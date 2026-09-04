@@ -6,6 +6,7 @@ import type { AuthFacade } from "./auth-session";
 import {
   ONBOARDING_TERMS_VERSION,
   type CustomerJourneyFacade,
+  type CustomerServiceRequest,
   type GarageVehicle,
 } from "./customer-journey";
 
@@ -13,13 +14,8 @@ let cached: SupabaseClient | null = null;
 let cachedFacade: AuthFacade | null = null;
 let cachedJourneyFacade: CustomerJourneyFacade | null = null;
 
-// Same Supabase project as the Command Center: anon key + RLS + RPCs.
-// No parallel backend, no server-side secrets in the app.
 export function getSupabaseClient(): SupabaseClient | null {
   if (cached) return cached;
-  // Expo only inlines EXPO_PUBLIC_* variables when referenced explicitly with
-  // dot notation. Passing process.env wholesale leaves these values undefined
-  // in the bundled app, so keep the runtime contract explicit here.
   const config = resolveSupabaseConfig({
     EXPO_PUBLIC_SUPABASE_URL: process.env.EXPO_PUBLIC_SUPABASE_URL,
     EXPO_PUBLIC_SUPABASE_ANON_KEY: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
@@ -36,8 +32,6 @@ export function getSupabaseClient(): SupabaseClient | null {
   return cached;
 }
 
-// Real binding from SupabaseClient to the pure auth facade consumed by the
-// session state machine. Returns null when fail-closed (no public config).
 export function getAuthFacade(): AuthFacade | null {
   if (cachedFacade) return cachedFacade;
   const client = getSupabaseClient();
@@ -65,13 +59,6 @@ export function getAuthFacade(): AuthFacade | null {
   return cachedFacade;
 }
 
-// Real binding from SupabaseClient to the pure customer journey consumed by
-// the onboarding/garage state machine. Canonical #139 contract only: the
-// onboarding RPCs + confirm_customer_vehicle (vehicle creation is RPC-only;
-// direct insert is revoked from authenticated) + customer_vehicles reads
-// under owner-based RLS. Manual provenance: mobile has no lookup fixture,
-// so every confirmation is customer-entered data with explicit confirmation.
-// Returns null when fail-closed (no public config).
 export function getCustomerJourneyFacade(): CustomerJourneyFacade | null {
   if (cachedJourneyFacade) return cachedJourneyFacade;
   const client = getSupabaseClient();
@@ -118,6 +105,33 @@ export function getCustomerJourneyFacade(): CustomerJourneyFacade | null {
         data: (data as GarageVehicle[] | null) ?? null,
         error: error ?? null,
       };
+    },
+    listServiceRequests: async () => {
+      const {
+        data: { user },
+      } = await client.auth.getUser();
+      if (!user) return { data: [], error: { message: "Sessão expirada." } };
+      const { data, error } = await client
+        .from("service_requests")
+        .select(
+          "id,reference_code,vehicle_brand,vehicle_model,service_stage,copilot_customer_message,probable_category,completed_at,customer_rating,created_at",
+        )
+        .eq("created_by", user.id)
+        .order("created_at", { ascending: false });
+      const mapped = (data ?? []).map((row) => ({
+        id: row.id as string,
+        referenceCode: row.reference_code as string,
+        vehicleBrand: row.vehicle_brand as string,
+        vehicleModel: row.vehicle_model as string,
+        serviceStage: row.service_stage as string,
+        customerMessage: (row.copilot_customer_message as string | null) ?? null,
+        probableCategory: (row.probable_category as string | null) ?? null,
+        completedAt: (row.completed_at as string | null) ?? null,
+        customerRating:
+          row.customer_rating === null ? null : Number(row.customer_rating),
+        createdAt: row.created_at as string,
+      })) as CustomerServiceRequest[];
+      return { data: mapped, error: error ?? null };
     },
   };
   return cachedJourneyFacade;

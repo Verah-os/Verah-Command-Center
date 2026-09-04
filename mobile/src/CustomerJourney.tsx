@@ -13,15 +13,11 @@ import {
   defaultDisplayName,
   type CustomerJourneyController,
   type CustomerJourneyFacade,
-  type GarageVehicle,
   type JourneyUser,
 } from "./customer-journey";
+import { CustomerHome } from "./CustomerHome";
 import { VehicleOnboardingStep } from "./VehicleOnboardingStep";
 
-// Post-login journey gate (#173): restores the canonical onboarding state via
-// RPC and routes the customer through basic profile -> vehicle confirmation
-// -> persisted garage. Progress lives server-side, so reinstalls and new
-// devices land back on the correct step (safe journey restoration).
 export function CustomerJourneyGate({
   facade,
   user,
@@ -39,7 +35,7 @@ export function CustomerJourneyGate({
   if (state.status === "loading") {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color="#2AA79B" />
+        <ActivityIndicator color="#177F78" />
         <Text style={styles.note}>Restaurando sua jornada…</Text>
       </View>
     );
@@ -50,10 +46,7 @@ export function CustomerJourneyGate({
         <Text style={styles.brand}>VERAH</Text>
         <Text style={styles.title}>Não foi possível carregar sua jornada</Text>
         <Text style={styles.error}>{state.message}</Text>
-        <PrimaryButton
-          label="Tentar novamente"
-          onPress={() => void controller.restore()}
-        />
+        <PrimaryButton label="Tentar novamente" onPress={() => void controller.restore()} />
         <SecondaryButton label="Sair" onPress={onSignOut} />
       </View>
     );
@@ -64,7 +57,13 @@ export function CustomerJourneyGate({
   if (state.status === "vehicle") {
     return <VehicleOnboardingStep controller={controller} />;
   }
-  return <GarageScreen vehicles={state.vehicles} onSignOut={onSignOut} />;
+  return (
+    <CustomerHome
+      vehicles={state.vehicles}
+      requests={state.requests}
+      onSignOut={onSignOut}
+    />
+  );
 }
 
 function BasicProfileStep({
@@ -88,18 +87,17 @@ function BasicProfileStep({
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.form}>
+    <ScrollView contentContainerStyle={styles.form} keyboardShouldPersistTaps="handled">
       <Text style={styles.brand}>VERAH</Text>
       <Text style={styles.eyebrow}>Conta criada</Text>
       <Text style={styles.title}>Vamos preparar sua VERAH</Text>
       <Text style={styles.body}>
-        Este progresso fica salvo. WhatsApp é um canal opcional e nunca
-        substitui sua identidade.
+        Seu progresso fica salvo e acompanha você em qualquer dispositivo.
       </Text>
       <TextInput
         style={styles.input}
         placeholder="Nome de preferência"
-        placeholderTextColor="#777777"
+        placeholderTextColor="#7A838B"
         autoCapitalize="words"
         value={displayName}
         onChangeText={setDisplayName}
@@ -116,147 +114,6 @@ function BasicProfileStep({
         onPress={() => void submit()}
       />
     </ScrollView>
-  );
-}
-
-// Legacy manual step kept temporarily for rollback safety while the new
-// guided selector is validated on a physical Android build.
-function VehicleStep({ controller }: { controller: CustomerJourneyController }) {
-  const [plate, setPlate] = useState("");
-  const [brand, setBrand] = useState("");
-  const [model, setModel] = useState("");
-  const [modelYear, setModelYear] = useState("");
-  const [version, setVersion] = useState("");
-  const [engine, setEngine] = useState("");
-  const [transmission, setTransmission] = useState("");
-  const [confirmed, setConfirmed] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const submit = async () => {
-    if (!confirmed) {
-      setError("Confirme que estes dados correspondem ao seu veículo.");
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    const result = await controller.confirmVehicle({
-      plate,
-      brand,
-      model,
-      modelYear,
-      version,
-      engine,
-      transmission,
-    });
-    setBusy(false);
-    if (!result.ok) setError(result.message);
-  };
-
-  return (
-    <ScrollView contentContainerStyle={styles.form}>
-      <Text style={styles.brand}>VERAH</Text>
-      <Text style={styles.eyebrow}>Seu primeiro veículo</Text>
-      <Text style={styles.title}>Cadastre seu carro</Text>
-      <Text style={styles.body}>
-        Nenhuma consulta externa foi feita. Informe somente o que souber;
-        versão, motorização e câmbio são opcionais.
-      </Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Placa (ABC1234 ou ABC1D23)"
-        placeholderTextColor="#777777"
-        autoCapitalize="characters"
-        autoCorrect={false}
-        value={plate}
-        onChangeText={setPlate}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Marca"
-        placeholderTextColor="#777777"
-        value={brand}
-        onChangeText={setBrand}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Modelo"
-        placeholderTextColor="#777777"
-        value={model}
-        onChangeText={setModel}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Ano/modelo"
-        placeholderTextColor="#777777"
-        keyboardType="number-pad"
-        value={modelYear}
-        onChangeText={setModelYear}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Versão (opcional)"
-        placeholderTextColor="#777777"
-        value={version}
-        onChangeText={setVersion}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Motorização (opcional)"
-        placeholderTextColor="#777777"
-        value={engine}
-        onChangeText={setEngine}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Câmbio (opcional)"
-        placeholderTextColor="#777777"
-        value={transmission}
-        onChangeText={setTransmission}
-      />
-      <Checkbox
-        checked={confirmed}
-        onToggle={() => setConfirmed((value) => !value)}
-        label="Confirmo que estes dados correspondem ao meu veículo."
-      />
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-      <PrimaryButton
-        label="Salvar e continuar"
-        busy={busy}
-        onPress={() => void submit()}
-      />
-    </ScrollView>
-  );
-}
-
-function GarageScreen({
-  vehicles,
-  onSignOut,
-}: {
-  vehicles: GarageVehicle[];
-  onSignOut: () => void;
-}) {
-  return (
-    <View style={styles.card}>
-      <Text style={styles.brand}>VERAH</Text>
-      <Text style={styles.eyebrow}>Veículo confirmado</Text>
-      <Text style={styles.title}>Sua garagem</Text>
-      {vehicles.length === 0 ? (
-        <Text style={styles.body}>Nenhum veículo ativo encontrado.</Text>
-      ) : (
-        vehicles.map((vehicle) => (
-          <View key={vehicle.id} style={styles.vehicleCard}>
-            <Text style={styles.vehicleName}>
-              {vehicle.nickname ?? `${vehicle.brand} ${vehicle.model}`}
-            </Text>
-            <Text style={styles.vehicleMeta}>
-              {[vehicle.year, vehicle.plate].filter(Boolean).join(" · ")}
-            </Text>
-          </View>
-        ))
-      )}
-      <SecondaryButton label="Sair" onPress={onSignOut} />
-    </View>
   );
 }
 
@@ -304,13 +161,7 @@ function PrimaryButton({
   );
 }
 
-function SecondaryButton({
-  label,
-  onPress,
-}: {
-  label: string;
-  onPress: () => void;
-}) {
+function SecondaryButton({ label, onPress }: { label: string; onPress: () => void }) {
   return (
     <Pressable style={styles.secondary} onPress={onPress}>
       <Text style={styles.secondaryLabel}>{label}</Text>
@@ -320,68 +171,33 @@ function SecondaryButton({
 
 const styles = StyleSheet.create({
   center: { alignItems: "center", justifyContent: "center", gap: 12 },
-  note: { color: "#C9C9C9", fontSize: 14 },
-  card: { width: "100%", maxWidth: 420 },
+  note: { color: "#667085", fontSize: 14 },
+  card: { width: "100%", maxWidth: 420, backgroundColor: "#FFFFFF", padding: 22, borderRadius: 22 },
   form: { width: "100%", maxWidth: 420, alignSelf: "center", paddingBottom: 32 },
-  brand: { color: "#2AA79B", fontSize: 32, fontWeight: "700" },
-  eyebrow: { color: "#2AA79B", fontSize: 14, fontWeight: "600", marginTop: 16 },
-  title: { color: "#FFFFFF", fontSize: 20, fontWeight: "600", marginTop: 4 },
-  body: { color: "#C9C9C9", fontSize: 15, marginTop: 12, marginBottom: 20 },
+  brand: { color: "#177F78", fontSize: 32, fontWeight: "800" },
+  eyebrow: { color: "#A85F70", fontSize: 14, fontWeight: "700", marginTop: 16 },
+  title: { color: "#263238", fontSize: 22, fontWeight: "700", marginTop: 4 },
+  body: { color: "#667085", fontSize: 15, marginTop: 12, marginBottom: 20 },
   input: {
-    backgroundColor: "#242424",
-    borderRadius: 8,
-    color: "#FFFFFF",
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E8E1E2",
+    borderRadius: 12,
+    color: "#263238",
     fontSize: 16,
     marginBottom: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
   },
-  checkboxRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 12,
-    marginTop: 4,
-    marginBottom: 8,
-  },
-  checkbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: "#2AA79B",
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 2,
-  },
-  checkboxChecked: { backgroundColor: "#2AA79B" },
-  checkboxMark: { color: "#0B0B0B", fontSize: 14, fontWeight: "700" },
-  checkboxLabel: { color: "#C9C9C9", fontSize: 14, flex: 1 },
-  error: { color: "#E0706A", fontSize: 14, marginTop: 4 },
-  submit: {
-    backgroundColor: "#2AA79B",
-    borderRadius: 8,
-    marginTop: 16,
-    paddingVertical: 12,
-    alignItems: "center",
-  },
+  checkboxRow: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginTop: 4, marginBottom: 8 },
+  checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 1, borderColor: "#177F78", alignItems: "center", justifyContent: "center", marginTop: 2 },
+  checkboxChecked: { backgroundColor: "#177F78" },
+  checkboxMark: { color: "#FFFFFF", fontSize: 14, fontWeight: "700" },
+  checkboxLabel: { color: "#667085", fontSize: 14, flex: 1 },
+  error: { color: "#C84E59", fontSize: 14, marginTop: 4 },
+  submit: { backgroundColor: "#177F78", borderRadius: 12, marginTop: 16, paddingVertical: 13, alignItems: "center" },
   submitDisabled: { opacity: 0.6 },
-  submitLabel: { color: "#0B0B0B", fontSize: 16, fontWeight: "700" },
-  secondary: {
-    borderWidth: 1,
-    borderColor: "#2AA79B",
-    borderRadius: 8,
-    marginTop: 16,
-    paddingVertical: 12,
-    alignItems: "center",
-  },
-  secondaryLabel: { color: "#2AA79B", fontSize: 16, fontWeight: "600" },
-  vehicleCard: {
-    backgroundColor: "#242424",
-    borderRadius: 8,
-    marginTop: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
-  vehicleName: { color: "#FFFFFF", fontSize: 16, fontWeight: "600" },
-  vehicleMeta: { color: "#C9C9C9", fontSize: 14, marginTop: 4 },
+  submitLabel: { color: "#FFFFFF", fontSize: 16, fontWeight: "700" },
+  secondary: { borderWidth: 1, borderColor: "#177F78", borderRadius: 12, marginTop: 16, paddingVertical: 12, alignItems: "center" },
+  secondaryLabel: { color: "#177F78", fontSize: 16, fontWeight: "600" },
 });
