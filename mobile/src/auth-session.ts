@@ -8,7 +8,7 @@ export type AuthState =
 
 export type AuthResult = { ok: true } | { ok: false; message: string };
 
-type AuthResponse = { error: { message: string } | null };
+export type AuthResponse = { error: { message: string } | null };
 
 export interface AuthFacade {
   getSession(): Promise<{ session: AuthSessionData }>;
@@ -19,6 +19,7 @@ export interface AuthFacade {
   signUp(email: string, password: string): Promise<AuthResponse>;
   signOut(): Promise<AuthResponse>;
   signInWithGoogle?(): Promise<AuthResponse>;
+  handleAuthUrl?(url: string): Promise<AuthResponse>;
 }
 
 export interface AuthSessionController {
