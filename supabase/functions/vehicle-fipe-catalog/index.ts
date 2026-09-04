@@ -1,5 +1,10 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
+declare const Deno: {
+  env: { get(name: string): string | undefined };
+  serve(handler: (req: Request) => Response | Promise<Response>): void;
+};
+
 const API_BASE = "https://fipe.api.br/api/v2/cars";
 const jsonHeaders = {
   "Content-Type": "application/json",
