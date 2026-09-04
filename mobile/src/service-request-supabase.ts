@@ -5,16 +5,37 @@ import {
   type ServiceRequestInput,
 } from "./service-request";
 
-function mapServiceRequest(row: Record<string, unknown>): CustomerServiceRequest {
+const trackingSelect =
+  "id,reference_code,vehicle_brand,vehicle_model,vehicle_year,city,state,service_stage,customer_report,copilot_customer_message,probable_category,copilot_summary,perceived_urgency,concierge_accepted_at,provider_assigned_at,completed_at,completion_notes,customer_rating,created_at";
+
+function nullableString(value: unknown) {
+  return typeof value === "string" ? value : null;
+}
+
+export function mapCustomerServiceRequest(
+  row: Record<string, unknown>,
+): CustomerServiceRequest {
   return {
     id: row.id as string,
     referenceCode: row.reference_code as string,
     vehicleBrand: row.vehicle_brand as string,
     vehicleModel: row.vehicle_model as string,
+    vehicleYear:
+      row.vehicle_year === null || row.vehicle_year === undefined
+        ? null
+        : Number(row.vehicle_year),
+    city: nullableString(row.city),
+    state: nullableString(row.state),
     serviceStage: row.service_stage as string,
-    customerMessage: (row.copilot_customer_message as string | null) ?? null,
-    probableCategory: (row.probable_category as string | null) ?? null,
-    completedAt: (row.completed_at as string | null) ?? null,
+    customerReport: nullableString(row.customer_report),
+    customerMessage: nullableString(row.copilot_customer_message),
+    probableCategory: nullableString(row.probable_category),
+    copilotSummary: nullableString(row.copilot_summary),
+    perceivedUrgency: nullableString(row.perceived_urgency),
+    conciergeAcceptedAt: nullableString(row.concierge_accepted_at),
+    providerAssignedAt: nullableString(row.provider_assigned_at),
+    completedAt: nullableString(row.completed_at),
+    completionNotes: nullableString(row.completion_notes),
     customerRating:
       row.customer_rating === null || row.customer_rating === undefined
         ? null
@@ -87,9 +108,7 @@ export async function createMobileServiceRequest(input: ServiceRequestInput): Pr
       pickup_location_confirmed_at: new Date().toISOString(),
       pickup_instructions: prepared.draft.pickupInstructions,
     })
-    .select(
-      "id,reference_code,vehicle_brand,vehicle_model,service_stage,copilot_customer_message,probable_category,completed_at,customer_rating,created_at",
-    )
+    .select(trackingSelect)
     .single();
 
   if (error || !data) {
@@ -101,6 +120,8 @@ export async function createMobileServiceRequest(input: ServiceRequestInput): Pr
 
   return {
     ok: true,
-    request: mapServiceRequest(data as Record<string, unknown>),
+    request: mapCustomerServiceRequest(data as Record<string, unknown>),
   };
 }
+
+export { trackingSelect };
