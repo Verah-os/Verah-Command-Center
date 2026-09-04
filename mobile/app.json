@@ -8,6 +8,14 @@
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "backgroundColor": "#1A1A1A",
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Permitir que a VERAH use sua localização enquanto você escolhe onde o veículo está."
+        }
+      ]
+    ],
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.verah.app.dev"
