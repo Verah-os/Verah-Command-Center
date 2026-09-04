@@ -54,8 +54,6 @@ export function VehicleOnboardingStep({
     setPlate(normalized);
     setError(null);
 
-    // Same synthetic plate suggestion currently documented in verah.app (#139).
-    // It is explicit demo data, never presented as an official plate lookup.
     if (normalized === "VRH1A23") {
       setBrand("Volkswagen");
       setModel("Polo");
@@ -97,9 +95,16 @@ export function VehicleOnboardingStep({
     if (!result.ok) setError(result.message);
   };
 
+  const scrollProps = {
+    style: styles.scroll,
+    contentContainerStyle: styles.form,
+    showsVerticalScrollIndicator: false,
+    keyboardShouldPersistTaps: "handled" as const,
+  };
+
   if (mode === null) {
     return (
-      <ScrollView contentContainerStyle={styles.form}>
+      <ScrollView {...scrollProps}>
         <Text style={styles.brand}>VERAH</Text>
         <Text style={styles.eyebrow}>Seu primeiro veículo</Text>
         <Text style={styles.title}>Vamos encontrar seu carro</Text>
@@ -121,7 +126,7 @@ export function VehicleOnboardingStep({
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.form}>
+    <ScrollView {...scrollProps}>
       <Text style={styles.brand}>VERAH</Text>
       <Text style={styles.eyebrow}>Seu primeiro veículo</Text>
       <Text style={styles.title}>
@@ -268,7 +273,7 @@ function ChoiceCard({ title, description, onPress }: { title: string; descriptio
 function Chip({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
   return (
     <Pressable style={[styles.chip, selected && styles.chipSelected]} onPress={onPress}>
-      <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{label}</Text>
+      <Text numberOfLines={1} style={[styles.chipText, selected && styles.chipTextSelected]}>{label}</Text>
     </Pressable>
   );
 }
@@ -282,31 +287,38 @@ function OutlineButton({ label, onPress }: { label: string; onPress: () => void 
 }
 
 const styles = StyleSheet.create({
-  form: { width: "100%", maxWidth: 420, alignSelf: "center", paddingBottom: 32 },
+  scroll: { width: "100%", alignSelf: "stretch" },
+  form: {
+    width: "100%",
+    maxWidth: 420,
+    alignSelf: "center",
+    paddingBottom: 32,
+    paddingHorizontal: 2,
+  },
   brand: { color: "#2AA79B", fontSize: 32, fontWeight: "700" },
   eyebrow: { color: "#2AA79B", fontSize: 14, fontWeight: "600", marginTop: 16 },
   title: { color: "#FFFFFF", fontSize: 20, fontWeight: "600", marginTop: 4 },
-  body: { color: "#C9C9C9", fontSize: 15, lineHeight: 21, marginTop: 12, marginBottom: 20 },
-  input: { backgroundColor: "#242424", borderRadius: 8, color: "#FFFFFF", fontSize: 16, marginBottom: 12, paddingHorizontal: 14, paddingVertical: 12 },
-  choice: { backgroundColor: "#242424", borderColor: "#2AA79B", borderRadius: 12, borderWidth: 1, marginBottom: 12, padding: 16 },
+  body: { color: "#C9C9C9", fontSize: 15, lineHeight: 21, marginTop: 12, marginBottom: 20, flexShrink: 1 },
+  input: { backgroundColor: "#242424", borderRadius: 8, color: "#FFFFFF", fontSize: 16, marginBottom: 12, paddingHorizontal: 14, paddingVertical: 12, width: "100%" },
+  choice: { backgroundColor: "#242424", borderColor: "#2AA79B", borderRadius: 12, borderWidth: 1, marginBottom: 12, padding: 16, width: "100%" },
   choiceTitle: { color: "#FFFFFF", fontSize: 17, fontWeight: "700" },
-  choiceDescription: { color: "#C9C9C9", fontSize: 14, lineHeight: 20, marginTop: 6 },
-  message: { color: "#C9C9C9", fontSize: 14, lineHeight: 20, marginBottom: 16, marginTop: 10 },
+  choiceDescription: { color: "#C9C9C9", fontSize: 14, lineHeight: 20, marginTop: 6, flexShrink: 1 },
+  message: { color: "#C9C9C9", fontSize: 14, lineHeight: 20, marginBottom: 16, marginTop: 10, flexShrink: 1 },
   sectionLabel: { color: "#FFFFFF", fontSize: 15, fontWeight: "600", marginBottom: 10, marginTop: 10 },
-  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 16 },
-  chip: { borderColor: "#555555", borderRadius: 999, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 8 },
+  chips: { flexDirection: "row", flexWrap: "wrap", marginHorizontal: -4, marginBottom: 8, width: "100%" },
+  chip: { borderColor: "#555555", borderRadius: 999, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 8, marginHorizontal: 4, marginBottom: 8, maxWidth: "100%", flexShrink: 1 },
   chipSelected: { backgroundColor: "#2AA79B", borderColor: "#2AA79B" },
-  chipText: { color: "#C9C9C9", fontSize: 13 },
+  chipText: { color: "#C9C9C9", fontSize: 13, flexShrink: 1 },
   chipTextSelected: { color: "#0B0B0B", fontWeight: "700" },
-  checkRow: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginTop: 4, marginBottom: 8 },
-  check: { width: 22, height: 22, borderRadius: 6, borderWidth: 1, borderColor: "#2AA79B", alignItems: "center", justifyContent: "center", marginTop: 2 },
+  checkRow: { flexDirection: "row", alignItems: "flex-start", marginTop: 4, marginBottom: 8, width: "100%" },
+  check: { width: 22, height: 22, borderRadius: 6, borderWidth: 1, borderColor: "#2AA79B", alignItems: "center", justifyContent: "center", marginTop: 2, marginRight: 12, flexShrink: 0 },
   checkSelected: { backgroundColor: "#2AA79B" },
   checkMark: { color: "#0B0B0B", fontSize: 14, fontWeight: "700" },
-  checkLabel: { color: "#C9C9C9", fontSize: 14, flex: 1 },
-  error: { color: "#E0706A", fontSize: 14, marginTop: 4 },
-  primary: { backgroundColor: "#2AA79B", borderRadius: 8, marginTop: 16, paddingVertical: 12, alignItems: "center" },
+  checkLabel: { color: "#C9C9C9", fontSize: 14, flex: 1, flexShrink: 1 },
+  error: { color: "#E0706A", fontSize: 14, marginTop: 4, flexShrink: 1 },
+  primary: { backgroundColor: "#2AA79B", borderRadius: 8, marginTop: 16, paddingVertical: 12, alignItems: "center", width: "100%" },
   primaryText: { color: "#0B0B0B", fontSize: 16, fontWeight: "700" },
   disabled: { opacity: 0.6 },
-  outline: { borderWidth: 1, borderColor: "#2AA79B", borderRadius: 8, marginTop: 16, paddingVertical: 12, alignItems: "center" },
+  outline: { borderWidth: 1, borderColor: "#2AA79B", borderRadius: 8, marginTop: 16, paddingVertical: 12, alignItems: "center", width: "100%" },
   outlineText: { color: "#2AA79B", fontSize: 16, fontWeight: "600" },
 });
