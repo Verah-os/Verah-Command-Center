@@ -16,6 +16,7 @@ import {
   type GarageVehicle,
   type JourneyUser,
 } from "./customer-journey";
+import { VehicleOnboardingStep } from "./VehicleOnboardingStep";
 
 // Post-login journey gate (#173): restores the canonical onboarding state via
 // RPC and routes the customer through basic profile -> vehicle confirmation
@@ -61,7 +62,7 @@ export function CustomerJourneyGate({
     return <BasicProfileStep controller={controller} user={user} />;
   }
   if (state.status === "vehicle") {
-    return <VehicleStep controller={controller} />;
+    return <VehicleOnboardingStep controller={controller} />;
   }
   return <GarageScreen vehicles={state.vehicles} onSignOut={onSignOut} />;
 }
@@ -118,6 +119,8 @@ function BasicProfileStep({
   );
 }
 
+// Legacy manual step kept temporarily for rollback safety while the new
+// guided selector is validated on a physical Android build.
 function VehicleStep({ controller }: { controller: CustomerJourneyController }) {
   const [plate, setPlate] = useState("");
   const [brand, setBrand] = useState("");
