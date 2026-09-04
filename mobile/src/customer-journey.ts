@@ -1,12 +1,3 @@
-// Pure customer journey state machine for the mobile M1 flow (#173): basic
-// profile onboarding -> vehicle confirmation -> persisted garage. Free of
-// React Native imports so it runs under plain `node --test` (same convention
-// as the root suite); the Supabase RPC/PostgREST binding lives in
-// `supabase.ts`. Reuses the canonical #139 contract only:
-// start_customer_onboarding / complete_customer_basic_onboarding /
-// refresh_customer_onboarding / confirm_customer_vehicle + customer_vehicles
-// reads under owner-based RLS. No parallel backend, no direct insert.
-
 export const ONBOARDING_TERMS_VERSION = "pilot-alpha-onboarding-v1";
 
 export type JourneyUser = { id: string; email?: string };
@@ -18,6 +9,19 @@ export type GarageVehicle = {
   year: number | null;
   plate: string | null;
   nickname: string | null;
+};
+
+export type CustomerServiceRequest = {
+  id: string;
+  referenceCode: string;
+  vehicleBrand: string;
+  vehicleModel: string;
+  serviceStage: string;
+  customerMessage: string | null;
+  probableCategory: string | null;
+  completedAt: string | null;
+  customerRating: number | null;
+  createdAt: string;
 };
 
 export type VehicleDraft = {
@@ -44,15 +48,16 @@ export type JourneyResult = { ok: true } | { ok: false; message: string };
 
 type RpcError = { message: string } | null;
 
-// Minimal seam over the Supabase surface used by the journey. Injection via
-// this interface is required for tests (Node CI has no RN runtime); the real
-// binding from SupabaseClient lives in `supabase.ts`.
 export interface CustomerJourneyFacade {
   refreshOnboarding(): Promise<{ data: unknown; error: RpcError }>;
   startOnboarding(displayName: string): Promise<{ error: RpcError }>;
   completeBasicProfile(displayName: string): Promise<{ error: RpcError }>;
   confirmVehicle(draft: VehicleDraft): Promise<{ error: RpcError }>;
   listVehicles(): Promise<{ data: GarageVehicle[] | null; error: RpcError }>;
+  listServiceRequests(): Promise<{
+    data: CustomerServiceRequest[] | null;
+    error: RpcError;
+  }>;
 }
 
 export type JourneyState =
@@ -60,7 +65,11 @@ export type JourneyState =
   | { status: "error"; message: string }
   | { status: "basic-profile" }
   | { status: "vehicle" }
-  | { status: "ready"; vehicles: GarageVehicle[] };
+  | {
+      status: "ready";
+      vehicles: GarageVehicle[];
+      requests: CustomerServiceRequest[];
+    };
 
 export interface CustomerJourneyController {
   getState(): JourneyState;
@@ -78,9 +87,6 @@ export function defaultDisplayName(user: JourneyUser) {
   return prefix || "Cliente VERAH";
 }
 
-// Canonical Brazilian plate formats, mirrored from
-// services/customer-vehicles/onboarding.ts (#139). Mobile keeps its own copy
-// because the workspace tsconfig excludes the web app sources.
 const oldBrazilianPlate = /^[A-Z]{3}\d{4}$/;
 const mercosulPlate = /^[A-Z]{3}\d[A-Z]\d{2}$/;
 
@@ -91,8 +97,6 @@ export function normalizeBrazilianPlate(value: string) {
     : null;
 }
 
-// Local pre-validation mirroring prepareManualVehicle + the RPC checks, so
-// obvious mistakes never reach the backend.
 export function prepareVehicleDraft(
   input: VehicleInput,
 ): { ok: true; draft: VehicleDraft } | { ok: false; message: string } {
@@ -158,13 +162,24 @@ export function createCustomerJourney(
     emit();
   };
 
-  const loadGarage = async () => {
-    const { data, error } = await facade.listVehicles();
-    if (error) {
-      fail(error.message);
+  const loadHome = async () => {
+    const [vehiclesResult, requestsResult] = await Promise.all([
+      facade.listVehicles(),
+      facade.listServiceRequests(),
+    ]);
+    if (vehiclesResult.error) {
+      fail(vehiclesResult.error.message);
       return false;
     }
-    state = { status: "ready", vehicles: data ?? [] };
+    if (requestsResult.error) {
+      fail(requestsResult.error.message);
+      return false;
+    }
+    state = {
+      status: "ready",
+      vehicles: vehiclesResult.data ?? [],
+      requests: requestsResult.data ?? [],
+    };
     emit();
     return true;
   };
@@ -181,7 +196,7 @@ export function createCustomerJourney(
       emit();
       return undefined;
     }
-    return loadGarage();
+    return loadHome();
   };
 
   const restore = () => {
@@ -193,8 +208,6 @@ export function createCustomerJourney(
         await routeFrom(first.data);
         return;
       }
-      // Fresh mobile sign-up has no customer identity yet: bootstrap it once
-      // (idempotent RPC, same call the web sign-up makes), then re-read.
       const started = await facade.startOnboarding(defaultDisplayName(user));
       if (started.error) {
         fail(started.error.message);
@@ -225,9 +238,7 @@ export function createCustomerJourney(
     restore,
     async submitBasicProfile(displayName, acceptedTerms) {
       const name = displayName.trim();
-      if (!name) {
-        return { ok: false, message: "Informe como podemos te chamar." };
-      }
+      if (!name) return { ok: false, message: "Informe como podemos te chamar." };
       if (!acceptedTerms) {
         return {
           ok: false,
@@ -246,12 +257,10 @@ export function createCustomerJourney(
       if (!prepared.ok) return prepared;
       const { error } = await facade.confirmVehicle(prepared.draft);
       if (error) return { ok: false, message: error.message };
-      // confirm_customer_vehicle already refreshes onboarding server-side;
-      // the garage read under RLS is the customer-facing confirmation.
-      const loaded = await loadGarage();
+      const loaded = await loadHome();
       return loaded
         ? { ok: true }
-        : { ok: false, message: "Veículo salvo, mas não foi possível carregar a garagem." };
+        : { ok: false, message: "Veículo salvo, mas não foi possível carregar a sua área VERAH." };
     },
   };
 }
