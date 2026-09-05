@@ -14,7 +14,7 @@ function numeric(value: string | undefined, fallback: number) {
 function preset(name?: string): CommercialInput {
   if (name === "small") return COMMERCIAL_TEST_SCENARIOS.small;
   if (name === "high") return COMMERCIAL_TEST_SCENARIOS.highTicket;
-  return COMMERCIAL_TEST_SCENARIOS.mediumWithLogistics;
+  return COMMERCIAL_TEST_SCENARIOS.medium;
 }
 
 export default async function CommercialSimulatorPage({
@@ -27,7 +27,6 @@ export default async function CommercialSimulatorPage({
   const base = preset(query.preset);
   const baseLogistics = base.logistics;
 
-  const hasLogistics = query.logistics === undefined ? Boolean(baseLogistics) : query.logistics === "1";
   const input: CommercialInput = {
     providerCost: numeric(query.providerCost, base.providerCost),
     serviceRule: {
@@ -39,28 +38,25 @@ export default async function CommercialSimulatorPage({
     },
     paymentFee: numeric(query.paymentFee, 0),
     otherVariableCosts: numeric(query.otherCosts, 0),
-    ...(hasLogistics
-      ? {
-          logistics: {
-            operationalKm: numeric(query.km, baseLogistics?.operationalKm ?? 18),
-            estimatedMinutes: numeric(query.minutes, baseLogistics?.estimatedMinutes ?? 55),
-            additionalCosts: numeric(query.additionalCosts, baseLogistics?.additionalCosts ?? 0),
-            customerRule: {
-              base: numeric(query.logisticsBase, baseLogistics?.customerRule.base ?? 10),
-              kmRate: numeric(query.customerKmRate, baseLogistics?.customerRule.kmRate ?? 1),
-              minuteRate: numeric(query.customerMinuteRate, baseLogistics?.customerRule.minuteRate ?? 0.2),
-              minimumPrice: numeric(query.minimumLogistics, baseLogistics?.customerRule.minimumPrice ?? 79),
-              margin: numeric(query.logisticsMargin, baseLogistics?.customerRule.margin ?? 20),
-            },
-            payoutRule: {
-              base: numeric(query.payoutBase, baseLogistics?.payoutRule.base ?? 10),
-              kmRate: numeric(query.payoutKmRate, baseLogistics?.payoutRule.kmRate ?? 1),
-              minuteRate: numeric(query.payoutMinuteRate, baseLogistics?.payoutRule.minuteRate ?? 0.4),
-              bonus: numeric(query.payoutBonus, baseLogistics?.payoutRule.bonus ?? 5),
-            },
-          },
-        }
-      : {}),
+    logistics: {
+      missionType: "pickup_and_return",
+      operationalKm: numeric(query.km, baseLogistics.operationalKm),
+      estimatedMinutes: numeric(query.minutes, baseLogistics.estimatedMinutes),
+      additionalCosts: numeric(query.additionalCosts, baseLogistics.additionalCosts ?? 0),
+      customerRule: {
+        base: numeric(query.logisticsBase, baseLogistics.customerRule.base),
+        kmRate: numeric(query.customerKmRate, baseLogistics.customerRule.kmRate),
+        minuteRate: numeric(query.customerMinuteRate, baseLogistics.customerRule.minuteRate),
+        minimumPrice: numeric(query.minimumLogistics, baseLogistics.customerRule.minimumPrice),
+        margin: numeric(query.logisticsMargin, baseLogistics.customerRule.margin),
+      },
+      payoutRule: {
+        base: numeric(query.payoutBase, baseLogistics.payoutRule.base),
+        kmRate: numeric(query.payoutKmRate, baseLogistics.payoutRule.kmRate),
+        minuteRate: numeric(query.payoutMinuteRate, baseLogistics.payoutRule.minuteRate),
+        bonus: numeric(query.payoutBonus, baseLogistics.payoutRule.bonus ?? 0),
+      },
+    },
   };
 
   const result = calculateCommercialQuote(input);
@@ -72,12 +68,12 @@ export default async function CommercialSimulatorPage({
         <p className="text-xs font-bold uppercase tracking-[0.18em] text-teal-700">Admin · hipótese de teste</p>
         <h1 className="mt-2 text-3xl font-bold text-slate-950">Motor Comercial VERAH</h1>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-          Simulador interno para validar preço final, repasses e margem antes de escolher o gateway definitivo. Nenhum valor desta tela é política comercial oficial.
+          Simulador interno da jornada completa VERAH. Todo serviço core inclui retirada, acompanhamento e devolução; serviço e logística aparecem separados aqui apenas para unit economics e governança.
         </p>
         <div className="mt-5 flex flex-wrap gap-2 text-sm">
-          <a className="rounded-full border px-3 py-2 font-semibold text-slate-700" href="?preset=small&logistics=0">Serviço pequeno</a>
-          <a className="rounded-full border px-3 py-2 font-semibold text-slate-700" href="?preset=medium&logistics=1">Médio + Leva & Traz</a>
-          <a className="rounded-full border px-3 py-2 font-semibold text-slate-700" href="?preset=high&logistics=0">Alto ticket</a>
+          <a className="rounded-full border px-3 py-2 font-semibold text-slate-700" href="?preset=small">Pequeno · jornada completa</a>
+          <a className="rounded-full border px-3 py-2 font-semibold text-slate-700" href="?preset=medium">Médio · jornada completa</a>
+          <a className="rounded-full border px-3 py-2 font-semibold text-slate-700" href="?preset=high">Alto ticket · jornada completa</a>
         </div>
       </section>
 
@@ -89,27 +85,22 @@ export default async function CommercialSimulatorPage({
         <Field name="paymentFee" label="Taxa pagamento estimada (R$)" value={input.paymentFee ?? 0} />
         <Field name="otherCosts" label="Outros custos variáveis (R$)" value={input.otherVariableCosts ?? 0} />
 
-        <label className="flex items-center gap-3 rounded-2xl border p-4 text-sm font-semibold text-slate-700 lg:col-span-3">
-          <input type="checkbox" name="logistics" value="1" defaultChecked={hasLogistics} />
-          Incluir Leva & Traz VERAH
-        </label>
+        <div className="rounded-2xl border border-teal-100 bg-teal-50 p-4 text-sm text-teal-950 lg:col-span-3">
+          <strong>Leva & Traz VERAH faz parte do serviço core.</strong> Abaixo, os parâmetros existem somente para simular custo, repasse e margem da retirada + devolução. Não há opção padrão para removê-lo da jornada.
+        </div>
 
-        {hasLogistics && input.logistics ? (
-          <>
-            <Field name="km" label="Km operacionais totais" value={input.logistics.operationalKm} />
-            <Field name="minutes" label="Tempo estimado (min)" value={input.logistics.estimatedMinutes} />
-            <Field name="additionalCosts" label="Custos adicionais (R$)" value={input.logistics.additionalCosts ?? 0} />
-            <Field name="logisticsBase" label="Base logística cliente (R$)" value={input.logistics.customerRule.base} />
-            <Field name="customerKmRate" label="Preço cliente por km (R$)" value={input.logistics.customerRule.kmRate} />
-            <Field name="customerMinuteRate" label="Preço cliente por min (R$)" value={input.logistics.customerRule.minuteRate} />
-            <Field name="minimumLogistics" label="Preço mínimo logística (R$)" value={input.logistics.customerRule.minimumPrice} />
-            <Field name="logisticsMargin" label="Margem logística (R$)" value={input.logistics.customerRule.margin} />
-            <Field name="payoutBase" label="Repasse base operador (R$)" value={input.logistics.payoutRule.base} />
-            <Field name="payoutKmRate" label="Repasse operador por km (R$)" value={input.logistics.payoutRule.kmRate} />
-            <Field name="payoutMinuteRate" label="Repasse operador por min (R$)" value={input.logistics.payoutRule.minuteRate} />
-            <Field name="payoutBonus" label="Bônus operador (R$)" value={input.logistics.payoutRule.bonus ?? 0} />
-          </>
-        ) : null}
+        <Field name="km" label="Km operacionais totais (retirada + devolução)" value={input.logistics.operationalKm} />
+        <Field name="minutes" label="Tempo operacional total estimado (min)" value={input.logistics.estimatedMinutes} />
+        <Field name="additionalCosts" label="Custos adicionais (R$)" value={input.logistics.additionalCosts ?? 0} />
+        <Field name="logisticsBase" label="Base logística cliente (R$)" value={input.logistics.customerRule.base} />
+        <Field name="customerKmRate" label="Preço interno por km (R$)" value={input.logistics.customerRule.kmRate} />
+        <Field name="customerMinuteRate" label="Preço interno por min (R$)" value={input.logistics.customerRule.minuteRate} />
+        <Field name="minimumLogistics" label="Preço mínimo da operação (R$)" value={input.logistics.customerRule.minimumPrice} />
+        <Field name="logisticsMargin" label="Margem logística (R$)" value={input.logistics.customerRule.margin} />
+        <Field name="payoutBase" label="Repasse base operador (R$)" value={input.logistics.payoutRule.base} />
+        <Field name="payoutKmRate" label="Repasse operador por km (R$)" value={input.logistics.payoutRule.kmRate} />
+        <Field name="payoutMinuteRate" label="Repasse operador por min (R$)" value={input.logistics.payoutRule.minuteRate} />
+        <Field name="payoutBonus" label="Bônus operador (R$)" value={input.logistics.payoutRule.bonus ?? 0} />
 
         <div className="lg:col-span-3">
           <button className="min-h-11 rounded-xl bg-teal-700 px-5 font-semibold text-white hover:bg-teal-800" type="submit">Recalcular teste</button>
@@ -117,18 +108,18 @@ export default async function CommercialSimulatorPage({
       </form>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Metric label="Cliente paga" value={money.format(result.customerTotal)} strong />
+        <Metric label="Cliente paga · preço final VERAH" value={money.format(result.customerTotal)} strong />
         <Metric label="Prestador recebe" value={money.format(result.providerAmount)} />
         <Metric label="Operador recebe" value={money.format(result.operatorPayout)} />
         <Metric label="Contribuição VERAH" value={money.format(result.verahGrossContribution)} strong />
-        <Metric label="Preço serviço" value={money.format(result.serviceCustomerPrice)} />
+        <Metric label="Componente serviço" value={money.format(result.serviceCustomerPrice)} />
         <Metric label="Margem serviço" value={money.format(result.serviceMargin)} />
-        <Metric label="Preço Leva & Traz" value={money.format(result.logisticsCustomerPrice)} />
+        <Metric label="Componente Leva & Traz" value={money.format(result.logisticsCustomerPrice)} />
         <Metric label="Contribuição / total" value={`${contributionRate.toFixed(1)}%`} />
       </section>
 
       <section className="rounded-3xl border border-amber-200 bg-amber-50 p-5 text-sm leading-6 text-amber-950">
-        <strong>Regra de teste:</strong> a cliente vê apenas o preço final VERAH. Prestador e operador veem somente seus próprios valores. Concierge não altera preço. Antes de dinheiro real, gateway, split, tributação e responsabilidade fiscal continuam sujeitos à validação específica.
+        <strong>Regra de teste:</strong> para a cliente existe um único preço final e uma jornada VERAH. A identidade da oficina/prestador operacional não precisa aparecer na experiência padrão; quando disclosure legal, fiscal, de garantia ou segurança for necessário, a informação deve ser apresentada. Co-branding de uma rede parceira deve ser configurável, nunca hardcoded. Concierge não altera preço.
       </section>
     </main>
   );
