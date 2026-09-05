@@ -69,11 +69,17 @@ export async function createMobileServiceRequest(input: ServiceRequestInput): Pr
     return { ok: false, message: "O veículo selecionado não está disponível." };
   }
 
-  const { data: customer } = await client
+  const { data: customer, error: customerError } = await client
     .from("customers")
-    .select("display_name")
+    .select("id,display_name")
     .eq("auth_user_id", user.id)
     .maybeSingle();
+  if (customerError || !customer?.id) {
+    return {
+      ok: false,
+      message: "Não foi possível vincular o atendimento ao seu cadastro VERAH.",
+    };
+  }
 
   const date = new Date().toISOString().slice(0, 10).replaceAll("-", "");
   const suffix = Date.now().toString(36).slice(-5).toUpperCase();
@@ -83,8 +89,9 @@ export async function createMobileServiceRequest(input: ServiceRequestInput): Pr
     .from("service_requests")
     .insert({
       reference_code: referenceCode,
+      customer_id: customer.id,
       customer_name:
-        customer?.display_name || user.email?.split("@")[0] || "Cliente VERAH",
+        customer.display_name || user.email?.split("@")[0] || "Cliente VERAH",
       customer_phone: null,
       vehicle_id: vehicle.id,
       vehicle_brand: vehicle.brand,

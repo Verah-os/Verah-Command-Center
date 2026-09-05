@@ -16,8 +16,14 @@ type EntryMode = "plate" | "catalog" | null;
 
 export function VehicleOnboardingStep({
   controller,
+  additional = false,
+  onSaved,
+  onCancel,
 }: {
   controller: CustomerJourneyController;
+  additional?: boolean;
+  onSaved?: () => void;
+  onCancel?: () => void;
 }) {
   const [mode, setMode] = useState<EntryMode>(null);
   const [plate, setPlate] = useState("");
@@ -194,7 +200,11 @@ export function VehicleOnboardingStep({
       transmission,
     });
     setBusy(false);
-    if (!result.ok) setError(result.message);
+    if (!result.ok) {
+      setError(result.message);
+      return;
+    }
+    onSaved?.();
   };
 
   const scrollProps = {
@@ -208,8 +218,8 @@ export function VehicleOnboardingStep({
     return (
       <ScrollView {...scrollProps}>
         <Text style={styles.brandName}>VERAH</Text>
-        <Text style={styles.eyebrow}>Seu primeiro veículo</Text>
-        <Text style={styles.title}>Vamos encontrar seu carro</Text>
+        <Text style={styles.eyebrow}>{additional ? "Adicionar veículo" : "Seu primeiro veículo"}</Text>
+        <Text style={styles.title}>{additional ? "Cadastre outro carro" : "Vamos encontrar seu carro"}</Text>
         <Text style={styles.body}>
           Use a placa como identificação e confirme o veículo pelo catálogo FIPE gratuito.
         </Text>
@@ -223,6 +233,7 @@ export function VehicleOnboardingStep({
           description="Navegue pelo catálogo FIPE e informe a placa antes de salvar."
           onPress={() => void chooseMode("catalog")}
         />
+        {additional && onCancel ? <OutlineButton label="Cancelar" onPress={onCancel} /> : null}
       </ScrollView>
     );
   }
@@ -230,7 +241,7 @@ export function VehicleOnboardingStep({
   return (
     <ScrollView {...scrollProps}>
       <Text style={styles.brandName}>VERAH</Text>
-      <Text style={styles.eyebrow}>Seu primeiro veículo</Text>
+      <Text style={styles.eyebrow}>{additional ? "Adicionar veículo" : "Seu primeiro veículo"}</Text>
       <Text style={styles.title}>{mode === "plate" ? "Comece pela placa" : "Confirme seu veículo"}</Text>
       <Text style={styles.body}>
         O catálogo usa a tabela FIPE real. A consulta gratuita não faz identificação automática pela placa.
@@ -313,7 +324,7 @@ export function VehicleOnboardingStep({
             <Text style={styles.checkLabel}>Confirmo que estes dados correspondem ao meu veículo.</Text>
           </Pressable>
           <Pressable style={[styles.primary, busy && styles.disabled]} disabled={busy} onPress={() => void submit()}>
-            <Text style={styles.primaryText}>{busy ? "Salvando…" : "Salvar e continuar"}</Text>
+            <Text style={styles.primaryText}>{busy ? "Salvando…" : additional ? "Adicionar veículo" : "Salvar e continuar"}</Text>
           </Pressable>
         </View>
       ) : null}
@@ -322,6 +333,7 @@ export function VehicleOnboardingStep({
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {mode === "catalog" && !brands.length && !catalogBusy ? <OutlineButton label="Tentar carregar FIPE novamente" onPress={() => void loadBrands()} /> : null}
       <OutlineButton label="Voltar às opções" onPress={() => setMode(null)} />
+      {additional && onCancel ? <OutlineButton label="Cancelar cadastro" onPress={onCancel} /> : null}
     </ScrollView>
   );
 }
