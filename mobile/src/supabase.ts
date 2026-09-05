@@ -184,6 +184,13 @@ export function getCustomerJourneyFacade(): CustomerJourneyFacade | null {
       });
       return { error: error ?? null };
     },
+    deactivateVehicle: async (vehicleId) => {
+      const { error } = await client
+        .from("customer_vehicles")
+        .update({ active: false })
+        .eq("id", vehicleId);
+      return { error: error ?? null };
+    },
     listVehicles: async () => {
       const { data, error } = await client
         .from("customer_vehicles")
