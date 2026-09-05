@@ -5,7 +5,7 @@ export const userRoles = ["customer", "concierge", "provider", "admin"] as const
 export const roleHome: Record<UserRole, string> = {
   customer: "/demo/cliente",
   concierge: "/concierge",
-  provider: "/demo/prestador",
+  provider: "/prestador",
   admin: "/dashboard",
 };
 
