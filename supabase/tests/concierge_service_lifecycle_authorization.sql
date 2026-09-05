@@ -46,7 +46,8 @@ insert into public.service_providers (
   city,
   specialties,
   status,
-  rating
+  rating,
+  is_synthetic
 )
 values (
   '20700000-0000-4000-8000-000000000010',
@@ -55,7 +56,8 @@ values (
   'Test City',
   '["maintenance"]'::jsonb,
   'active',
-  5
+  5,
+  true
 );
 
 insert into public.user_profiles (user_id, role, display_name, provider_id)
@@ -76,6 +78,7 @@ insert into public.service_requests (
   customer_report,
   perceived_urgency,
   service_stage,
+  operation_context,
   created_by
 )
 values
@@ -89,6 +92,7 @@ values
     'Synthetic authorization request',
     'media',
     'solicitado',
+    'demo',
     null
   ),
   (
@@ -101,6 +105,7 @@ values
     'Synthetic admin assignment request',
     'media',
     'concierge_aceitou',
+    'demo',
     null
   ),
   (
@@ -113,6 +118,7 @@ values
     'Synthetic admin completion request',
     'media',
     'em_execucao',
+    'demo',
     null
   );
 
