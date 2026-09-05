@@ -1,4 +1,11 @@
-export type AuthUser = { id: string; email?: string };
+export type AuthUser = {
+  id: string;
+  email?: string;
+  userMetadata?: Record<string, unknown>;
+  appMetadata?: Record<string, unknown>;
+  createdAt?: string;
+  lastSignInAt?: string;
+};
 export type AuthSessionData = { user: AuthUser } | null;
 
 export type AuthState =
