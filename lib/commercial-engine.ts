@@ -19,16 +19,19 @@ export type OperatorPayoutRule = {
   bonus?: number;
 };
 
+export type CoreLogisticsInput = {
+  missionType: "pickup_and_return";
+  operationalKm: number;
+  estimatedMinutes: number;
+  additionalCosts?: number;
+  customerRule: LogisticsRule;
+  payoutRule: OperatorPayoutRule;
+};
+
 export type CommercialInput = {
   providerCost: number;
   serviceRule: ServicePricingRule;
-  logistics?: {
-    operationalKm: number;
-    estimatedMinutes: number;
-    additionalCosts?: number;
-    customerRule: LogisticsRule;
-    payoutRule: OperatorPayoutRule;
-  };
+  logistics: CoreLogisticsInput;
   paymentFee?: number;
   otherVariableCosts?: number;
 };
@@ -56,6 +59,13 @@ function nonNegative(value: number, field: string) {
   return value;
 }
 
+function requireCoreLogistics(input: CommercialInput) {
+  if (!input.logistics || input.logistics.missionType !== "pickup_and_return") {
+    throw new Error("core VERAH quote requires pickup_and_return logistics");
+  }
+  return input.logistics;
+}
+
 export function calculateCommercialQuote(input: CommercialInput): CommercialResult {
   const providerCost = nonNegative(input.providerCost, "providerCost");
   const percentMargin = providerCost * nonNegative(input.serviceRule.percent, "serviceRule.percent");
@@ -67,36 +77,35 @@ export function calculateCommercialQuote(input: CommercialInput): CommercialResu
 
   serviceMargin = money(serviceMargin);
   const serviceCustomerPrice = money(providerCost + serviceMargin);
+  const logistics = requireCoreLogistics(input);
+  const km = nonNegative(logistics.operationalKm, "logistics.operationalKm");
+  const minutes = nonNegative(logistics.estimatedMinutes, "logistics.estimatedMinutes");
+  const additionalCosts = nonNegative(logistics.additionalCosts ?? 0, "logistics.additionalCosts");
+  const customerRule = logistics.customerRule;
+  const payoutRule = logistics.payoutRule;
 
-  let logisticsCustomerPrice = 0;
-  let operatorPayout = 0;
+  const logisticsCostBasis =
+    nonNegative(customerRule.base, "logistics.customerRule.base") +
+    km * nonNegative(customerRule.kmRate, "logistics.customerRule.kmRate") +
+    minutes * nonNegative(customerRule.minuteRate, "logistics.customerRule.minuteRate") +
+    additionalCosts;
 
-  if (input.logistics) {
-    const km = nonNegative(input.logistics.operationalKm, "logistics.operationalKm");
-    const minutes = nonNegative(input.logistics.estimatedMinutes, "logistics.estimatedMinutes");
-    const additionalCosts = nonNegative(input.logistics.additionalCosts ?? 0, "logistics.additionalCosts");
-    const customerRule = input.logistics.customerRule;
-    const payoutRule = input.logistics.payoutRule;
+  const logisticsCustomerPrice = money(
+    Math.max(
+      logisticsCostBasis + nonNegative(customerRule.margin, "logistics.customerRule.margin"),
+      nonNegative(customerRule.minimumPrice, "logistics.customerRule.minimumPrice"),
+    ),
+  );
 
-    const logisticsCostBasis =
-      nonNegative(customerRule.base, "logistics.customerRule.base") +
-      km * nonNegative(customerRule.kmRate, "logistics.customerRule.kmRate") +
-      minutes * nonNegative(customerRule.minuteRate, "logistics.customerRule.minuteRate") +
-      additionalCosts;
+  const operatorPayout = money(
+    nonNegative(payoutRule.base, "logistics.payoutRule.base") +
+      km * nonNegative(payoutRule.kmRate, "logistics.payoutRule.kmRate") +
+      minutes * nonNegative(payoutRule.minuteRate, "logistics.payoutRule.minuteRate") +
+      nonNegative(payoutRule.bonus ?? 0, "logistics.payoutRule.bonus"),
+  );
 
-    logisticsCustomerPrice = money(
-      Math.max(
-        logisticsCostBasis + nonNegative(customerRule.margin, "logistics.customerRule.margin"),
-        nonNegative(customerRule.minimumPrice, "logistics.customerRule.minimumPrice"),
-      ),
-    );
-
-    operatorPayout = money(
-      nonNegative(payoutRule.base, "logistics.payoutRule.base") +
-        km * nonNegative(payoutRule.kmRate, "logistics.payoutRule.kmRate") +
-        minutes * nonNegative(payoutRule.minuteRate, "logistics.payoutRule.minuteRate") +
-        nonNegative(payoutRule.bonus ?? 0, "logistics.payoutRule.bonus"),
-    );
+  if (logisticsCustomerPrice <= 0 || operatorPayout <= 0) {
+    throw new Error("core VERAH quote requires priced pickup and return logistics");
   }
 
   const paymentFee = money(nonNegative(input.paymentFee ?? 0, "paymentFee"));
@@ -123,11 +132,19 @@ export const COMMERCIAL_TEST_SCENARIOS = {
   small: {
     providerCost: 200,
     serviceRule: { percent: 0.15, minimumMargin: 40 },
+    logistics: {
+      missionType: "pickup_and_return",
+      operationalKm: 12,
+      estimatedMinutes: 40,
+      customerRule: { base: 10, kmRate: 1, minuteRate: 0.2, minimumPrice: 69, margin: 20 },
+      payoutRule: { base: 10, kmRate: 1, minuteRate: 0.4, bonus: 5 },
+    },
   },
-  mediumWithLogistics: {
+  medium: {
     providerCost: 600,
     serviceRule: { percent: 0.15, minimumMargin: 40 },
     logistics: {
+      missionType: "pickup_and_return",
       operationalKm: 18,
       estimatedMinutes: 55,
       customerRule: { base: 10, kmRate: 1, minuteRate: 0.2, minimumPrice: 79, margin: 20 },
@@ -137,5 +154,12 @@ export const COMMERCIAL_TEST_SCENARIOS = {
   highTicket: {
     providerCost: 5000,
     serviceRule: { percent: 0.09, minimumMargin: 40, maximumMargin: 450 },
+    logistics: {
+      missionType: "pickup_and_return",
+      operationalKm: 22,
+      estimatedMinutes: 65,
+      customerRule: { base: 10, kmRate: 1, minuteRate: 0.2, minimumPrice: 89, margin: 20 },
+      payoutRule: { base: 10, kmRate: 1, minuteRate: 0.4, bonus: 5 },
+    },
   },
 } satisfies Record<string, CommercialInput>;
