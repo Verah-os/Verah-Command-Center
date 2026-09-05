@@ -236,7 +236,7 @@ export default async function ConciergePage({
         ) : (
           <div className="mt-5 grid gap-3">
             {visible.map((request) => {
-              const provider = providerName(request, providerMap);
+              const provider = providerName(request.providerId, providerMap);
               const sla = getSla(request);
               const questionCount = pendingQuestionCount(request);
               return (
@@ -259,7 +259,7 @@ export default async function ConciergePage({
                     <div className="grid shrink-0 gap-2 text-xs text-slate-500 sm:min-w-48">
                       <span><strong className="text-slate-700">Urgência:</strong> {naturalLabel(request.perceivedUrgency)}</span>
                       <span><strong className="text-slate-700">Cidade:</strong> {request.city}</span>
-                      <span><strong className="text-slate-700">Prestador:</strong> {provider}</span>
+                      <span><strong className="text-slate-700">Prestador:</strong> {provider ?? "Ainda não atribuído"}</span>
                       <span><strong className="text-slate-700">SLA:</strong> {sla.label}</span>
                       {questionCount > 0 && <span><strong className="text-slate-700">Pendências:</strong> {questionCount}</span>}
                       <span>{formatter.format(new Date(request.createdAt))}</span>
