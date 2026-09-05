@@ -1,9 +1,9 @@
 import "react-native-url-polyfill/auto";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Linking } from "react-native";
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient, type User } from "@supabase/supabase-js";
 import { resolveSupabaseConfig } from "./config";
-import type { AuthFacade } from "./auth-session";
+import type { AuthFacade, AuthUser } from "./auth-session";
 import {
   ONBOARDING_TERMS_VERSION,
   type CustomerJourneyFacade,
@@ -20,6 +20,17 @@ const customerTrackingSelect =
 
 function nullableString(value: unknown) {
   return typeof value === "string" ? value : null;
+}
+
+function toAuthUser(user: User): AuthUser {
+  return {
+    id: user.id,
+    email: user.email,
+    userMetadata: user.user_metadata as Record<string, unknown>,
+    appMetadata: user.app_metadata as Record<string, unknown>,
+    createdAt: user.created_at,
+    lastSignInAt: user.last_sign_in_at,
+  };
 }
 
 function mapServiceRequest(row: Record<string, unknown>): CustomerServiceRequest {
@@ -78,11 +89,13 @@ export function getAuthFacade(): AuthFacade | null {
   cachedFacade = {
     getSession: async () => {
       const { data } = await auth.getSession();
-      return { session: data.session };
+      return {
+        session: data.session ? { user: toAuthUser(data.session.user) } : null,
+      };
     },
     onAuthStateChange: (listener) => {
       const { data } = auth.onAuthStateChange((event, session) =>
-        listener(event, session),
+        listener(event, session ? { user: toAuthUser(session.user) } : null),
       );
       return data.subscription;
     },
