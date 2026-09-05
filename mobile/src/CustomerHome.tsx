@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { AuthUser } from "./auth-session";
 import type { CustomerServiceRequest, GarageVehicle } from "./customer-journey";
 import { CustomerRequests } from "./CustomerRequests";
@@ -21,12 +21,16 @@ export function CustomerHome({
   requests,
   user,
   onAddVehicle,
+  onReplaceVehicle,
+  onDeactivateVehicle,
   onSignOut,
 }: {
   vehicles: GarageVehicle[];
   requests: CustomerServiceRequest[];
   user: AuthUser;
   onAddVehicle: () => void;
+  onReplaceVehicle: (vehicle: GarageVehicle) => void;
+  onDeactivateVehicle: (vehicle: GarageVehicle) => Promise<void>;
   onSignOut: () => void;
 }) {
   const [tab, setTab] = useState<Tab>("home");
@@ -39,6 +43,21 @@ export function CustomerHome({
   const firstName = fullName?.trim().split(/\s+/)[0] || null;
   const avatar = profileAvatar(user);
   const provider = profileProvider(user);
+
+  const confirmRemoval = (vehicle: GarageVehicle) => {
+    Alert.alert(
+      "Remover veículo?",
+      `O ${vehicle.brand} ${vehicle.model} deixará de aparecer na sua garagem. O histórico de atendimentos será preservado.`,
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Remover",
+          style: "destructive",
+          onPress: () => void onDeactivateVehicle(vehicle),
+        },
+      ],
+    );
+  };
 
   return (
     <View style={styles.shell}>
@@ -82,7 +101,10 @@ export function CustomerHome({
                   <TextButton label="Ver veículos" onPress={() => setTab("vehicles")} />
                 </>
               ) : (
-                <Text style={styles.empty}>Nenhum veículo ativo encontrado.</Text>
+                <>
+                  <Text style={styles.empty}>Nenhum veículo ativo encontrado.</Text>
+                  <TextButton label="Adicionar veículo" onPress={onAddVehicle} />
+                </>
               )}
             </Section>
 
@@ -147,16 +169,17 @@ export function CustomerHome({
             <Pressable style={styles.primaryButton} onPress={onAddVehicle}>
               <Text style={styles.primaryButtonText}>+ Adicionar veículo</Text>
             </Pressable>
+            {vehicles.length === 0 ? <Text style={styles.empty}>Sua garagem está vazia.</Text> : null}
             {vehicles.map((vehicle) => (
               <View key={vehicle.id} style={styles.rowCard}>
                 <Text style={styles.rowTitle}>{vehicle.nickname ?? `${vehicle.brand} ${vehicle.model}`}</Text>
                 <Text style={styles.meta}>{[vehicle.year, vehicle.plate].filter(Boolean).join(" · ")}</Text>
                 <View style={styles.vehicleActions}>
-                  <Pressable style={styles.smallAction}>
-                    <Text style={styles.smallActionText}>Substituir / editar</Text>
+                  <Pressable style={styles.smallAction} onPress={() => onReplaceVehicle(vehicle)}>
+                    <Text style={styles.smallActionText}>Substituir</Text>
                   </Pressable>
-                  <Pressable style={styles.smallDangerAction}>
-                    <Text style={styles.smallDangerText}>Excluir</Text>
+                  <Pressable style={styles.smallDangerAction} onPress={() => confirmRemoval(vehicle)}>
+                    <Text style={styles.smallDangerText}>Remover</Text>
                   </Pressable>
                 </View>
               </View>
@@ -299,7 +322,7 @@ const styles = StyleSheet.create({
   textButtonLabel: { color: "#177F78", fontSize: 14, fontWeight: "700" },
   rowCard: { borderWidth: 1, borderColor: "#EEF0F2", borderRadius: 14, padding: 14, marginTop: 10 },
   rowTitle: { color: "#263238", fontSize: 15, fontWeight: "700" },
-  empty: { color: "#7A838B", fontSize: 14, lineHeight: 21 },
+  empty: { color: "#7A838B", fontSize: 14, lineHeight: 21, marginTop: 10 },
   vehicleActions: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 12 },
   smallAction: { borderWidth: 1, borderColor: "#177F78", borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8 },
   smallActionText: { color: "#177F78", fontSize: 12, fontWeight: "700" },
