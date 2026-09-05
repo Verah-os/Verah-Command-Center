@@ -33,6 +33,7 @@ export interface CustomerJourneyFacade {
   startOnboarding(displayName: string): Promise<{ error: RpcError }>;
   completeBasicProfile(displayName: string): Promise<{ error: RpcError }>;
   confirmVehicle(draft: VehicleDraft): Promise<{ error: RpcError }>;
+  deactivateVehicle(vehicleId: string): Promise<{ error: RpcError }>;
   listVehicles(): Promise<{ data: GarageVehicle[] | null; error: RpcError }>;
   listServiceRequests?(): Promise<{ data: CustomerServiceRequest[] | null; error: RpcError }>;
 }
@@ -50,6 +51,7 @@ export interface CustomerJourneyController {
   restore(): Promise<void>;
   submitBasicProfile(displayName: string, acceptedTerms: boolean): Promise<JourneyResult>;
   confirmVehicle(input: VehicleInput): Promise<JourneyResult>;
+  deactivateVehicle(vehicleId: string): Promise<JourneyResult>;
 }
 
 export function defaultDisplayName(user: JourneyUser) {
@@ -144,6 +146,12 @@ export function createCustomerJourney(facade: CustomerJourneyFacade, user: Journ
       if (error) return { ok: false, message: error.message };
       const loaded = await loadHome();
       return loaded ? { ok: true } : { ok: false, message: "Veículo salvo, mas não foi possível carregar a sua área VERAH." };
+    },
+    async deactivateVehicle(vehicleId) {
+      const { error } = await facade.deactivateVehicle(vehicleId);
+      if (error) return { ok: false, message: error.message };
+      const loaded = await loadHome();
+      return loaded ? { ok: true } : { ok: false, message: "Veículo removido, mas não foi possível atualizar sua garagem." };
     },
   };
 }
