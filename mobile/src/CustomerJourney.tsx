@@ -1,6 +1,7 @@
 import { useState, useSyncExternalStore } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -14,6 +15,7 @@ import {
   defaultDisplayName,
   type CustomerJourneyController,
   type CustomerJourneyFacade,
+  type GarageVehicle,
 } from "./customer-journey";
 import { CustomerHome } from "./CustomerHome";
 import { VehicleOnboardingStep } from "./VehicleOnboardingStep";
@@ -70,12 +72,22 @@ export function CustomerJourneyGate({
       </View>
     );
   }
+
+  const deactivateVehicle = async (vehicle: GarageVehicle) => {
+    const result = await controller.deactivateVehicle(vehicle.id);
+    if (!result.ok) {
+      Alert.alert("Não foi possível remover", result.message);
+    }
+  };
+
   return (
     <CustomerHome
       vehicles={state.vehicles}
       requests={state.requests}
       user={user}
       onAddVehicle={() => setAddingVehicle(true)}
+      onReplaceVehicle={() => setAddingVehicle(true)}
+      onDeactivateVehicle={deactivateVehicle}
       onSignOut={onSignOut}
     />
   );
