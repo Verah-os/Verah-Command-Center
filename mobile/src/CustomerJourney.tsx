@@ -8,12 +8,12 @@ import {
   TextInput,
   View,
 } from "react-native";
+import type { AuthUser } from "./auth-session";
 import {
   createCustomerJourney,
   defaultDisplayName,
   type CustomerJourneyController,
   type CustomerJourneyFacade,
-  type JourneyUser,
 } from "./customer-journey";
 import { CustomerHome } from "./CustomerHome";
 import { VehicleOnboardingStep } from "./VehicleOnboardingStep";
@@ -24,12 +24,13 @@ export function CustomerJourneyGate({
   onSignOut,
 }: {
   facade: CustomerJourneyFacade;
-  user: JourneyUser;
+  user: AuthUser;
   onSignOut: () => void;
 }) {
   const [controller] = useState<CustomerJourneyController>(() =>
     createCustomerJourney(facade, user),
   );
+  const [addingVehicle, setAddingVehicle] = useState(false);
   const state = useSyncExternalStore(controller.subscribe, controller.getState);
 
   if (state.status === "loading") {
@@ -57,10 +58,24 @@ export function CustomerJourneyGate({
   if (state.status === "vehicle") {
     return <VehicleOnboardingStep controller={controller} />;
   }
+  if (addingVehicle) {
+    return (
+      <View style={styles.additionalVehicleShell}>
+        <VehicleOnboardingStep
+          controller={controller}
+          additional
+          onSaved={() => setAddingVehicle(false)}
+          onCancel={() => setAddingVehicle(false)}
+        />
+      </View>
+    );
+  }
   return (
     <CustomerHome
       vehicles={state.vehicles}
       requests={state.requests}
+      user={user}
+      onAddVehicle={() => setAddingVehicle(true)}
       onSignOut={onSignOut}
     />
   );
@@ -71,7 +86,7 @@ function BasicProfileStep({
   user,
 }: {
   controller: CustomerJourneyController;
-  user: JourneyUser;
+  user: AuthUser;
 }) {
   const [displayName, setDisplayName] = useState(defaultDisplayName(user));
   const [acceptedTerms, setAcceptedTerms] = useState(false);
@@ -105,7 +120,7 @@ function BasicProfileStep({
       <Checkbox
         checked={acceptedTerms}
         onToggle={() => setAcceptedTerms((value) => !value)}
-        label="Li e aceito os termos de onboarding do Pilot Alpha v1. Consentimentos de WhatsApp, transporte, orçamento e pagamento permanecem separados."
+        label="Li e aceito os termos de onboarding do Pilot Alpha v1. Consentimentos de transporte, orçamento e pagamento permanecem separados."
       />
       {error ? <Text style={styles.error}>{error}</Text> : null}
       <PrimaryButton
@@ -174,6 +189,7 @@ const styles = StyleSheet.create({
   note: { color: "#667085", fontSize: 14 },
   card: { width: "100%", maxWidth: 420, backgroundColor: "#FFFFFF", padding: 22, borderRadius: 22 },
   form: { width: "100%", maxWidth: 420, alignSelf: "center", paddingBottom: 32 },
+  additionalVehicleShell: { flex: 1, width: "100%", maxWidth: 520, alignSelf: "center", backgroundColor: "#111111", padding: 18 },
   brand: { color: "#177F78", fontSize: 32, fontWeight: "800" },
   eyebrow: { color: "#A85F70", fontSize: 14, fontWeight: "700", marginTop: 16 },
   title: { color: "#263238", fontSize: 22, fontWeight: "700", marginTop: 4 },
