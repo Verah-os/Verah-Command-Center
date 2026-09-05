@@ -218,6 +218,7 @@ as $$
 declare
   uid uuid := auth.uid();
   actor_role text;
+  selected_request public.service_requests%rowtype;
 begin
   select role
   into actor_role
@@ -232,25 +233,39 @@ begin
       message = 'Apenas Concierge ou Admin pode confirmar a conclusão.';
   end if;
 
+  select *
+  into selected_request
+  from public.service_requests
+  where id = p_service_request_id
+  for update;
+
+  if not found then
+    raise exception using
+      errcode = 'P0002',
+      message = 'Atendimento não encontrado.';
+  end if;
+
+  if actor_role = 'concierge'
+    and selected_request.concierge_id is distinct from uid then
+    raise exception using
+      errcode = '42501',
+      message = 'Atendimento não pertence ao Concierge autenticado.';
+  end if;
+
+  if selected_request.service_stage <> 'em_execucao'
+    or selected_request.provider_completed_at is null
+    or selected_request.concierge_confirmed_at is not null then
+    raise exception
+      'Conclusão indisponível ou já confirmada.';
+  end if;
+
   update public.service_requests
   set
     concierge_confirmed_at = now(),
     completed_at = now(),
     service_stage = 'concluido',
     updated_at = now()
-  where id = p_service_request_id
-    and service_stage = 'em_execucao'
-    and provider_completed_at is not null
-    and concierge_confirmed_at is null
-    and (
-      actor_role = 'admin'
-      or concierge_id = uid
-    );
-
-  if not found then
-    raise exception
-      'Conclusão indisponível, não autorizada ou já confirmada.';
-  end if;
+  where id = selected_request.id;
 
   return p_service_request_id;
 end;
