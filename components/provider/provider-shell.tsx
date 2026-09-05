@@ -16,7 +16,7 @@ export function ProviderShell({
       <header className="sticky top-0 z-30 border-b border-border bg-[var(--verah-sidebar)]/95 px-4 py-3 backdrop-blur sm:px-6">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3">
           <Link
-            href="/demo/prestador"
+            href="/prestador"
             aria-label="VERAH — início do Portal do prestador"
             className="flex min-h-11 items-center gap-3 rounded-md outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus)]"
           >
@@ -28,7 +28,7 @@ export function ProviderShell({
           </Link>
           <nav aria-label="Navegação do prestador" className="flex items-center gap-1 sm:gap-3">
             <PortalNavLink
-              href="/demo/prestador"
+              href="/prestador"
               exact
               icon={<BriefcaseBusiness className="h-4 w-4" aria-hidden="true" />}
               className="hidden min-h-11 items-center gap-2 rounded-md px-3 text-sm font-semibold text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-4 focus-visible:ring-[var(--focus)] sm:flex"
