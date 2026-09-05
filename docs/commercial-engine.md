@@ -1,60 +1,55 @@
 # VERAH Commercial Engine
 
-Status: product/engineering specification for Issue #198.
+Status: product/engineering specification for Issues #198, #199 and #201.
 
 ## Goal
 
 Give the customer one VERAH quote and one payment experience while keeping the internal economics explicit, auditable and independent from any single payment provider.
 
-The engine must support an investor/demo scenario before real-money rails are selected.
+The core product is the complete VERAH journey: automotive service + pickup + custody protocol + coordination + return. Leva & Traz is not a customer-facing add-on in the standard journey.
 
 ## Product principles
 
 1. Customer sees one final VERAH price.
-2. Prestador sees the amount relevant to the provider role, not VERAH margin.
-3. Concierge/operator sees the payout for the accepted mission, not provider economics or VERAH margin.
-4. Admin sees the complete composition and may override commercial rules only with an audit trail.
-5. Concierge cannot alter prices, margins, discounts or commercial tables.
-6. Additional work after customer approval requires a supplemental quote and a new explicit approval.
-7. Commercial rules are backend/Admin configurable. Percentages and values in demos are hypotheses, never hardcoded product truth.
-8. The internal ledger is the source of economic composition; Mercado Pago, Stripe or another PSP is an adapter for collection/split/payout.
+2. Every core VERAH quote requires pickup and return logistics.
+3. Service and logistics stay separated internally only for unit economics, payout, fees and governance.
+4. Provider sees the amount relevant to the provider role, not VERAH margin.
+5. Concierge/operator sees only the payout and operational data necessary for the accepted mission.
+6. Admin sees the complete composition and may override commercial rules only with an audit trail.
+7. Concierge cannot alter prices, margins, discounts or commercial tables.
+8. Additional work after customer approval requires a supplemental quote and new explicit approval.
+9. Commercial rules are backend/Admin configurable. Demo values are hypotheses, never hardcoded product truth.
+10. The internal ledger is the source of economic composition; payment gateways are adapters.
 
-## Two pricing motors
+## Customer journey and network identity
 
-### Motor 1 — Automotive service
+The customer chooses VERAH. VERAH selects and coordinates the homologated provider needed for the case.
 
-Inputs:
-- provider/base cost;
-- service category;
-- optional provider/category negotiated condition;
-- percentage rule;
-- minimum margin;
-- optional cap/maximum rule;
-- Admin override when justified.
+Default customer-facing language should use concepts such as `Rede VERAH` and `Prestador Homologado VERAH`. The standard journey does not need to expose workshop address, direct contact or operational provider identity when that information is not needed for the customer to receive the service.
 
-Initial formula concept:
+This abstraction must never hide information that is legally, fiscally or contractually required, or necessary for invoice, warranty, safety, consent or exercise of customer rights. The product must not claim that VERAH mechanically performed work executed by a third party.
+
+A future strategic network partnership may be presented through configurable co-branding (`network_brand` or equivalent). No national brand, manufacturer or workshop chain may be hardcoded into the domain.
+
+Retention must come from the value of the VERAH journey — curation, pickup/return, protected approvals, coordination, history and after-sales — rather than from concealment alone.
+
+## Motor 1 — Automotive service
+
+Inputs may include provider/base cost, category, negotiated conditions, percentage rule, minimum margin, optional maximum/cap and audited Admin override.
+
+Conceptual formula:
 
 `service_margin = max(provider_cost * margin_percent, minimum_margin)`
 
 `service_customer_price = provider_cost + service_margin`
 
-If a cap or price-band rule exists it is applied before the quote is presented to the customer.
+A maximum margin or decreasing price-band rule may be applied before the quote is presented. A flat global percentage must not be assumed.
 
-The final production rule may use decreasing percentage bands. A flat percentage must not be assumed globally.
+## Motor 2 — Mandatory Leva & Traz
 
-### Motor 2 — Leva & Traz / operational mission
+For a core quote, the logistics mission type is `pickup_and_return`. The engine fails closed when that mission is absent or has no payable/priced operational component.
 
-The customer buys the complete VERAH logistics experience, not a raw kilometre transport service.
-
-Internal pricing inputs may include:
-- mission base;
-- total operational kilometres;
-- expected mission time;
-- waiting time;
-- toll/parking when applicable;
-- mission type (pickup, return, complete, waiting, long-distance, special);
-- minimum commercial price;
-- operational margin.
+Internal inputs may include mission base, total operational kilometres for pickup + return, expected total mission time, waiting, toll/parking, explicit additional costs, minimum commercial price and logistics margin.
 
 Conceptual formula:
 
@@ -64,161 +59,98 @@ Conceptual formula:
 
 No dynamic/surge pricing is required for MVP.
 
-## Concierge/operator payout
+## Operator payout
 
-Customer logistics price and Concierge/operator payout are separate values.
+Customer logistics price and operator payout are separate values.
 
-A mission payout may use:
+`operator_payout = payout_base + (operational_km * payout_km_rate) + (estimated_minutes * payout_minute_rate) + bonus`
 
-`operator_payout = payout_base + (operational_km * payout_km_rate) + (estimated_minutes * payout_minute_rate) + bonuses + reimbursable_costs`
-
-The operator should know the expected payout before accepting a mission.
-
-The architecture must allow the Concierge responsible for the customer journey and the physical pickup/return operator to be different people. In the MVP the same person may perform both roles.
+The operator should know expected payout before accepting a mission. Concierge and physical pickup/return operator may be different people; the MVP may allow the same person to perform both functions without coupling the roles in the domain.
 
 ## Quote composition
 
-A commercial quote must preserve at least:
-- provider amount/cost;
-- automotive service margin;
-- logistics customer price when applicable;
-- Concierge/operator payout when applicable;
-- expected payment fee;
-- explicit variable operational costs;
-- VERAH gross revenue/margin;
-- customer final total;
-- quote version/status;
-- creator and timestamps;
-- approvals and supplemental quote references;
-- override record when applicable.
+A commercial quote must preserve at least provider amount, automotive service margin, logistics customer price, operator payout, expected payment fee, variable operational costs, VERAH gross contribution, customer final total, quote version/status, approvals, supplemental quote references and audited overrides.
 
-Recommended consistency equation:
+Consistency equation:
 
 `customer_total = provider_amount + operator_payout + payment_and_variable_costs + VERAH_contribution_before_fixed_costs`
 
-For a more detailed UI the engine may also show service and logistics revenue separately, but the ledger must reconcile to the customer total.
+Customer presentation remains one final VERAH price even though Admin can inspect internal components.
 
 ## Visibility matrix
 
 ### Customer
-Sees:
-- service description;
-- what is included;
-- final VERAH price;
-- logistics inclusion when relevant;
-- approval state;
-- supplemental quotes;
-- payment status;
-- guarantee/after-sales information applicable to the service.
 
-Does not see:
-- provider negotiated cost;
-- VERAH margin;
-- operator payout;
-- internal commercial table.
+Sees service scope, what the VERAH journey includes, final VERAH price, approval/payment state, status/timeline and applicable warranty/after-sales information. Does not see provider negotiated cost, VERAH margin, operator payout or internal commercial rules.
 
 ### Provider
-Sees:
-- scope;
-- own quoted/base amount and/or amount to receive according to contract;
-- approval/execution status;
-- payout status.
 
-Does not see:
-- VERAH margin;
-- operator payout;
-- another provider's terms.
+Sees scope, own quoted/base amount or amount to receive, approval/execution status and payout status. Does not see VERAH margin, operator payout or another provider's commercial terms.
 
 ### Concierge / Operator
-Sees:
-- operational mission information;
-- expected payout for missions the user may accept/execute;
-- service/customer information necessary for the role.
 
-Cannot alter financial components.
+Sees the operational information required for the role and expected payout for missions the user may accept/execute. Cannot alter commercial components.
 
 ### Admin
-Sees full composition and commercial rule used.
-Can simulate and override with mandatory reason and audit.
+
+Sees full composition, rule used and provider allocation. Can simulate and perform justified overrides with mandatory audit.
 
 ## Demonstration scenarios
 
-The first demonstrable implementation must ship with at least three explicit test scenarios. Values are examples only.
+All reference scenarios are core VERAH journeys and therefore include pickup + return.
 
 ### Small service
-Provider cost: R$ 200.00
-Commercial minimum/margin results in customer service price: R$ 240.00.
-No logistics.
 
-### Medium service + pickup/return
-Provider cost: R$ 600.00
-Service customer price: R$ 690.00.
-Operator payout: R$ 55.00.
-Logistics customer price: R$ 79.00.
-Customer final price: R$ 769.00.
-The Admin simulator must show how the logistics margin and total VERAH contribution are derived.
+Provider cost: R$ 200.00. Service component: R$ 240.00. Reference Leva & Traz component: R$ 69.00. Operator payout: R$ 43.00. Customer final reference price: R$ 309.00. Values are hypotheses for testing.
+
+### Medium service
+
+Provider cost: R$ 600.00. Service component: R$ 690.00. Operator payout: R$ 55.00. Leva & Traz component: R$ 79.00. Customer final reference price: R$ 769.00.
 
 ### High-ticket service
-Provider cost: R$ 5,000.00.
-The engine must demonstrate a decreasing band/cap rule instead of blindly applying the same percentage used for low-value services.
+
+Provider cost: R$ 5,000.00. Service margin demonstrates a decreasing/capped commercial rule. Reference service component: R$ 5,450.00. Leva & Traz component: R$ 89.00. Operator payout: R$ 63.00. Customer final reference price: R$ 5,539.00.
 
 ## Payment integration target
 
-Customer experience: one checkout/charge.
+Customer experience: one checkout/charge. Target architecture: marketplace/split-capable PSP where legally and technically appropriate.
 
-Target architecture: marketplace/split-capable PSP where legally and technically appropriate.
-
-The VERAH ledger must remain provider-agnostic so a sandbox implementation can use Mercado Pago, Stripe Connect or another provider without changing domain rules.
-
-Possible payment states:
-- pending;
-- authorized/approved;
-- failed;
-- refundable;
-- partially_refunded;
-- refunded;
-- payout_pending;
-- payout_released;
-- payout_failed;
-- disputed.
-
-Never infer settlement from the checkout redirect. Webhook/server confirmation is authoritative.
+The VERAH ledger must remain provider-agnostic so Mercado Pago, Stripe Connect or another provider can be integrated without changing domain rules. Never infer settlement from a checkout redirect; webhook/server confirmation is authoritative.
 
 ## Financial safety / governance
 
-- Idempotency required for payment and webhook processing.
-- No duplicate payouts for repeated webhook delivery.
+- Idempotency is required for payment and webhook processing.
+- No duplicate payout for repeated webhook delivery.
 - Quote approval is versioned.
-- A modified approved quote cannot silently replace the approved version.
+- An approved quote cannot be silently replaced.
 - Supplemental work creates a new customer approval event.
-- Admin override records: actor, timestamp, old value, new value and reason.
-- Payout release can be gated by service completion and dispute/safety rules.
+- Admin override records actor, timestamp, previous value, new value and reason.
+- Payout release may be gated by service completion and dispute/safety rules.
+- Concierge operates; Admin governs money.
 
 ## Network positioning
 
-VERAH network participation is curation, not an auction.
+VERAH network participation is curation, not an auction. Future provider monetization may charge for platform capabilities, qualified demand access or partnership services, but payment must not buy an inappropriate recommendation or override customer-first homologation/matching criteria.
 
-Future provider monetization may charge for platform capabilities, access to qualified demand or partnership services, but payment must not buy an inappropriate recommendation or override customer-first matching/homologation criteria.
-
-## Out of scope for this first implementation
+## Out of scope for this implementation
 
 - definitive Brazilian fiscal/accounting classification;
 - irreversible choice of payment gateway;
+- real-money payout;
 - Care/Premium subscription;
 - B2B provider subscription/access charge;
-- dynamic surge pricing;
-- customer-selected external workshop + VERAH pickup/dropoff;
-- real-money payouts without legal/fiscal validation.
+- dynamic pricing by demand;
+- customer-selected external workshop + VERAH pickup/dropoff.
 
 ## Acceptance criteria
 
-1. Commercial parameters can be changed without rebuilding the customer app.
-2. Admin can simulate all three reference scenarios.
-3. Customer representation is a single final VERAH price.
-4. Concierge cannot alter commercial values.
-5. Provider and Concierge/operator visibility follows the role matrix.
-6. Internal composition reconciles customer charge, provider amount, operator payout, fees/costs and VERAH contribution.
-7. Approved quotes are immutable; changes require a supplemental version/approval.
-8. Gateway integration is an adapter behind the VERAH ledger.
-9. Demo values are visibly labeled as hypotheses/test parameters in Admin/docs.
-10. Implementation remains compatible with the operational practices in Issue #199.
+1. Every core scenario requires pickup + return logistics.
+2. Admin simulator has no standard switch to remove Leva & Traz.
+3. Customer representation is one final VERAH price.
+4. Internal composition reconciles provider amount, operator payout, fees/costs and VERAH contribution.
+5. Concierge cannot alter commercial values.
+6. Provider identity remains available internally while customer-facing identity defaults to Rede/Prestador Homologado VERAH, subject to disclosure rules.
+7. Strategic network co-branding is configurable and contains no hardcoded partner brand.
+8. Small, medium and high-ticket tests all include logistics and reject malformed core quotes without it.
+9. Demo values are visibly labeled as hypotheses/test parameters.
+10. Gateway integration stays behind the VERAH ledger until fiscal/provider decisions are validated.
