@@ -10,8 +10,13 @@ const nextConfig: NextConfig = {
         permanent: true,
       },
       {
-        source: "/prestador",
-        destination: "/demo/prestador",
+        source: "/demo/prestador",
+        destination: "/prestador",
+        permanent: true,
+      },
+      {
+        source: "/demo/prestador/atendimento/:id",
+        destination: "/prestador/atendimento/:id",
         permanent: true,
       },
     ];
