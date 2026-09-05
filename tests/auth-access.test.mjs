@@ -65,11 +65,11 @@ test("only an explicit admin profile satisfies an admin guard", () => {
   );
 });
 
-test("known roles keep their existing portal destinations", () => {
+test("known roles keep their canonical portal destinations", () => {
   assert.deepEqual(roleHome, {
     customer: "/demo/cliente",
     concierge: "/concierge",
-    provider: "/demo/prestador",
+    provider: "/prestador",
     admin: "/dashboard",
   });
   assert.equal(isUserRole("admin"), true);
