@@ -62,6 +62,9 @@ $$;
 do $$
 declare
   function_signature text;
+  function_oid oid;
+  definition text;
+  config text[];
 begin
   foreach function_signature in array array[
     'public.dispatcher_engine_start_next_job()',
@@ -72,12 +75,33 @@ begin
     'public.dispatcher_complete_ai_runtime_job(uuid,text,boolean,integer,text,text,text)'
   ]
   loop
-    if has_function_privilege('anon', function_signature, 'execute') then
+    function_oid := function_signature::regprocedure::oid;
+
+    select pg_get_functiondef(p.oid), p.proconfig
+      into definition, config
+    from pg_proc p
+    where p.oid = function_oid;
+
+    if has_function_privilege('anon', function_oid, 'execute') then
       raise exception 'anon can execute %', function_signature;
     end if;
 
-    if not has_function_privilege('authenticated', function_signature, 'execute') then
+    if not has_function_privilege('authenticated', function_oid, 'execute') then
       raise exception 'authenticated cannot reach guarded function %', function_signature;
+    end if;
+
+    if not has_function_privilege('service_role', function_oid, 'execute') then
+      raise exception 'service_role cannot execute internal function %', function_signature;
+    end if;
+
+    if config is null or not ('search_path=""' = any(config)) then
+      raise exception 'Dispatcher function has unsafe search_path: % => %', function_signature, config;
+    end if;
+
+    if position('service_role' in definition) = 0
+      or position('current_verah_role' in definition) = 0
+      or position('admin' in definition) = 0 then
+      raise exception 'Dispatcher function is missing Admin/service_role authorization: %', function_signature;
     end if;
   end loop;
 end;
