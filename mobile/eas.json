@@ -12,7 +12,39 @@
         "buildType": "apk"
       },
       "ios": {
-        "simulator": true
+        "simulator": false,
+        "image": "latest"
+      }
+    },
+    "preview-simulator": {
+      "extends": "preview",
+      "ios": {
+        "simulator": true,
+        "image": "latest"
+      }
+    },
+    "store-preview": {
+      "distribution": "store",
+      "channel": "preview",
+      "environment": "preview",
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "ios": {
+        "simulator": false,
+        "image": "latest"
+      }
+    },
+    "production": {
+      "distribution": "store",
+      "channel": "production",
+      "environment": "production",
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "ios": {
+        "simulator": false,
+        "image": "latest"
       }
     }
   }
