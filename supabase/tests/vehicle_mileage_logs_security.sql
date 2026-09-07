@@ -14,8 +14,8 @@ begin
 end;
 $$;
 
-grant usage on schema vehicle_mileage_log_test to authenticated;
-grant execute on function vehicle_mileage_log_test.expect_error(text) to authenticated;
+grant usage on schema vehicle_mileage_log_test to authenticated, service_role;
+grant execute on function vehicle_mileage_log_test.expect_error(text) to authenticated, service_role;
 
 -- RLS must be enabled and grants must be read-only for authenticated/anon/service_role.
 do $$
