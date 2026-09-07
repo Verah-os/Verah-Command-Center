@@ -8,6 +8,9 @@ import {
   ONBOARDING_TERMS_VERSION,
   type CustomerJourneyFacade,
   type CustomerServiceRequest,
+  type FuelInput,
+  type FuelLog,
+  type FuelType,
   type GarageVehicle,
   type MileageInput,
   type MileageLog,
@@ -71,6 +74,24 @@ function mapMileageLog(row: Record<string, unknown>): MileageLog {
     vehicleId: row.vehicle_id as string,
     recordedAt: row.recorded_at as string,
     mileageValue: Number(row.mileage_value),
+    note: nullableString(row.note),
+    createdAt: row.created_at as string,
+  };
+}
+
+function mapFuelLog(row: Record<string, unknown>): FuelLog {
+  return {
+    id: row.id as string,
+    vehicleId: row.vehicle_id as string,
+    recordedAt: row.recorded_at as string,
+    odometerValue: Number(row.odometer_value),
+    liters: Number(row.liters),
+    totalAmount: Number(row.total_amount),
+    fuelType: row.fuel_type as FuelType,
+    consumptionKmpl:
+      row.consumption_kmpl === null || row.consumption_kmpl === undefined
+        ? null
+        : Number(row.consumption_kmpl),
     note: nullableString(row.note),
     createdAt: row.created_at as string,
   };
@@ -259,6 +280,41 @@ export function getCustomerJourneyFacade(): CustomerJourneyFacade | null {
       if (error) return { data: null, error: error ?? null };
       const mapped = (data ?? []).map((row) =>
         mapMileageLog(row as Record<string, unknown>),
+      );
+      return { data: mapped, error: null };
+    },
+    registerFuel: async (vehicleId, input: FuelInput) => {
+      const { data, error } = await client.rpc("register_vehicle_fuel", {
+        p_vehicle_id: vehicleId,
+        p_recorded_at: input.recordedAt,
+        p_odometer_value: input.odometerValue,
+        p_liters: input.liters,
+        p_total_amount: input.totalAmount,
+        p_fuel_type: input.fuelType,
+        p_note: input.note ?? null,
+        p_idempotency_key: null,
+      });
+      if (error) return { data: null, error: error ?? null };
+      const logId = (data as { log_id?: string } | null)?.log_id ?? null;
+      if (!logId) return { data: null, error: { message: "A VERAH não retornou o registro de abastecimento." } };
+      const { data: row, error: readError } = await client
+        .from("vehicle_fuel_logs")
+        .select("id,vehicle_id,recorded_at,odometer_value,liters,total_amount,fuel_type,consumption_kmpl,note,created_at")
+        .eq("id", logId)
+        .maybeSingle();
+      if (readError || !row) return { data: null, error: { message: "Registro salvo, mas não foi possível carregá-lo agora." } };
+      return { data: mapFuelLog(row as Record<string, unknown>), error: null };
+    },
+    listFuel: async (vehicleId) => {
+      const { data, error } = await client
+        .from("vehicle_fuel_logs")
+        .select("id,vehicle_id,recorded_at,odometer_value,liters,total_amount,fuel_type,consumption_kmpl,note,created_at")
+        .eq("vehicle_id", vehicleId)
+        .order("recorded_at", { ascending: false })
+        .order("created_at", { ascending: false });
+      if (error) return { data: null, error: error ?? null };
+      const mapped = (data ?? []).map((row) =>
+        mapFuelLog(row as Record<string, unknown>),
       );
       return { data: mapped, error: null };
     },

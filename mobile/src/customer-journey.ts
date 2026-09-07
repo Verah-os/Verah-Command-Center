@@ -43,6 +43,31 @@ export type MileageInput = {
 };
 export type MileageResults = { logs: MileageLog[]; latest: MileageLog | null; nextMinimum: number };
 
+export const FUEL_TYPES = ["gasolina", "etanol", "diesel", "gnv"] as const;
+export type FuelType = (typeof FUEL_TYPES)[number];
+
+export type FuelLog = {
+  id: string;
+  vehicleId: string;
+  recordedAt: string;
+  odometerValue: number;
+  liters: number;
+  totalAmount: number;
+  fuelType: FuelType;
+  consumptionKmpl: number | null;
+  note: string | null;
+  createdAt: string;
+};
+export type FuelInput = {
+  odometerValue: string | number;
+  liters: string | number;
+  totalAmount: string | number;
+  fuelType: FuelType;
+  recordedAt?: string;
+  note?: string;
+};
+export type FuelResults = { logs: FuelLog[]; latest: FuelLog | null; nextMinimum: number };
+
 export interface CustomerJourneyFacade {
   refreshOnboarding(): Promise<{ data: unknown; error: RpcError }>;
   startOnboarding(displayName: string): Promise<{ error: RpcError }>;
@@ -53,6 +78,8 @@ export interface CustomerJourneyFacade {
   listServiceRequests?(): Promise<{ data: CustomerServiceRequest[] | null; error: RpcError }>;
   registerMileage(vehicleId: string, input: MileageInput): Promise<{ data: MileageLog | null; error: RpcError }>;
   listMileage(vehicleId: string): Promise<{ data: MileageLog[] | null; error: RpcError }>;
+  registerFuel(vehicleId: string, input: FuelInput): Promise<{ data: FuelLog | null; error: RpcError }>;
+  listFuel(vehicleId: string): Promise<{ data: FuelLog[] | null; error: RpcError }>;
 }
 
 export type JourneyState =
@@ -72,6 +99,8 @@ export interface CustomerJourneyController {
   deactivateVehicle(vehicleId: string): Promise<JourneyResult>;
   registerMileage(vehicleId: string, input: MileageInput): Promise<JourneyResult>;
   listMileage(vehicleId: string): Promise<{ ok: true; data: MileageResults } | { ok: false; message: string }>;
+  registerFuel(vehicleId: string, input: FuelInput): Promise<JourneyResult>;
+  listFuel(vehicleId: string): Promise<{ ok: true; data: FuelResults } | { ok: false; message: string }>;
 }
 
 export function defaultDisplayName(user: JourneyUser) {
@@ -98,6 +127,13 @@ export function prepareVehicleDraft(input: VehicleInput): { ok: true; draft: Veh
 }
 
 export function sortMileageLogs(logs: MileageLog[]): MileageLog[] {
+  return [...logs].sort((left, right) =>
+    new Date(right.recordedAt).getTime() - new Date(left.recordedAt).getTime()
+      || new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
+  );
+}
+
+export function sortFuelLogs(logs: FuelLog[]): FuelLog[] {
   return [...logs].sort((left, right) =>
     new Date(right.recordedAt).getTime() - new Date(left.recordedAt).getTime()
       || new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
@@ -206,6 +242,48 @@ export function createCustomerJourney(facade: CustomerJourneyFacade, user: Journ
       const logs = sortMileageLogs(result.data ?? []);
       const latest = logs[0] ?? null;
       const nextMinimum = latest ? latest.mileageValue : 0;
+      return { ok: true, data: { logs, latest, nextMinimum } };
+    },
+    async registerFuel(vehicleId, input) {
+      const odometer = Number(input.odometerValue);
+      if (!Number.isFinite(odometer) || !Number.isInteger(odometer) || odometer < 0) {
+        return { ok: false, message: "Informe o hodômetro atual do veículo." };
+      }
+      if (odometer > 2000000) {
+        return { ok: false, message: "Quilometragem acima do limite suportado." };
+      }
+      const liters = Number(input.liters);
+      if (!Number.isFinite(liters) || liters <=  0 || liters >  10000) {
+        return { ok: false, message: "Informe a quantidade de litros abastecida." };
+      }
+      const totalAmount = Number(input.totalAmount);
+      if (!Number.isFinite(totalAmount) || totalAmount <  0) {
+        return { ok: false, message: "Informe o valor total do abastecimento." };
+      }
+      if (!FUEL_TYPES.includes(input.fuelType)) {
+        return { ok: false, message: "Selecione um combustível válido." };
+      }
+      const trimmedNote = input.note?.trim() || null;
+      if (trimmedNote && trimmedNote.length > 200) {
+        return { ok: false, message: "Observação muito longa(limite de 200 caracteres." };
+      }
+      const result = await facade.registerFuel(vehicleId, {
+        odometerValue: odometer,
+        liters,
+        totalAmount,
+        fuelType: input.fuelType,
+        recordedAt: input.recordedAt ?? new Date().toISOString(),
+        note: trimmedNote ?? undefined,
+      });
+      if (result.error) return { ok: false, message: result.error.message };
+      return { ok: true };
+    },
+    async listFuel(vehicleId) {
+      const result = await facade.listFuel(vehicleId);
+      if (result.error) return { ok: false, message: result.error.message };
+      const logs = sortFuelLogs(result.data ?? []);
+      const latest = logs[0] ?? null;
+      const nextMinimum = latest ? latest.odometerValue : 0;
       return { ok: true, data: { logs, latest, nextMinimum } };
     },
   };
