@@ -17,11 +17,13 @@ type EntryMode = "plate" | "catalog" | null;
 export function VehicleOnboardingStep({
   controller,
   additional = false,
+  replacing = false,
   onSaved,
   onCancel,
 }: {
   controller: CustomerJourneyController;
   additional?: boolean;
+  replacing?: boolean;
   onSaved?: () => void;
   onCancel?: () => void;
 }) {
@@ -204,6 +206,10 @@ export function VehicleOnboardingStep({
       setError(result.message);
       return;
     }
+    if (replacing && onSaved) {
+      onSaved();
+      return;
+    }
     onSaved?.();
   };
 
@@ -218,8 +224,8 @@ export function VehicleOnboardingStep({
     return (
       <ScrollView {...scrollProps}>
         <Text style={styles.brandName}>VERAH</Text>
-        <Text style={styles.eyebrow}>{additional ? "Adicionar veículo" : "Seu primeiro veículo"}</Text>
-        <Text style={styles.title}>{additional ? "Cadastre outro carro" : "Vamos encontrar seu carro"}</Text>
+        <Text style={styles.eyebrow}>{additional ? (replacing ? "Substituir veículo" : "Adicionar veículo") : "Seu primeiro veículo"}</Text>
+        <Text style={styles.title}>{additional ? (replacing ? "Cadastre o veículo substituto" : "Cadastre outro carro") : "Vamos encontrar seu carro"}</Text>
         <Text style={styles.body}>
           Use a placa como identificação e confirme o veículo pelo catálogo FIPE gratuito.
         </Text>
@@ -241,7 +247,7 @@ export function VehicleOnboardingStep({
   return (
     <ScrollView {...scrollProps}>
       <Text style={styles.brandName}>VERAH</Text>
-      <Text style={styles.eyebrow}>{additional ? "Adicionar veículo" : "Seu primeiro veículo"}</Text>
+      <Text style={styles.eyebrow}>{additional ? (replacing ? "Substituir veículo" : "Adicionar veículo") : "Seu primeiro veículo"}</Text>
       <Text style={styles.title}>{mode === "plate" ? "Comece pela placa" : "Confirme seu veículo"}</Text>
       <Text style={styles.body}>
         O catálogo usa a tabela FIPE real. A consulta gratuita não faz identificação automática pela placa.
@@ -324,7 +330,7 @@ export function VehicleOnboardingStep({
             <Text style={styles.checkLabel}>Confirmo que estes dados correspondem ao meu veículo.</Text>
           </Pressable>
           <Pressable style={[styles.primary, busy && styles.disabled]} disabled={busy} onPress={() => void submit()}>
-            <Text style={styles.primaryText}>{busy ? "Salvando…" : additional ? "Adicionar veículo" : "Salvar e continuar"}</Text>
+            <Text style={styles.primaryText}>{busy ? "Salvando…" : additional ? (replacing ? "Substituir veículo" : "Adicionar veículo") : "Salvar e continuar"}</Text>
           </Pressable>
         </View>
       ) : null}
