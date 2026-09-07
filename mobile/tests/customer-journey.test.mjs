@@ -5,6 +5,7 @@ import {
   ONBOARDING_TERMS_VERSION,
   createCustomerJourney,
   defaultDisplayName,
+  mapVehicleExpenseSummary,
   normalizeBrazilianPlate,
   prepareVehicleDraft,
 } from "../src/customer-journey.ts";
@@ -320,4 +321,114 @@ test("onboarding terms version matches the canonical #139 contract", () => {
 test("defaultDisplayName falls back to the e-mail prefix", () => {
   assert.equal(defaultDisplayName({ id: "u-1", email: "maria.silva@verah.dev" }), "maria.silva");
   assert.equal(defaultDisplayName({ id: "u-2" }), "Cliente VERAH");
+});
+
+test("loads expense summaries per vehicle into the ready journey state", async () => {
+  const expenseCalls = [];
+  const facade = createFakeFacade({
+    onboarding: {
+      onboarding_status: "completed",
+      basic_profile_completed: true,
+      vehicle_status: "registered",
+    },
+    vehicles: [
+      { id: "v-1", brand: "Honda", model: "Civic", year: 2022, plate: "ABC1D23", nickname: null },
+      { id: "v-2", brand: "Fiat", model: "Uno", year: 2020, plate: "ABC2E34", nickname: null },
+    ],
+  }).facade;
+  facade.expenseForVehicle = async (vehicleId) => {
+    expenseCalls.push(vehicleId);
+    if (vehicleId === "v-2") return { data: null, error: { message: "rpc down" } };
+    return {
+      data: {
+        total_cents: 158000,
+        fuel_cents: 33000,
+        maintenance_cents: 120000,
+        other_cents: 5000,
+        expense_count: 4,
+        distance_km:  600,
+        cost_per_km_cents:  263.33,
+      },
+      error: null,
+    };
+  };
+  const controller = createCustomerJourney(facade, user);
+  await controller.restore();
+  const state = controller.getState();
+  assert.equal(state.status, "ready");
+  assert.deepEqual(state.expensesByVehicle["v-1"], {
+    totalCents: 158000,
+    fuelCents:  33000,
+    maintenanceCents:  120000,
+    otherCents:   5000,
+    expenseCount:  4,
+    distanceKm:  600,
+    costPerKmCents:  263.33,
+  });
+  assert.equal(state.expensesByVehicle["v-2"], undefined);
+  assert.deepEqual(expenseCalls.sort(), ["v-1", "v-2"]);
+});
+
+test("mapVehicleExpenseSummary keeps cost-per-km null without a valid odometer base", () => {
+  const summary = mapVehicleExpenseSummary({
+    total_cents: 2500,
+    fuel_cents:  2500,
+    maintenance_cents:  0,
+    other_cents:   0,
+    expense_count:  1,
+    distance_km: null,
+    cost_per_km_cents: null,
+  });
+  assert.ok(summary !== null);
+  assert.equal(summary.totalCents, 2500);
+  assert.equal(summary.distanceKm, null);
+  assert.equal(summary.costPerKmCents, null);
+  assert.equal(mapVehicleExpenseSummary({ total_cents: "not-a-number" }), null);
+  assert.equal(mapVehicleExpenseSummary({}), null);
+  assert.equal(mapVehicleExpenseSummary(null), null);
+});
+
+test("refreshExpenses reloads summaries for the selected period", async () => {
+  const expenseCalls = [];
+  const facade = createFakeFacade({
+    onboarding: {
+      onboarding_status: "completed",
+      basic_profile_completed: true,
+      vehicle_status: "registered",
+    },
+    vehicles: [
+      { id: "v-1", brand: "Honda", model: "Civic", year: 2022, plate: "ABC1D23", nickname: null },
+    ],
+  }).facade;
+  facade.expenseForVehicle = async (vehicleId, periodDays) => {
+    expenseCalls.push({ vehicleId, periodDays: periodDays ?? null });
+    return {
+      data: {
+        total_cents: periodDays === 30 ? 8000 : 158000,
+        fuel_cents: periodDays === 30 ? 8000 : 33000,
+        maintenance_cents:  0,
+        other_cents:   0,
+        expense_count:  periodDays === 30 ? 1 : 4,
+        distance_km:   periodDays === 30 ? 300 : 600,
+        cost_per_km_cents: periodDays === 30 ? 26.67 :  263.33,
+      },
+      error: null,
+    };
+  };
+  const controller = createCustomerJourney(facade, user);
+  await controller.restore();
+  let state = controller.getState();
+  assert.equal(state.status, "ready");
+  assert.equal(state.expensesByVehicle["v-1"].totalCents,158000);
+  assert.deepEqual(expenseCalls, [
+    { vehicleId: "v-1", periodDays: null },
+  ]);
+  await controller.refreshExpenses(30);
+  state = controller.getState();
+  assert.equal(state.expensesByVehicle["v-1"].totalCents,8000);
+  assert.equal(state.expensesByVehicle["v-1"].costPerKmCents,26.67);
+  assert.deepEqual(expenseCalls, [
+    { vehicleId: "v-1", periodDays: null },
+    { vehicleId: "v-1", periodDays: 30 },
+  ]);
 });

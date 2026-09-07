@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { AuthUser } from "./auth-session";
-import type { CustomerServiceRequest, GarageVehicle } from "./customer-journey";
+import type { CustomerServiceRequest, GarageVehicle, VehicleExpenseSummary } from "./customer-journey";
+import { formatCostPerKm, formatDistanceKm, formatBrzlCents } from "./customer-journey";
 import { CustomerRequests } from "./CustomerRequests";
 
 type Tab = "home" | "requests" | "vehicles" | "history" | "profile";
@@ -19,9 +20,11 @@ const stageLabels: Record<string, string> = {
 export function CustomerHome({
   vehicles,
   requests,
+  expensesByVehicle,
   user,
   onAddVehicle,
   onReplaceVehicle,
+  onExpensePeriodChange,
   onDeactivateVehicle,
   onOpenMileage,
   onOpenFuel,
@@ -29,16 +32,20 @@ export function CustomerHome({
 }: {
   vehicles: GarageVehicle[];
   requests: CustomerServiceRequest[];
+  expensesByVehicle: Record<string, VehicleExpenseSummary>;
   user: AuthUser;
   onAddVehicle: () => void;
   onReplaceVehicle: (vehicle: GarageVehicle) => void;
+  onExpensePeriodChange?: (periodDays: number | null) => void;
   onDeactivateVehicle: (vehicle: GarageVehicle) => Promise<void>;
   onOpenMileage: (vehicle: GarageVehicle) => void;
   onOpenFuel: (vehicle: GarageVehicle) => void;
   onSignOut: () => void;
 }) {
   const [tab, setTab] = useState<Tab>("home");
+  const [expensePeriod, setExpensePeriod] = useState<number | null>(null);
   const primaryVehicle = vehicles[0] ?? null;
+  const primarySummary = primaryVehicle ? (expensesByVehicle[primaryVehicle.id] ?? null) : null;
   const openRequest = requests.find(
     (request) => !["concluido", "cancelado"].includes(request.serviceStage),
   );
@@ -115,6 +122,17 @@ export function CustomerHome({
               )}
             </Section>
 
+            {primarySummary ? (
+              <ExpensesDashboard
+                summary={primarySummary}
+                periodDays={expensePeriod}
+                onPeriodChange={(days) => {
+                  setExpensePeriod(days);
+                  onExpensePeriodChange?.(days);
+                }}
+              />
+            ) : null}
+
             <Section title="Atendimento atual" accent>
               {openRequest ? (
                 <>
@@ -177,11 +195,24 @@ export function CustomerHome({
               <Text style={styles.primaryButtonText}>+ Adicionar veículo</Text>
             </Pressable>
             {vehicles.length === 0 ? <Text style={styles.empty}>Sua garagem está vazia.</Text> : null}
-            {vehicles.map((vehicle) => (
-              <View key={vehicle.id} style={styles.rowCard}>
-                <Text style={styles.rowTitle}>{vehicle.nickname ?? `${vehicle.brand} ${vehicle.model}`}</Text>
-                <Text style={styles.meta}>{[vehicle.year, vehicle.plate].filter(Boolean).join(" · ")}</Text>
-                <View style={styles.vehicleActions}>
+            {vehicles.map((vehicle) => {
+                const summary = expensesByVehicle[vehicle.id] ?? null;
+                return (
+                  <View key={vehicle.id} style={styles.rowCard}>
+                    <Text style={styles.rowTitle}>{vehicle.nickname ?? `${vehicle.brand} ${vehicle.model}`}</Text>
+                    <Text style={styles.meta}>{[vehicle.year, vehicle.plate].filter(Boolean).join(" · ")}</Text>
+                    {summary ? (
+                      <ExpensesDashboard
+                        summary={summary}
+                        compact
+                        periodDays={expensePeriod}
+                        onPeriodChange={(days) => {
+                          setExpensePeriod(days);
+                          onExpensePeriodChange?.(days);
+                        }}
+                      />
+                    ) : null}
+                    <View style={styles.vehicleActions}>
                   <Pressable style={styles.smallAction} onPress={() => onOpenMileage(vehicle)}>
                     <Text style={styles.smallActionText}>Quilometragem</Text>
                   </Pressable>
@@ -198,8 +229,9 @@ export function CustomerHome({
                     <Text style={styles.smallDangerText}>Remover</Text>
                   </Pressable>
                 </View>
-              </View>
-            ))}
+                  </View>
+                );
+              })}
           </Section>
         )}
 
@@ -252,6 +284,71 @@ function Section({ title, accent = false, children }: { title: string; accent?: 
     <View style={[styles.card, accent && styles.accentCard]}>
       <Text style={styles.sectionTitle}>{title}</Text>
       {children}
+    </View>
+  );
+}
+
+function ExpensesDashboard({
+  summary,
+  compact = false,
+  periodDays = null,
+  onPeriodChange,
+}: {
+  summary: VehicleExpenseSummary;
+  compact?: boolean;
+  periodDays?: number | null;
+  onPeriodChange?: (days: number | null) => void;
+}) {
+  return (
+    <View style={[styles.expensesCard, compact && styles.expensesCardCompact]}>
+      <Text style={styles.expensesEyebrow}>Quanto meu carro me custa?</Text>
+      <Text style={styles.expensesTotal}>{formatBrzlCents(summary.totalCents)}</Text>
+      <Text style={styles.expensesMeta}>
+        {summary.expenseCount} {summary.expenseCount === 1 ? "despesa" : "despesas"} ·{" "}
+        {summary.distanceKm !== null ? formatDistanceKm(summary.distanceKm) : "sem km válido"}
+      </Text>
+      {onPeriodChange ? (
+        <View style={styles.expensesPeriodRow}>
+          {[
+            { label: "30 dias", days: 30 },
+            { label: "90 dias", days: 90 },
+            { label: "Tudo", days: null },
+          ].map((option) => (
+            <Pressable
+              key={option.label}
+              onPress={() => onPeriodChange(option.days)}
+              style={[styles.expensesPeriodChip, periodDays === option.days && styles.expensesPeriodChipActive]}
+            >
+              <Text
+                style={[
+                  styles.expensesPeriodChipText,
+                  periodDays === option.days && styles.expensesPeriodChipTextActive,
+                ]}
+              >
+                {option.label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
+      <View style={styles.expensesGrid}>
+        <View style={styles.expensesCell}>
+          <Text style={styles.expensesCellLabel}>Combustível</Text>
+          <Text style={styles.expensesCellValue}>{formatBrzlCents(summary.fuelCents)}</Text>
+        </View>
+        <View style={styles.expensesCell}>
+          <Text style={styles.expensesCellLabel}>Manutenção</Text>
+          <Text style={styles.expensesCellValue}>{formatBrzlCents(summary.maintenanceCents)}</Text>
+        </View>
+        <View style={styles.expensesCell}>
+          <Text style={styles.expensesCellLabel}>Outros</Text>
+          <Text style={styles.expensesCellValue}>{formatBrzlCents(summary.otherCents)}</Text>
+        </View>
+        <View style={styles.expensesCell}>
+          <Text style={styles.expensesCellLabel}>Custo por km</Text>
+          <Text style={styles.expensesCellValue}>{formatCostPerKm(summary.costPerKmCents)}</Text>
+        </View>
+      </View>
     </View>
   );
 }
@@ -355,6 +452,20 @@ const styles = StyleSheet.create({
   profileHint: { color: "#667085", fontSize: 13, lineHeight: 20, marginTop: 14 },
   outlineButton: { borderWidth: 1, borderColor: "#177F78", borderRadius: 14, paddingVertical: 13, alignItems: "center", marginTop: 18 },
   outlineButtonText: { color: "#177F78", fontSize: 15, fontWeight: "700" },
+  expensesCard: { backgroundColor: "#ECF8F6", borderRadius: 22, padding: 20, borderWidth: 1, borderColor: "#CBECE7", marginTop: 4, marginBottom: 14 },
+  expensesCardCompact: { padding:  14, borderRadius:  14 },
+  expensesEyebrow: { color: "#A85F70", fontSize: 13, fontWeight: "700" },
+  expensesTotal: { color: "#263238", fontSize: 28, fontWeight: "800", marginTop: 2 },
+  expensesMeta: { color: "#667085", fontSize: 13, lineHeight: 20, marginTop:  4 },
+  expensesGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop:  16 },
+  expensesCell: { flexBasis: "47%", flexGrow: 1, backgroundColor: "#FFFFFF", borderRadius:  12, paddingHorizontal:  12, paddingVertical:  10 },
+  expensesCellLabel: { color: "#7A838B", fontSize:  12, fontWeight: "700", textTransform: "uppercase" },
+  expensesCellValue: { color: "#263238", fontSize:  15, fontWeight: "700", marginTop:  4 },
+  expensesPeriodRow: { flexDirection: "row", gap: 8, marginTop: 14 },
+  expensesPeriodChip: { paddingHorizontal:  12, paddingVertical:  6, borderRadius: 999, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#CBECE7" },
+  expensesPeriodChipActive: { backgroundColor: "#177F78", borderColor: "#177F78" },
+  expensesPeriodChipText: { color: "#667085", fontSize:  12, fontWeight: "700" },
+  expensesPeriodChipTextActive: { color: "#FFFFFF" },
   tabs: { position: "absolute", left: 0, right: 0, bottom: 0, flexDirection: "row", backgroundColor: "#FFFFFF", borderTopWidth: 1, borderTopColor: "#EEE7E8", paddingBottom: 8, paddingTop: 8 },
   tabButton: { flex: 1, alignItems: "center", paddingVertical: 8 },
   tabLabel: { color: "#7A838B", fontSize: 11, fontWeight: "600" },

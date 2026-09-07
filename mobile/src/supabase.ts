@@ -14,6 +14,7 @@ import {
   type GarageVehicle,
   type MileageInput,
   type MileageLog,
+  type VehicleExpenseSummary,
 } from "./customer-journey";
 
 let cached: SupabaseClient | null = null;
@@ -25,6 +26,16 @@ const customerTrackingSelect =
 
 function nullableString(value: unknown) {
   return typeof value === "string" ? value : null;
+}
+
+function toDayIso() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function daysAgo(days: number) {
+  const date = new Date();
+  date.setDate(date.getDate() - days);
+  return date.toISOString().slice(0, 10);
 }
 
 function toAuthUser(user: User): AuthUser {
@@ -250,6 +261,17 @@ export function getCustomerJourneyFacade(): CustomerJourneyFacade | null {
         mapServiceRequest(row as Record<string, unknown>),
       );
       return { data: mapped, error: error ?? null };
+    },
+    expenseForVehicle: async (vehicleId: string, periodDays?: number | null) => {
+      const range = periodDays && periodDays > 0
+        ? { p_period_start: daysAgo(periodDays), p_period_end: toDayIso() }
+        : {};
+      const { data, error } = await client.rpc("vehicle_expense_summary", {
+        p_vehicle_id: vehicleId,
+        ...range,
+      });
+      if (error) return { data: null, error: error ?? null };
+      return { data: data as VehicleExpenseSummary | null, error: null };
     },
     registerMileage: async (vehicleId, input: MileageInput) => {
       const { data, error } = await client.rpc("register_vehicle_mileage", {
