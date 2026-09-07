@@ -78,9 +78,10 @@ select public.confirm_customer_vehicle(
   'manual', null, null, false, true
 )->>'vehicle_id' as vehicle_id \gset
 
+-- register_vehicle_mileage also returns jsonb; persist only the canonical log UUID.
 select public.register_vehicle_mileage(
   :'vehicle_id', 15000, '2026-08-01T12:00:00Z', 'Entrada sintética.', 'mileage-first-reading'
-) as first_log_id \gset
+)->>'log_id' as first_log_id \gset
 
 -- psql variables are not substituted inside dollar-quoted PL/pgSQL blocks. Persist
 -- the runtime ids in transaction-local settings so the assertions remain deterministic.
@@ -130,7 +131,7 @@ $$;
 -- Same vehicle higher reading advances the current mileage without duplicating.
 select public.register_vehicle_mileage(
   :'vehicle_id', 17000, '2026-08-03T12:00:00Z', null, 'mileage-second-reading'
-) as second_log_id \gset
+)->>'log_id' as second_log_id \gset
 select public.register_vehicle_mileage(
   :'vehicle_id', 17000, '2026-08-03T12:00:00Z', null, 'mileage-second-reading'
 );
