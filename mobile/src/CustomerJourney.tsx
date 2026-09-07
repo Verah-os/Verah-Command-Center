@@ -18,6 +18,7 @@ import {
   type GarageVehicle,
 } from "./customer-journey";
 import { CustomerHome } from "./CustomerHome";
+import { MileageLogScreen } from "./MileageLogScreen";
 import { VehicleOnboardingStep } from "./VehicleOnboardingStep";
 
 export function CustomerJourneyGate({
@@ -33,6 +34,7 @@ export function CustomerJourneyGate({
     createCustomerJourney(facade, user),
   );
   const [addingVehicle, setAddingVehicle] = useState(false);
+  const [mileageVehicle, setMileageVehicle] = useState<GarageVehicle | null>(null);
   const state = useSyncExternalStore(controller.subscribe, controller.getState);
 
   if (state.status === "loading") {
@@ -72,6 +74,14 @@ export function CustomerJourneyGate({
       </View>
     );
   }
+  if (mileageVehicle) {
+    return (
+      <MileageLogScreen
+        vehicle={mileageVehicle}
+        onDone={() => setMileageVehicle(null)}
+      />
+    );
+  }
 
   const deactivateVehicle = async (vehicle: GarageVehicle) => {
     const result = await controller.deactivateVehicle(vehicle.id);
@@ -88,6 +98,7 @@ export function CustomerJourneyGate({
       onAddVehicle={() => setAddingVehicle(true)}
       onReplaceVehicle={() => setAddingVehicle(true)}
       onDeactivateVehicle={deactivateVehicle}
+      onOpenMileage={(vehicle) => setMileageVehicle(vehicle)}
       onSignOut={onSignOut}
     />
   );
