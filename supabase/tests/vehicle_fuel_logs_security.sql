@@ -40,11 +40,11 @@ begin
     raise exception 'Unsafe grants on public.vehicle_fuel_logs';
   end if;
 
-  if pg_catalog.has_function_privilege('anon', 'public.register_vehicle_fuel(uuid,timestamptz,integer,numeric,numeric,text,text,text)', 'execute')
-    or pg_catalog.has_function_privilege('service_role', 'public.register_vehicle_fuel(uuid,timestamptz,integer,numeric,numeric,text,text,text)', 'execute')
-    or not pg_catalog.has_function_privilege('authenticated', 'public.register_vehicle_fuel(uuid,timestamptz,integer,numeric,numeric,text,text,text)', 'execute')
+  if pg_catalog.has_function_privilege('anon', 'public.register_vehicle_fuel(uuid,timestamptz,integer,numeric,numeric,text,text,text,text)', 'execute')
+    or pg_catalog.has_function_privilege('service_role', 'public.register_vehicle_fuel(uuid,timestamptz,integer,numeric,numeric,text,text,text,text)', 'execute')
+    or not pg_catalog.has_function_privilege('authenticated', 'public.register_vehicle_fuel(uuid,timestamptz,integer,numeric,numeric,text,text,text,text)', 'execute')
     or pg_catalog.has_function_privilege('authenticated', 'private.reject_vehicle_fuel_log_mutation()', 'execute')
-    or pg_catalog.has_function_privilege('service_role', 'private.reject_vehicle_fuel_log_mutation()', 'execute') then;
+    or pg_catalog.has_function_privilege('service_role', 'private.reject_vehicle_fuel_log_mutation()', 'execute') then
     raise exception 'Vehicle fuel log function grants are unsafe';
   end if;
 end;

@@ -247,8 +247,8 @@ end;
 $$;
 
 revoke execute on function public.register_vehicle_fuel(
-  uuid, timestamptz, integer, numeric, numeric, text, text, text
+  uuid, timestamptz, integer, numeric, numeric, text, text, text, text
 ) from public, anon, authenticated, service_role;
 grant execute on function public.register_vehicle_fuel(
-  uuid, timestamptz, integer, numeric, numeric, text, text, text
+  uuid, timestamptz, integer, numeric, numeric, text, text, text, text
 ) to authenticated;
