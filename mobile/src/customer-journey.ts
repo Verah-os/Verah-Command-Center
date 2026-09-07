@@ -2,6 +2,15 @@ export const ONBOARDING_TERMS_VERSION = "pilot-alpha-onboarding-v1";
 
 export type JourneyUser = { id: string; email?: string };
 export type GarageVehicle = { id: string; brand: string; model: string; year: number | null; plate: string | null; nickname: string | null };
+export type VehicleExpenseSummary = {
+  totalCents: number;
+  fuelCents: number;
+  maintenanceCents: number;
+  otherCents: number;
+  expenseCount: number;
+  distanceKm: number | null;
+  costPerKmCents: number | null;
+};
 export type CustomerServiceRequest = {
   id: string;
   referenceCode: string;
@@ -76,6 +85,7 @@ export interface CustomerJourneyFacade {
   deactivateVehicle(vehicleId: string): Promise<{ error: RpcError }>;
   listVehicles(): Promise<{ data: GarageVehicle[] | null; error: RpcError }>;
   listServiceRequests?(): Promise<{ data: CustomerServiceRequest[] | null; error: RpcError }>;
+  expenseForVehicle?(vehicleId: string, periodDays?: number | null): Promise<{ data: VehicleExpenseSummary | null; error: RpcError }>;
   registerMileage(vehicleId: string, input: MileageInput): Promise<{ data: MileageLog | null; error: RpcError }>;
   listMileage(vehicleId: string): Promise<{ data: MileageLog[] | null; error: RpcError }>;
   registerFuel(vehicleId: string, input: FuelInput): Promise<{ data: FuelLog | null; error: RpcError }>;
@@ -87,7 +97,7 @@ export type JourneyState =
   | { status: "error"; message: string }
   | { status: "basic-profile" }
   | { status: "vehicle" }
-  | { status: "ready"; vehicles: GarageVehicle[]; requests: CustomerServiceRequest[] };
+  | { status: "ready"; vehicles: GarageVehicle[]; requests: CustomerServiceRequest[]; expensesByVehicle: Record<string, VehicleExpenseSummary> };
 
 export interface CustomerJourneyController {
   getState(): JourneyState;
@@ -97,6 +107,7 @@ export interface CustomerJourneyController {
   submitBasicProfile(displayName: string, acceptedTerms: boolean): Promise<JourneyResult>;
   confirmVehicle(input: VehicleInput): Promise<JourneyResult>;
   deactivateVehicle(vehicleId: string): Promise<JourneyResult>;
+  refreshExpenses?(periodDays?: number | null): Promise<void>;
   registerMileage(vehicleId: string, input: MileageInput): Promise<JourneyResult>;
   listMileage(vehicleId: string): Promise<{ ok: true; data: MileageResults } | { ok: false; message: string }>;
   registerFuel(vehicleId: string, input: FuelInput): Promise<JourneyResult>;
@@ -146,6 +157,43 @@ function mapSnapshot(data: unknown): OnboardingSnapshot {
   return { basicProfileCompleted: row.basic_profile_completed === true, vehicleStatus: typeof row.vehicle_status === "string" ? row.vehicle_status : "pending" };
 }
 
+export function mapVehicleExpenseSummary(data: unknown): VehicleExpenseSummary | null {
+  if (!data || typeof data !== "object") return null;
+  const row = data as Record<string, unknown>;
+  const numberField = (key: string): number | null => {
+    const value = row[key];
+    if (value === null || value === undefined || value === "") return null;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  };
+  const totalCents = numberField("total_cents");
+  if (totalCents === null) return null;
+  return {
+    totalCents,
+    fuelCents: numberField("fuel_cents") ?? 0,
+    maintenanceCents: numberField("maintenance_cents") ?? 0,
+    otherCents: numberField("other_cents") ?? 0,
+    expenseCount: numberField("expense_count") ?? 0,
+    distanceKm: numberField("distance_km"),
+    costPerKmCents: numberField("cost_per_km_cents"),
+  };
+}
+
+export function formatBrzlCents(cents: number) {
+  const reais = (cents ?? 0) / 100;
+  return reais.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+export function formatDistanceKm(km: number | null) {
+  if (km === null) return "sem quilometragem válida";
+  return `${Math.round(km).toLocaleString("pt-BR")} km`;
+}
+
+export function formatCostPerKm(cents: number | null) {
+  if (cents === null) return "—";
+  return `${formatBrzlCents(cents)}/km`;
+}
+
 export function createCustomerJourney(facade: CustomerJourneyFacade, user: JourneyUser): CustomerJourneyController {
   let state: JourneyState = { status: "loading" };
   let restoring: Promise<void> | null = null;
@@ -160,7 +208,19 @@ export function createCustomerJourney(facade: CustomerJourneyFacade, user: Journ
     ]);
     if (vehiclesResult.error) { fail(vehiclesResult.error.message); return false; }
     if (requestsResult.error) { fail(requestsResult.error.message); return false; }
-    state = { status: "ready", vehicles: vehiclesResult.data ?? [], requests: requestsResult.data ?? [] };
+    const vehicles = vehiclesResult.data ?? [];
+    let expensesByVehicle: Record<string, VehicleExpenseSummary> = {};
+    if (facade.expenseForVehicle) {
+      const byVehicle: Record<string, VehicleExpenseSummary> = {};
+      for (const vehicle of vehicles) {
+        const result = await facade.expenseForVehicle(vehicle.id);
+        if (result?.error) continue;
+        const summary = mapVehicleExpenseSummary(result.data);
+        if (summary !== null) byVehicle[vehicle.id] = summary;
+      }
+      expensesByVehicle = byVehicle;
+    }
+    state = { status: "ready", vehicles, requests: requestsResult.data ?? [], expensesByVehicle };
     emit();
     return true;
   };
@@ -285,6 +345,19 @@ export function createCustomerJourney(facade: CustomerJourneyFacade, user: Journ
       const latest = logs[0] ?? null;
       const nextMinimum = latest ? latest.odometerValue : 0;
       return { ok: true, data: { logs, latest, nextMinimum } };
+    },
+    async refreshExpenses(periodDays?: number | null) {
+      if (state.status !== "ready") return;
+      if (!facade.expenseForVehicle) return;
+      const byVehicle: Record<string, VehicleExpenseSummary> = {};
+      for (const vehicle of state.vehicles) {
+        const result = await facade.expenseForVehicle(vehicle.id, periodDays ?? null);
+        if (result?.error) continue;
+        const summary = mapVehicleExpenseSummary(result.data);
+        if (summary !== null) byVehicle[vehicle.id] = summary;
+      }
+      state = { ...state, expensesByVehicle: byVehicle };
+      emit();
     },
   };
 }

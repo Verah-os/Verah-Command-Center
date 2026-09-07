@@ -110,9 +110,11 @@ export function CustomerJourneyGate({
     <CustomerHome
       vehicles={state.vehicles}
       requests={state.requests}
+      expensesByVehicle={state.expensesByVehicle}
       user={user}
       onAddVehicle={() => setAddingVehicle(true)}
       onReplaceVehicle={() => setAddingVehicle(true)}
+      onExpensePeriodChange={(periodDays) => void controller.refreshExpenses?.(periodDays)}
       onDeactivateVehicle={deactivateVehicle}
       onOpenMileage={setMileageVehicle}
       onOpenFuel={setFuelVehicle}
