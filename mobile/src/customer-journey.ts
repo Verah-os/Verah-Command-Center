@@ -28,6 +28,21 @@ export type VehicleInput = { plate: string; brand: string; model: string; modelY
 export type JourneyResult = { ok: true } | { ok: false; message: string };
 type RpcError = { message: string } | null;
 
+export type MileageLog = {
+  id: string;
+  vehicleId: string;
+  recordedAt: string;
+  mileageValue: number;
+  note: string | null;
+  createdAt: string;
+};
+export type MileageInput = {
+  mileageValue: string | number;
+  recordedAt?: string;
+  note?: string;
+};
+export type MileageResults = { logs: MileageLog[]; latest: MileageLog | null; nextMinimum: number };
+
 export interface CustomerJourneyFacade {
   refreshOnboarding(): Promise<{ data: unknown; error: RpcError }>;
   startOnboarding(displayName: string): Promise<{ error: RpcError }>;
@@ -36,6 +51,8 @@ export interface CustomerJourneyFacade {
   deactivateVehicle(vehicleId: string): Promise<{ error: RpcError }>;
   listVehicles(): Promise<{ data: GarageVehicle[] | null; error: RpcError }>;
   listServiceRequests?(): Promise<{ data: CustomerServiceRequest[] | null; error: RpcError }>;
+  registerMileage(vehicleId: string, input: MileageInput): Promise<{ data: MileageLog | null; error: RpcError }>;
+  listMileage(vehicleId: string): Promise<{ data: MileageLog[] | null; error: RpcError }>;
 }
 
 export type JourneyState =
@@ -47,11 +64,14 @@ export type JourneyState =
 
 export interface CustomerJourneyController {
   getState(): JourneyState;
+
   subscribe(listener: () => void): () => void;
   restore(): Promise<void>;
   submitBasicProfile(displayName: string, acceptedTerms: boolean): Promise<JourneyResult>;
   confirmVehicle(input: VehicleInput): Promise<JourneyResult>;
   deactivateVehicle(vehicleId: string): Promise<JourneyResult>;
+  registerMileage(vehicleId: string, input: MileageInput): Promise<JourneyResult>;
+  listMileage(vehicleId: string): Promise<{ ok: true; data: MileageResults } | { ok: false; message: string }>;
 }
 
 export function defaultDisplayName(user: JourneyUser) {
@@ -75,6 +95,13 @@ export function prepareVehicleDraft(input: VehicleInput): { ok: true; draft: Veh
   const modelYear = Number(input.modelYear);
   if (!Number.isInteger(modelYear) || modelYear < 1950 || modelYear > new Date().getFullYear() + 1) return { ok: false, message: "Informe um ano/modelo válido." };
   return { ok: true, draft: { plate, brand, model, modelYear, version: input.version?.trim() || null, engine: input.engine?.trim() || null, transmission: input.transmission?.trim() || null } };
+}
+
+export function sortMileageLogs(logs: MileageLog[]): MileageLog[] {
+  return [...logs].sort((left, right) =>
+    new Date(right.recordedAt).getTime() - new Date(left.recordedAt).getTime()
+      || new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
+  );
 }
 
 type OnboardingSnapshot = { basicProfileCompleted: boolean; vehicleStatus: string };
@@ -152,6 +179,34 @@ export function createCustomerJourney(facade: CustomerJourneyFacade, user: Journ
       if (error) return { ok: false, message: error.message };
       const loaded = await loadHome();
       return loaded ? { ok: true } : { ok: false, message: "Veículo removido, mas não foi possível atualizar sua garagem." };
+    },
+    async registerMileage(vehicleId, input) {
+      const value = Number(input.mileageValue);
+      if (!Number.isFinite(value) || value < 0 || !Number.isInteger(value)) {
+        return { ok: false, message: "Informe a quilometragem atual do veículo." };
+      }
+      if (value > 2000000) {
+        return { ok: false, message: "Quilometragem acima do limite suportado." };
+      }
+      const trimmedNote = input.note?.trim() || null;
+      if (trimmedNote && trimmedNote.length > 200) {
+        return { ok: false, message: "Observação muito longa(limite de 200 caracteres." };
+      }
+      const result = await facade.registerMileage(vehicleId, {
+        mileageValue: value,
+        recordedAt: input.recordedAt ?? new Date().toISOString(),
+        note: trimmedNote ?? undefined,
+      });
+      if (result.error) return { ok: false, message: result.error.message };
+      return { ok: true };
+    },
+    async listMileage(vehicleId) {
+      const result = await facade.listMileage(vehicleId);
+      if (result.error) return { ok: false, message: result.error.message };
+      const logs = sortMileageLogs(result.data ?? []);
+      const latest = logs[0] ?? null;
+      const nextMinimum = latest ? latest.mileageValue : 0;
+      return { ok: true, data: { logs, latest, nextMinimum } };
     },
   };
 }

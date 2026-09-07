@@ -23,6 +23,7 @@ export function CustomerHome({
   onAddVehicle,
   onReplaceVehicle,
   onDeactivateVehicle,
+  onOpenMileage,
   onSignOut,
 }: {
   vehicles: GarageVehicle[];
@@ -31,6 +32,7 @@ export function CustomerHome({
   onAddVehicle: () => void;
   onReplaceVehicle: (vehicle: GarageVehicle) => void;
   onDeactivateVehicle: (vehicle: GarageVehicle) => Promise<void>;
+  onOpenMileage: (vehicle: GarageVehicle) => void;
   onSignOut: () => void;
 }) {
   const [tab, setTab] = useState<Tab>("home");
@@ -98,7 +100,9 @@ export function CustomerHome({
                   <Text style={styles.meta}>
                     {[primaryVehicle.year, primaryVehicle.plate].filter(Boolean).join(" · ")}
                   </Text>
+                  <TextButton label="Registrar quilometragem" onPress={() => onOpenMileage(primaryVehicle)} />
                   <TextButton label="Ver veículos" onPress={() => setTab("vehicles")} />
+                  <TextButton label="Quilometragem" onPress={() => onOpenMileage(primaryVehicle)} />
                 </>
               ) : (
                 <>
@@ -175,8 +179,14 @@ export function CustomerHome({
                 <Text style={styles.rowTitle}>{vehicle.nickname ?? `${vehicle.brand} ${vehicle.model}`}</Text>
                 <Text style={styles.meta}>{[vehicle.year, vehicle.plate].filter(Boolean).join(" · ")}</Text>
                 <View style={styles.vehicleActions}>
+                  <Pressable style={styles.smallAction} onPress={() => onOpenMileage(vehicle)}>
+                    <Text style={styles.smallActionText}>Quilometragem</Text>
+                  </Pressable>
                   <Pressable style={styles.smallAction} onPress={() => onReplaceVehicle(vehicle)}>
                     <Text style={styles.smallActionText}>Substituir</Text>
+                  </Pressable>
+                  <Pressable style={styles.smallAction} onPress={() => onOpenMileage(vehicle)}>
+                    <Text style={styles.smallActionText}>Quilometragem</Text>
                   </Pressable>
                   <Pressable style={styles.smallDangerAction} onPress={() => confirmRemoval(vehicle)}>
                     <Text style={styles.smallDangerText}>Remover</Text>

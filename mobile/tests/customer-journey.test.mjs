@@ -15,7 +15,7 @@ import {
 // (restore/bootstrap, routing, basic profile, vehicle confirmation, garage)
 // through this minimal transport that mimics the canonical #139 RPCs.
 function createFakeFacade(overrides = {}) {
-  const calls = { refresh: 0, start: 0, complete: 0, confirm: 0, list: 0 };
+  const calls = { refresh: 0, start: 0, complete: 0, confirm: 0, list: 0, registerMileage: 0, listMileage: 0 };
   let onboarding = overrides.onboarding ?? {
     onboarding_status: "in_progress",
     basic_profile_completed: false,
@@ -72,8 +72,28 @@ function createFakeFacade(overrides = {}) {
       if (overrides.listError) return { data: null, error: { message: overrides.listError } };
       return { data: vehicles, error: null };
     },
+    registerMileage: async (vehicleId, input) => {
+      calls.registerMileage += 1;
+      if (overrides.registerMileageError) return { data: null, error: { message: overrides.registerMileageError } };
+      const log = {
+        id: `m-${calls.registerMileage}`,
+        vehicleId,
+        recordedAt: input.recordedAt ?? new Date().toISOString(),
+        mileageValue: input.mileageValue,
+        note: input.note ?? null,
+        createdAt: new Date().toISOString(),
+      };
+      logs.push(log);
+      return { data: log, error: null };
+    },
+    listMileage: async (vehicleId) => {
+      calls.listMileage += 1;
+      if (overrides.listMileageError) return { data: null, error: { message: overrides.listMileageError } };
+      return { data: logs.filter((log) => log.vehicleId === vehicleId), error: null };
+    },
   };
-  return { facade, calls, startedNames, getVehicles: () => vehicles };
+  let logs = [];
+  return { facade, calls, startedNames, getVehicles: () => vehicles, getLogs: () => logs };
 }
 
 const user = { id: "u-1", email: "maria@verah.dev" };
