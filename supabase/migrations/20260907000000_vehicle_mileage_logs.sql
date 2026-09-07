@@ -127,7 +127,7 @@ begin
   if nullif(pg_catalog.btrim(p_note, ''), '') is not null
     and (
       pg_catalog.char_length(pg_catalog.btrim(p_note, '')) > 200
-      or pg_catalog.btrim(p_note, '') !~* '([[:alnum:]_.+%-]+@[[:alnum:].-]+\.[[:alpha:]]{2,}|bearer[[:space:]]+|authorization|service[_-]?role|[0-9]{7,}})'
+      or pg_catalog.btrim(p_note, '') ~* '([[:alnum:]_.+%-]+@[[:alnum:].-]+\.[[:alpha:]]{2,}|bearer[[:space:]]+|authorization|service[_-]?role|[0-9]{7,}})'
     ) then
     raise exception using errcode = '22023', message = 'Invalid mileage note.';
   end if;
@@ -142,21 +142,17 @@ begin
     raise exception using errcode = '42501', message = 'Vehicle authorization required.';
   end if;
 
-
-
   effective_key := coalesce(
-    nullif(pg_catalog.btrim(p_idempotency_key, ''), ''),,
+    nullif(pg_catalog.btrim(p_idempotency_key, ''), ''),
     'vehicle-mileage:' || p_vehicle_id::text || ':' || p_recorded_at::text || ':' || p_mileage::text
   );
- if pg_catalog.length(effective_key) > 200 then
+  if pg_catalog.length(effective_key) > 200 then
     raise exception using errcode = '22023', message = 'Invalid mileage idempotency key.';
   end if;
-
 
   perform pg_catalog.pg_advisory_xact_lock(
     pg_catalog.hashtextextended('vehicle-mileage:' || p_vehicle_id::text, 0)
   );
-
 
   select * into existing_log
   from public.vehicle_mileage_logs
@@ -171,13 +167,11 @@ begin
     return pg_catalog.jsonb_build_object('log_id', existing_log.id, 'registered', false);
   end if;
 
-
   select coalesce(
     (select max(log.mileage_value) from public.vehicle_mileage_logs log where log.vehicle_id = p_vehicle_id),
     -1
   ) into latest_log_mileage;
   reference_mileage := greatest(latest_log_mileage, coalesce(vehicle_row.current_mileage, -1));
-
 
   if p_mileage < reference_mileage then
     raise exception using errcode = '23514', message = 'Mileage cannot regress below the latest logged reading.';
@@ -187,7 +181,7 @@ begin
     vehicle_id, recorded_at, mileage_value, note, created_by, idempotency_key
   ) values (
     p_vehicle_id, p_recorded_at, p_mileage,
-    nullif(pg_catalog.btrim(p_note, ''), ''),,
+    nullif(pg_catalog.btrim(p_note, ''), ''),
     actor_id, effective_key
   ) returning * into inserted_log;
 
@@ -195,7 +189,6 @@ begin
     update public.customer_vehicles
     set current_mileage = p_mileage, updated_at = pg_catalog.now()
     where id = vehicle_row.id;
-
   end if;
 
   return pg_catalog.jsonb_build_object('log_id', inserted_log.id, 'registered', true);
