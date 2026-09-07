@@ -102,6 +102,7 @@ export function CustomerHome({
                   </Text>
                   <TextButton label="Registrar quilometragem" onPress={() => onOpenMileage(primaryVehicle)} />
                   <TextButton label="Ver veículos" onPress={() => setTab("vehicles")} />
+                  <TextButton label="Quilometragem" onPress={() => onOpenMileage(primaryVehicle)} />
                 </>
               ) : (
                 <>
@@ -183,6 +184,9 @@ export function CustomerHome({
                   </Pressable>
                   <Pressable style={styles.smallAction} onPress={() => onReplaceVehicle(vehicle)}>
                     <Text style={styles.smallActionText}>Substituir</Text>
+                  </Pressable>
+                  <Pressable style={styles.smallAction} onPress={() => onOpenMileage(vehicle)}>
+                    <Text style={styles.smallActionText}>Quilometragem</Text>
                   </Pressable>
                   <Pressable style={styles.smallDangerAction} onPress={() => confirmRemoval(vehicle)}>
                     <Text style={styles.smallDangerText}>Remover</Text>

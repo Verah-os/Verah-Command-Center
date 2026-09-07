@@ -9,6 +9,8 @@ import {
   type CustomerJourneyFacade,
   type CustomerServiceRequest,
   type GarageVehicle,
+  type MileageInput,
+  type MileageLog,
 } from "./customer-journey";
 
 let cached: SupabaseClient | null = null;
@@ -59,6 +61,17 @@ function mapServiceRequest(row: Record<string, unknown>): CustomerServiceRequest
       row.customer_rating === null || row.customer_rating === undefined
         ? null
         : Number(row.customer_rating),
+    createdAt: row.created_at as string,
+  };
+}
+
+function mapMileageLog(row: Record<string, unknown>): MileageLog {
+  return {
+    id: row.id as string,
+    vehicleId: row.vehicle_id as string,
+    recordedAt: row.recorded_at as string,
+    mileageValue: Number(row.mileage_value),
+    note: nullableString(row.note),
     createdAt: row.created_at as string,
   };
 }
@@ -216,6 +229,38 @@ export function getCustomerJourneyFacade(): CustomerJourneyFacade | null {
         mapServiceRequest(row as Record<string, unknown>),
       );
       return { data: mapped, error: error ?? null };
+    },
+    registerMileage: async (vehicleId, input: MileageInput) => {
+      const { data, error } = await client.rpc("register_vehicle_mileage", {
+        p_vehicle_id: vehicleId,
+        p_mileage: input.mileageValue,
+        p_recorded_at: input.recordedAt,
+        p_note: input.note ?? null,
+        p_idempotency_key: null,
+      });
+      if (error) return { data: null, error: error ?? null };
+      const logId = (data as { log_id?: string } | null)?.log_id ?? null;
+      if (!logId) return { data: null, error: { message: "A VERAH não retornou o registro de quilometragem." } };
+      const { data: row, error: readError } = await client
+        .from("vehicle_mileage_logs")
+        .select("id,vehicle_id,recorded_at,mileage_value,note,created_at")
+        .eq("id", logId)
+        .maybeSingle();
+      if (readError || !row) return { data: null, error: { message: "Registro salvo, mas não foi possível carregá-lo agora." } };
+      return { data: mapMileageLog(row as Record<string, unknown>), error: null };
+    },
+    listMileage: async (vehicleId) => {
+      const { data, error } = await client
+        .from("vehicle_mileage_logs")
+        .select("id,vehicle_id,recorded_at,mileage_value,note,created_at")
+        .eq("vehicle_id", vehicleId)
+        .order("recorded_at", { ascending: false })
+        .order("created_at", { ascending: false });
+      if (error) return { data: null, error: error ?? null };
+      const mapped = (data ?? []).map((row) =>
+        mapMileageLog(row as Record<string, unknown>),
+      );
+      return { data: mapped, error: null };
     },
   };
   return cachedJourneyFacade;

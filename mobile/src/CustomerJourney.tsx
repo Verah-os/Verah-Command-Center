@@ -18,7 +18,7 @@ import {
   type GarageVehicle,
 } from "./customer-journey";
 import { CustomerHome } from "./CustomerHome";
-import { MileageLogScreen } from "./MileageLogScreen";
+import { MileageHistoryScreen } from "./MileageHistoryScreen";
 import { VehicleOnboardingStep } from "./VehicleOnboardingStep";
 
 export function CustomerJourneyGate({
@@ -76,10 +76,13 @@ export function CustomerJourneyGate({
   }
   if (mileageVehicle) {
     return (
-      <MileageLogScreen
-        vehicle={mileageVehicle}
-        onDone={() => setMileageVehicle(null)}
-      />
+      <View style={styles.additionalVehicleShell}>
+        <MileageHistoryScreen
+          controller={controller}
+          vehicle={mileageVehicle}
+          onBack={() => setMileageVehicle(null)}
+        />
+      </View>
     );
   }
 
@@ -98,7 +101,7 @@ export function CustomerJourneyGate({
       onAddVehicle={() => setAddingVehicle(true)}
       onReplaceVehicle={() => setAddingVehicle(true)}
       onDeactivateVehicle={deactivateVehicle}
-      onOpenMileage={(vehicle) => setMileageVehicle(vehicle)}
+      onOpenMileage={setMileageVehicle}
       onSignOut={onSignOut}
     />
   );
