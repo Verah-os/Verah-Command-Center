@@ -66,13 +66,23 @@ pnpm start       # Expo Go / dev client em ambiente não-prod
 O contrato de identidade continua sendo `user_profiles`/`verah_identities`
 do mesmo Supabase (ver `docs/ship-verah/master-plan.md`, marco M1 item 2).
 
-## Build instalável (EAS, somente não-prod — issue #181)
+## Build EAS (issue #181 e #211 — store-ready, sem publicação)
 
-Config de build interno/dev: `mobile/eas.json`, profile `preview` —
-distribuição interna, **sem publicação em loja**. Android gera APK
-instalável (`buildType: apk`); iOS gera `.app` para **Simulator**
-(sem assinatura/Apple Developer). Fluxo M1 preservado — nenhuma mudança de
-produto, somente config de build.
+Config de build: `mobile/eas.json`. Baseline store-ready: **Expo SDK 55 /
+RN 0.83.10 / React 19.2.0** (`targetSdk=36` e Xcode 26+ via EAS; ver
+`docs/runbooks/mobile-store-readiness.md`). Perfis:
+
+| Profile | Android | iOS | Uso |
+| --- | --- | --- | --- |
+| `preview` | APK (`buildType: apk`) | distribuição interna em dispositivo físico (`simulator: false`) | Piloto Android / device build interno; sem loja |
+| `preview-simulator` | — | Simulator (`simulator: true`) | iOS dev sem assinatura |
+| `store-preview` | **AAB** (`app-bundle`) | store/TestFlight-ready artifact | Pré-produção preparada; **sem upload** |
+| `production` | **AAB** (`app-bundle`) | App Store-ready artifact | Produção preparada; **sem upload** |
+
+Nenhum profile publica/submete nada. Builds de loja (Google Play / App Store)
+exigem **HUMAN gates** (contas, signing, publication) documentados em
+`docs/runbooks/mobile-store-readiness.md` — não executados neste issue. Fluxo M1
+preservado — nenhuma mudança de produto, somente config de build.
 
 ### Variáveis públicas (sem secrets)
 
@@ -100,14 +110,18 @@ pnpm dlx eas-cli@latest login       # 1. conta Expo/EAS (HUMAN gate)
 pnpm dlx eas-cli@latest build:configure  # 2. vincula o projeto EAS
 ```
 
-Depois, o comando reproduzível de build interno:
+Depois, os comandos reproduzíveis de build:
 
 ```bash
 cd mobile
-# Android — APK interno instalável:
+# Android — APK interno instalável(piloto):
 pnpm dlx eas-cli@latest build --profile preview --platform android
-# iOS — .app para Simulator (sem assinatura):
-pnpm dlx eas-cli@latest build --profile preview --platform ios
+# Android — AAB store-preview (preparado, sem upload):
+pnpm dlx eas-cli@latest build --profile store-preview --platform android
+# iOS — Simulator (sem assinatura):
+pnpm dlx eas-cli@latest build --profile preview-simulator --platform ios
+# iOS — device/TestFlight-ready artifact (requer Apple Developer signing — HUMAN gate):
+pnpm dlx eas-cli@latest build --profile store-preview --platform ios
 ```
 
 Instalação do artifact interno:
@@ -118,13 +132,13 @@ Instalação do artifact interno:
   `xcrun simctl install booted app.tar.gz` descompactado (ou arraste para o
   Simulator).
 
-### iOS em dispositivo físico (adicional HUMAN gate)
+### iOS em dispositivo físico/store (HUMAN gate)
 
-O profile `preview` usa `ios.simulator: true` justamente para evitar
-credenciais. Build em hardware exige conta **Apple Developer** (certificado +
-provisioning) — gate humano: mude `ios.simulator` para `false` em
-`eas.json` e rode `eas credentials`. Nunca publicar em App Store/Google Play;
-escopo é somente distribuição interna não-prod.
+Build de hardware/TestFlight/App Store exige conta **Apple Developer**
+(certificado + provisioning) — gate humano: `eas credentials` e assinatura
+com o perfil `store-preview`/`production`. Nunca publicar em App Store/Google
+Play sem os gates documentados em `docs/runbooks/mobile-store-readiness.md`;
+escopo deste issue é somente preparação/distribuição interna não-prod。
 
 ## Limites
 
