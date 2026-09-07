@@ -205,7 +205,7 @@ select pg_catalog.set_config('request.jwt.claim.sub', 'a1111111-1111-4111-8111-1
 select vehicle_fuel_log_test.expect_error(
   pg_catalog.format(
     'select public.register_vehicle_fuel(%L, %L, %L, %L, %L, %L, null, %L)',
-    :'vehicle_id', '2026-08-22T12:00:00Z', 15000,, 40,, 340.00,, 'gasolina', 'unprofiled-fuel'
+    :'vehicle_id', '2026-08-22T12:00:00Z', 15000, 40, 340.00, 'gasolina', 'unprofiled-fuel'
   )
 );
 do $$
@@ -241,7 +241,7 @@ $$;
 select vehicle_fuel_log_test.expect_error(
   pg_catalog.format(
     'select public.register_vehicle_fuel(%L, %L, %L, %L, %L, %L, null, %L)',
-    :'vehicle_id', '2026-08-23T12:00:00Z', 18000,, 40,, 360.00,, 'gasolina', 'admin-fuel-write'
+    :'vehicle_id', '2026-08-23T12:00:00Z', 18000, 40, 360.00, 'gasolina', 'admin-fuel-write'
   )
 );
 
@@ -250,7 +250,7 @@ select pg_catalog.set_config('request.jwt.claim.sub', 'a1111111-1111-4111-8111-1
 select vehicle_fuel_log_test.expect_error(
   pg_catalog.format(
     'select public.register_vehicle_fuel(%L, %L, %L, %L, %L, %L, null, %L)',
-    :'vehicle_id', '2026-08-24T12:00:00Z', 17000,, 40,, 350.00,, 'hidrogenio', 'invalid-fuel-type'
+    :'vehicle_id', '2026-08-24T12:00:00Z', 17000, 40, 350.00, 'hidrogenio', 'invalid-fuel-type'
   )
 );
 
