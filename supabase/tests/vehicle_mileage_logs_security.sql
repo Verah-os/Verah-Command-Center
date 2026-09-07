@@ -82,14 +82,19 @@ select public.register_vehicle_mileage(
   :'vehicle_id', 15000, '2026-08-01T12:00:00Z', 'Entrada sintética.', 'mileage-first-reading'
 ) as first_log_id \gset
 
+-- psql variables are not substituted inside dollar-quoted PL/pgSQL blocks. Persist
+-- the runtime ids in transaction-local settings so the assertions remain deterministic.
+select pg_catalog.set_config('vehicle_mileage_log_test.first_log_id', :'first_log_id', true);
+select pg_catalog.set_config('vehicle_mileage_log_test.vehicle_id', :'vehicle_id', true);
+
 do $$
 begin
   if (select count(*) from public.vehicle_mileage_logs) <> 1
     or not exists (
       select 1
       from public.vehicle_mileage_logs
-      where id = (:'first_log_id')::uuid
-        and vehicle_id = (:'vehicle_id')::uuid
+      where id = pg_catalog.current_setting('vehicle_mileage_log_test.first_log_id')::uuid
+        and vehicle_id = pg_catalog.current_setting('vehicle_mileage_log_test.vehicle_id')::uuid
         and mileage_value = 15000
         and created_by = 'a1111111-1111-4111-8111-111111111111'
         and note = 'Entrada sintética.'
@@ -97,7 +102,11 @@ begin
     raise exception 'First mileage reading was not persisted canonically';
   end if;
 
-  if (select current_mileage from public.customer_vehicles where id = (:'vehicle_id')::uuid) <> 15000 then
+  if (
+    select current_mileage
+    from public.customer_vehicles
+    where id = pg_catalog.current_setting('vehicle_mileage_log_test.vehicle_id')::uuid
+  ) <> 15000 then
     raise exception 'Registering mileage did not advance the canonical current mileage';
   end if;
 end;
