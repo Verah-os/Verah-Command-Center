@@ -32,7 +32,7 @@ create table public.vehicle_fuel_logs (
     recorded_at <= now()
   ),
   constraint vehicle_fuel_logs_note_length_check check (
-    note is null or(char_length(note) <= 200and note !~* '([[:alnum:]_.+%-]+@[[:alnum:].-]+\.[[:alpha:]]{2,}|bearer[[:space:]]+|authorization|service[_-]?role|[0-9]{7,}})')
+    note is null or(char_length(note) <= 200 and note !~* '([[:alnum:]_.+%-]+@[[:alnum:].-]+\.[[:alpha:]]{2,}|bearer[[:space:]]+|authorization|service[_-]?role|[0-9]{7,}})')
   ),
   constraint vehicle_fuel_logs_idempotency_key_check check (
     btrim(idempotency_key) <> '' and char_length(idempotency_key) <= 200
