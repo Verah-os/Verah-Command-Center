@@ -12,8 +12,8 @@ begin
   raise exception 'Expected failure: %', statement;
 end;
 $$;
-grant usage on schema vehicle_document_test to authenticated, anon;
-grant execute on function vehicle_document_test.expect_error(text,text) to authenticated, anon;
+grant usage on schema vehicle_document_test to authenticated, anon, service_role;
+grant execute on function vehicle_document_test.expect_error(text,text) to authenticated, anon, service_role;
 insert into auth.users(id,aud,role,email,raw_app_meta_data,raw_user_meta_data,created_at,updated_at) values
  ('d2170000-0000-4000-8000-000000000001','authenticated','authenticated','doc.one@example.invalid','{}','{}',now(),now()),
  ('d2170000-0000-4000-8000-000000000002','authenticated','authenticated','doc.two@example.invalid','{}','{}',now(),now()),
@@ -49,7 +49,7 @@ do $$ begin
        and removed_at is null
        and storage_bucket = 'vehicle-documents'
        and storage_path = current_setting('vehicle_document_test.path')) then
-    raise exception 'Document metadata diverged from canonical contract'; end if;
+    raise exception 'Document metadata diverged from canonical contract';
   end if;
   if not exists (select 1 from public.vehicle_documents where storage_path ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$') then
     raise exception 'Storage path is not an unguessable UUID shape';
@@ -83,19 +83,24 @@ do $$ begin
 end $$;
 -- Logical removal through the RPC preserves history,but hides the record from the app surface. 
 select public.remove_vehicle_document(:'document_id')->>'removed' as removed_flag \gset
+select set_config('vehicle_document_test.removed_flag', :'removed_flag',true);
+reset role;
 do $$ begin
-  if :'removed_flag' <> 'true'
+  if current_setting('vehicle_document_test.removed_flag') <> 'true'
     or (select count(*) from public.vehicle_documents where id = current_setting('vehicle_document_test.document')::uuid) <> 1
     or (select status from public.vehicle_documents where id = current_setting('vehicle_document_test.document')::uuid) <> 'removed'
     then raise exception 'Logical removal did not preserve the canonical record'; end if;
 end $$;
+set local role authenticated;
+select set_config('request.jwt.claim.role','authenticated',true);
 select vehicle_document_test.expect_error($s$update public.vehicle_documents set status = 'active' where id = current_setting('vehicle_document_test.document')::uuid$s$,'42501');
 -- Re-registering with the same key reactivates the removed history and mints the same path. 
 select public.register_vehicle_document(p_vehicle_id := :'vehicle_id', p_document_kind := 'nota_fiscal', p_document_date := '2026-08-01', p_reference := 'Ref 123', p_note := 'Nota fiscal de entrada', p_file_name := 'nota-entrada.pdf', p_mime_type := 'application/pdf', p_size_bytes := 245760, p_idempotency_key := 'doc-first')->>'document_id' as reactivated_id \gset
+select set_config('vehicle_document_test.reactivated_id', :'reactivated_id',true);
 do $$ begin
   if (select status from public.vehicle_documents where id = current_setting('vehicle_document_test.document')::uuid) <> 'active'
     or (select count(*) from public.vehicle_documents where idempotency_key = 'doc-first') <> 1
-    or :'reactivated_id' <> current_setting('vehicle_document_test.document')
+    or current_setting('vehicle_document_test.reactivated_id') <> current_setting('vehicle_document_test.document')
   then raise exception 'Same-key re-registration did not reactivate history'; end if;
 end $$;
 
@@ -129,9 +134,7 @@ select vehicle_document_test.expect_error($s$delete from public.vehicle_document
 reset role;
 set local role anon;
 select set_config('request.jwt.claim.role','anon',true);
-do $$ begin
-  if exists(select 1 from public.vehicle_documents) then raise exception 'Anonymous read vehicle documents'; end if;
-end $$;
+select vehicle_document_test.expect_error($s$select 1 from public.vehicle_documents$s$,'42501');
 reset role;
 -- Strict type/size/date/blank-value limits reject the upload through the owner RPC. 
 set local role authenticated;
