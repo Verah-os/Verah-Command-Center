@@ -33,7 +33,7 @@ begin
   end if;
   select * into candidate_row from public.customer_vehicles
   where id = p_vehicle_id;
-  if candidate_row.idis null then
+  if candidate_row.id is null then
     raise exception using errcode = '22023', message = 'Vehicle not found';
   end if;
   if candidate_row.owner_id <> actor_id or candidate_row.customer_id <> resolved_customer_id then
@@ -47,7 +47,7 @@ begin
       raise exception using errcode = '22023', message = 'Replacement vehicle must differ from the vehicle being replaced';
     end if;
     select * into replacement_row from public.customer_vehicles where id = p_replacement_vehicle_id;
-    if replacement_row.idis null then
+    if replacement_row.id is null then
       raise exception using errcode = '22023', message = 'Replacement vehicle not found';
     end if;
     if replacement_row.owner_id <> actor_id or replacement_row.customer_id <> resolved_customer_id then
@@ -65,7 +65,7 @@ begin
 
   perform public.refresh_customer_onboarding();
 
-  return pg_catalog.jsonb_build_object('vehicle_id', candidate_row.id,, 'previous_vehicle_id', p_replacement_vehicle_id, 'active', false);
+  return pg_catalog.jsonb_build_object('vehicle_id', candidate_row.id, 'previous_vehicle_id', p_replacement_vehicle_id, 'active', false);
 end;
 $$;
 

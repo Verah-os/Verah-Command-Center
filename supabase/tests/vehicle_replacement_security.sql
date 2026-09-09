@@ -27,6 +27,13 @@ select pg_catalog.set_config('request.jwt.claim.sub', 'b1400000-0000-4000-8000-0
 select public.start_customer_onboarding('Cliente Troca Um');
 select public.complete_customer_basic_onboarding('Cliente Troca Um', 'pilot-alpha-onboarding-v1');
 
+reset role;
+insert into public.customer_vehicles(id, owner_id, brand, model, year, plate)
+values ('00000000-0000-4000-8000-000000000000', 'b1400000-0000-4000-8000-000000000001', 'Volkswagen', 'Polo', 2022, 'TMP9C33');
+set local role authenticated;
+select pg_catalog.set_config('request.jwt.claim.role', 'authenticated', true);
+select pg_catalog.set_config('request.jwt.claim.sub', 'b1400000-0000-4000-8000-000000000001', true);
+
 create temporary table replaced_vehicles as
 select public.replace_customer_vehicle(
   '00000000-0000-4000-8000-000000000000', null, true
@@ -60,13 +67,13 @@ insert into public.service_requests(
   customer_report, perceived_urgency, service_stage, created_by, origin, vehicle_id
 )
 select
-  'VRH-REPLACE-KEEP', 'Cliente Troca Um', 'Fiat', 'Uno', 2020,, 'Franca',
+  'VRH-REPLACE-KEEP', 'Cliente Troca Um', 'Fiat', 'Uno', 2020, 'Franca',
   'Atendimento sintético de preservação de histórico', 'baixa', 'solicitado',
   'b1400000-0000-4000-8000-000000000001', 'customer',
   (select id from public.customer_vehicles where plate = 'XYZ9876')
 ;
 select public.replace_customer_vehicle(
-  (select id from public.customer_vehicles where plate = 'XYZ9876'), null,, true
+  (select id from public.customer_vehicles where plate = 'XYZ9876'), null, true
 );
 
 do $$ begin
