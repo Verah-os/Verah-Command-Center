@@ -89,7 +89,10 @@ do $$ begin
  if exists(select 1 from public.vehicle_maintenance_records) then raise exception 'Provider leaked maintenance'; end if;
 end $$;
 select set_config('request.jwt.claim.sub','c2160000-0000-4000-8000-000000000001',true);
+-- Fixture setup only: vehicle lifecycle is not writable through customer grants.
+reset role;
 update public.customer_vehicles set active=false where id=:'vehicle_id';
+set local role authenticated;
 select maintenance_test.expect_error($s$select public.register_vehicle_maintenance(current_setting('maintenance_test.vehicle')::uuid,'a','b','2026-08-01',1,'inactive')$s$,'42501');
 do $$ begin
  if exists(select 1 from public.vehicle_maintenance_records) then raise exception 'Inactive vehicle leaked reminders'; end if;
