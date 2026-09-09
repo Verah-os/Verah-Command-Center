@@ -1,4 +1,7 @@
 import type { MaintenanceInput, MaintenanceRecord } from "./maintenance";
+import type { VehicleDocument, VehicleDocumentInput, VehicleDocumentRegisterData } from "./vehicle-documents.ts";
+import { sortVehicleDocuments } from "./vehicle-documents.ts";
+export type { VehicleDocument, VehicleDocumentInput, VehicleDocumentKind, VehicleDocumentMimeType } from "./vehicle-documents";
 export const ONBOARDING_TERMS_VERSION = "pilot-alpha-onboarding-v1";
 
 export type JourneyUser = { id: string; email?: string };
@@ -94,6 +97,13 @@ export interface CustomerJourneyFacade {
   listMileage(vehicleId: string): Promise<{ data: MileageLog[] | null; error: RpcError }>;
   registerFuel(vehicleId: string, input: FuelInput): Promise<{ data: FuelLog | null; error: RpcError }>;
   listFuel(vehicleId: string): Promise<{ data: FuelLog[] | null; error: RpcError }>;
+  listVehicleDocuments?(vehicleId: string): Promise<{ data: VehicleDocument[] | null; error: RpcError }>;
+  registerVehicleDocument?(
+    vehicleId: string,
+    input: VehicleDocumentInput,
+    bytes: Blob,
+  ): Promise<{ ok: true; data: VehicleDocumentRegisterData } | { ok: false; message: string }>;
+  removeVehicleDocument?(documentId: string): Promise<{ error: RpcError }>;
 }
 
 export type JourneyState =
@@ -118,6 +128,9 @@ export interface CustomerJourneyController {
   listMileage(vehicleId: string): Promise<{ ok: true; data: MileageResults } | { ok: false; message: string }>;
   registerFuel(vehicleId: string, input: FuelInput): Promise<JourneyResult>;
   listFuel(vehicleId: string): Promise<{ ok: true; data: FuelResults } | { ok: false; message: string }>;
+  registerVehicleDocument(vehicleId: string, input: VehicleDocumentInput, bytes: Blob): Promise<JourneyResult>;
+  listVehicleDocuments(vehicleId: string): Promise<{ ok: true; data: VehicleDocument[] } | { ok: false; message: string }>;
+  removeVehicleDocument(documentId: string): Promise<JourneyResult>;
 }
 
 export function defaultDisplayName(user: JourneyUser) {
@@ -373,6 +386,27 @@ export function createCustomerJourney(facade: CustomerJourneyFacade, user: Journ
       const latest = logs[0] ?? null;
       const nextMinimum = latest ? latest.odometerValue : 0;
       return { ok: true, data: { logs, latest, nextMinimum } };
+    },
+    async registerVehicleDocument(vehicleId, input, bytes) {
+      if (!facade.registerVehicleDocument) return { ok: false, message: "Documentos indisponíveis." };
+      try {
+        const result = await facade.registerVehicleDocument(vehicleId, input, bytes);
+        return result.ok ? { ok: true } : { ok: false, message: result.message };
+      } catch {
+        return { ok: false, message: "Falha de conexão. Tente novamente com os mesmos dados." };
+      }
+    },
+    async listVehicleDocuments(vehicleId) {
+      const result = await facade.listVehicleDocuments?.(vehicleId);
+      if (!result || result.error) return { ok: false, message: result?.error?.message ?? "Documentos indisponíveis." };
+      const documents = sortVehicleDocuments((result.data ?? []).filter((document) => document.status === "active"));
+      return { ok: true, data: documents };
+    },
+    async removeVehicleDocument(documentId) {
+      if (!facade.removeVehicleDocument) return { ok: false, message: "Documentos indisponíveis." };
+      const result = await facade.removeVehicleDocument(documentId);
+      if (result.error) return { ok: false, message: result.error.message };
+      return { ok: true };
     },
     async refreshExpenses(periodDays?: number | null) {
       if (state.status !== "ready") return;

@@ -6,6 +6,13 @@ import { resolveSupabaseConfig } from "./config";
 import type { AuthFacade, AuthUser } from "./auth-session";
 import type { MaintenanceRecord } from "./maintenance";
 import {
+  registerVehicleDocumentSafely,
+  type VehicleDocument,
+  type VehicleDocumentInput,
+  type VehicleDocumentMimeType,
+  type VehicleDocumentRegisterData,
+} from "./vehicle-documents.ts";
+import {
   ONBOARDING_TERMS_VERSION,
   type CustomerJourneyFacade,
   type CustomerServiceRequest,
@@ -108,6 +115,27 @@ function mapFuelLog(row: Record<string, unknown>): FuelLog {
     createdAt: row.created_at as string,
   };
 }
+
+function mapVehicleDocument(row: Record<string, unknown>): VehicleDocument {
+  return {
+    id: row.id as string,
+    vehicleId: row.vehicle_id as string,
+    documentKind: row.document_kind as VehicleDocument["documentKind"],
+    documentDate: row.document_date as string,
+    reference: nullableString(row.reference),
+    note: nullableString(row.note),
+    fileName: row.file_name as string,
+    mimeType: row.mime_type as VehicleDocument["mimeType"],
+    sizeBytes: Number(row.size_bytes),
+    storageBucket: row.storage_bucket as string,
+    storagePath: row.storage_path as string,
+    status: row.status as VehicleDocument["status"],
+    createdAt: row.created_at as string,
+  };
+}
+
+const vehicleDocumentSelect =
+  "id,vehicle_id,document_kind,document_date,reference,note,file_name,mime_type,size_bytes,storage_bucket,storage_path,status,created_at";
 
 export function getSupabaseClient(): SupabaseClient | null {
   if (cached) return cached;
@@ -365,6 +393,75 @@ export function getCustomerJourneyFacade(): CustomerJourneyFacade | null {
         mapFuelLog(row as Record<string, unknown>),
       );
       return { data: mapped, error: null };
+    },
+    listVehicleDocuments: async (vehicleId) => {
+      const { data, error } = await client
+        .from("vehicle_documents")
+        .select(vehicleDocumentSelect)
+        .eq("vehicle_id", vehicleId)
+        .order("document_date", { ascending: false })
+        .order("created_at", { ascending: false });
+      if (error) return { data: null, error: error ?? null };
+      const mapped = (data ?? []).map((row) =>
+        mapVehicleDocument(row as Record<string, unknown>),
+      );
+      return { data: mapped, error: null };
+    },
+    registerVehicleDocument: async (vehicleId: string, input: VehicleDocumentInput, bytes: Blob) =>
+      registerVehicleDocumentSafely(
+        {
+          register: async (params) => {
+            const { data, error } = await client.rpc("register_vehicle_document", {
+              p_vehicle_id: params.vehicleId,
+              p_document_kind: params.documentKind,
+              p_document_date: params.documentDate,
+              p_file_name: params.fileName,
+              p_mime_type: params.mimeType,
+              p_size_bytes: params.sizeBytes,
+              p_idempotency_key: params.idempotencyKey,
+              p_reference: params.reference ?? null,
+              p_note: params.note ?? null,
+            });
+            if (error) return { error: error ?? null };
+            const row = (data ?? {}) as Record<string, unknown>;
+            return {
+              data: {
+                documentId: row.document_id as string,
+                storageBucket: row.storage_bucket as string,
+                storagePath: row.storage_path as string,
+                fileName: row.file_name as string,
+                mimeType: row.mime_type as string,
+                sizeBytes: Number(row.size_bytes),
+              },
+              error: null,
+            };
+          },
+          upload: async (bucket, path, bytes, contentType) => {
+            const { error } = await client.storage.from(bucket).upload(path, bytes, {
+              contentType,
+              upsert: false,
+            });
+            if (!error) return { error: null };
+            return {
+              error: {
+                message: error.message,
+                statusCode: error.statusCode != null ? Number(error.statusCode) : undefined,
+              },
+            };
+          },
+          remove: async (documentId) => {
+            const { error } = await client.rpc("remove_vehicle_document", { p_document_id: documentId });
+            return { error: error ?? null };
+          },
+        },
+        vehicleId,
+        input,
+        bytes,
+        new Date().toISOString().slice(0, 10),
+      ),
+    removeVehicleDocument: async (documentId) => {
+      const { error } = await client.rpc("remove_vehicle_document", { p_document_id: documentId });
+      return { error: error ?? null };
     },
   };
   return cachedJourneyFacade;

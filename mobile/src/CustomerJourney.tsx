@@ -21,6 +21,7 @@ import { CustomerHome } from "./CustomerHome";
 import { MaintenanceScreen } from "./MaintenanceScreen";
 import { FuelHistoryScreen } from "./FuelHistoryScreen";
 import { MileageHistoryScreen } from "./MileageHistoryScreen";
+import { VehicleDocumentsScreen } from "./VehicleDocumentsScreen";
 import { VehicleOnboardingStep } from "./VehicleOnboardingStep";
 
 export function CustomerJourneyGate({
@@ -38,6 +39,7 @@ export function CustomerJourneyGate({
   const [addingVehicle, setAddingVehicle] = useState(false);
   const [mileageVehicle, setMileageVehicle] = useState<GarageVehicle | null>(null);
   const [fuelVehicle, setFuelVehicle] = useState<GarageVehicle | null>(null);
+  const [documentsVehicle, setDocumentsVehicle] = useState<GarageVehicle | null>(null);
   const [maintenanceVehicle, setMaintenanceVehicle] = useState<GarageVehicle | null>(null);
   const [replacingVehicle, setReplacingVehicle] = useState<GarageVehicle | null>(null);
   const replacingVehicleIdRef = useRef<string | null>(null);
@@ -119,6 +121,17 @@ export function CustomerJourneyGate({
       </View>
     );
   }
+  if (documentsVehicle) {
+    return (
+      <View style={styles.additionalVehicleShell}>
+        <VehicleDocumentsScreen
+          controller={controller}
+          vehicle={documentsVehicle}
+          onBack={() => { setDocumentsVehicle(null); void controller.restore(); }}
+        />
+      </View>
+    );
+  }
 
   const deactivateVehicle = async (vehicle: GarageVehicle) => {
     const result = await controller.deactivateVehicle(vehicle.id);
@@ -151,6 +164,7 @@ export function CustomerJourneyGate({
       onDeactivateVehicle={deactivateVehicle}
       onOpenMileage={setMileageVehicle}
       onOpenFuel={setFuelVehicle}
+      onOpenDocuments={setDocumentsVehicle}
       onSignOut={onSignOut}
     />
   );
