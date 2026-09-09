@@ -86,6 +86,7 @@ export interface CustomerJourneyFacade {
   completeBasicProfile(displayName: string): Promise<{ error: RpcError }>;
   confirmVehicle(draft: VehicleDraft): Promise<{ error: RpcError }>;
   deactivateVehicle(vehicleId: string): Promise<{ error: RpcError }>;
+  replaceVehicle(vehicleId: string, replacementVehicleId: string): Promise<{ error: RpcError }>;
   listVehicles(): Promise<{ data: GarageVehicle[] | null; error: RpcError }>;
   listServiceRequests?(): Promise<{ data: CustomerServiceRequest[] | null; error: RpcError }>;
   expenseForVehicle?(vehicleId: string, periodDays?: number | null): Promise<{ data: VehicleExpenseSummary | null; error: RpcError }>;
@@ -111,6 +112,7 @@ export interface CustomerJourneyController {
   submitBasicProfile(displayName: string, acceptedTerms: boolean): Promise<JourneyResult>;
   confirmVehicle(input: VehicleInput): Promise<JourneyResult>;
   deactivateVehicle(vehicleId: string): Promise<JourneyResult>;
+  replaceVehicle(vehicleId: string, replacementVehicleId: string): Promise<JourneyResult>;
   refreshExpenses?(periodDays?: number | null): Promise<void>;
   registerMileage(vehicleId: string, input: MileageInput): Promise<JourneyResult>;
   listMileage(vehicleId: string): Promise<{ ok: true; data: MileageResults } | { ok: false; message: string }>;
@@ -287,6 +289,12 @@ export function createCustomerJourney(facade: CustomerJourneyFacade, user: Journ
       if (error) return { ok: false, message: error.message };
       const loaded = await loadHome();
       return loaded ? { ok: true } : { ok: false, message: "Veículo removido, mas não foi possível atualizar sua garagem." };
+    },
+    async replaceVehicle(vehicleId, replacementVehicleId) {
+      const { error } = await facade.replaceVehicle(vehicleId, replacementVehicleId);
+      if (error) return { ok: false, message: error.message };
+      const loaded = await loadHome();
+      return loaded ? { ok: true } : { ok: false, message: "Veículo substituído, mas não foi possível atualizar sua garagem." };
     },
     async registerMaintenance(vehicleId, input) {
       if (!facade.registerMaintenance) return { ok: false, message: "Manutenções indisponíveis." };

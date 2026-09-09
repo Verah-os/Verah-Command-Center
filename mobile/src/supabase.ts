@@ -247,10 +247,19 @@ export function getCustomerJourneyFacade(): CustomerJourneyFacade | null {
       return { error: error ?? null };
     },
     deactivateVehicle: async (vehicleId) => {
-      const { error } = await client
-        .from("customer_vehicles")
-        .update({ active: false })
-        .eq("id", vehicleId);
+      const { error } = await client.rpc("replace_customer_vehicle", {
+        p_vehicle_id: vehicleId,
+        p_replacement_vehicle_id: null,
+        p_customer_confirmed: true,
+      });
+      return { error: error ?? null };
+    },
+    replaceVehicle: async (vehicleId, replacementVehicleId) => {
+      const { error } = await client.rpc("replace_customer_vehicle", {
+        p_vehicle_id: vehicleId,
+        p_replacement_vehicle_id: replacementVehicleId,
+        p_customer_confirmed: true,
+      });
       return { error: error ?? null };
     },
     listVehicles: async () => {

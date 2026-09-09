@@ -1,4 +1,4 @@
-import { useState, useSyncExternalStore } from "react";
+import { useRef, useState, useSyncExternalStore } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -39,6 +39,8 @@ export function CustomerJourneyGate({
   const [mileageVehicle, setMileageVehicle] = useState<GarageVehicle | null>(null);
   const [fuelVehicle, setFuelVehicle] = useState<GarageVehicle | null>(null);
   const [maintenanceVehicle, setMaintenanceVehicle] = useState<GarageVehicle | null>(null);
+  const [replacingVehicle, setReplacingVehicle] = useState<GarageVehicle | null>(null);
+  const replacingVehicleIdRef = useRef<string | null>(null);
   const state = useSyncExternalStore(controller.subscribe, controller.getState);
 
   if (state.status === "loading") {
@@ -66,14 +68,27 @@ export function CustomerJourneyGate({
   if (state.status === "vehicle") {
     return <VehicleOnboardingStep controller={controller} />;
   }
-  if (addingVehicle) {
+  if (addingVehicle || replacingVehicle) {
     return (
       <View style={styles.additionalVehicleShell}>
         <VehicleOnboardingStep
           controller={controller}
           additional
-          onSaved={() => setAddingVehicle(false)}
-          onCancel={() => setAddingVehicle(false)}
+          replacing={replacingVehicle !== null}
+          onSaved={() => {
+            const replacedId = replacingVehicleIdRef.current;
+            setAddingVehicle(false);
+            setReplacingVehicle(null);
+            replacingVehicleIdRef.current = null;
+            if (replacingVehicle && replacedId) {
+              void replaceVehicleFlow(replacingVehicle, replacedId);
+            }
+          }}
+          onCancel={() => {
+            setAddingVehicle(false);
+            setReplacingVehicle(null);
+            replacingVehicleIdRef.current = null;
+          }}
         />
       </View>
     );
@@ -111,6 +126,16 @@ export function CustomerJourneyGate({
       Alert.alert("Não foi possível remover", result.message);
     }
   };
+  const replaceVehicle = async (vehicle: GarageVehicle) => {
+    setReplacingVehicle(vehicle);
+    replacingVehicleIdRef.current = vehicle.id;
+  };
+  const replaceVehicleFlow = async (vehicle: GarageVehicle, replacementVehicleId: string) => {
+    const result = await controller.replaceVehicle(vehicle.id, replacementVehicleId);
+    if (!result.ok) {
+      Alert.alert("Não foi possível substituir", result.message);
+    }
+  };
 
   return (
     <CustomerHome
@@ -121,7 +146,7 @@ export function CustomerJourneyGate({
       onOpenMaintenance={setMaintenanceVehicle}
       user={user}
       onAddVehicle={() => setAddingVehicle(true)}
-      onReplaceVehicle={() => setAddingVehicle(true)}
+      onReplaceVehicle={(vehicle) => void replaceVehicle(vehicle)}
       onExpensePeriodChange={(periodDays) => void controller.refreshExpenses?.(periodDays)}
       onDeactivateVehicle={deactivateVehicle}
       onOpenMileage={setMileageVehicle}
