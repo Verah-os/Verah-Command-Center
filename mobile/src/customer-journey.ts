@@ -1,7 +1,8 @@
+import type { MaintenanceInput, MaintenanceRecord } from "./maintenance";
 export const ONBOARDING_TERMS_VERSION = "pilot-alpha-onboarding-v1";
 
 export type JourneyUser = { id: string; email?: string };
-export type GarageVehicle = { id: string; brand: string; model: string; year: number | null; plate: string | null; nickname: string | null };
+export type GarageVehicle = { id: string; brand: string; model: string; year: number | null; plate: string | null; nickname: string | null; current_mileage?: number | null };
 export type VehicleExpenseSummary = {
   totalCents: number;
   fuelCents: number;
@@ -78,6 +79,8 @@ export type FuelInput = {
 export type FuelResults = { logs: FuelLog[]; latest: FuelLog | null; nextMinimum: number };
 
 export interface CustomerJourneyFacade {
+  listMaintenance?(vehicleId: string): Promise<{ data: MaintenanceRecord[] | null; error: RpcError }>;
+  registerMaintenance?(vehicleId: string, input: MaintenanceInput): Promise<{ error: RpcError }>;
   refreshOnboarding(): Promise<{ data: unknown; error: RpcError }>;
   startOnboarding(displayName: string): Promise<{ error: RpcError }>;
   completeBasicProfile(displayName: string): Promise<{ error: RpcError }>;
@@ -97,9 +100,10 @@ export type JourneyState =
   | { status: "error"; message: string }
   | { status: "basic-profile" }
   | { status: "vehicle" }
-  | { status: "ready"; vehicles: GarageVehicle[]; requests: CustomerServiceRequest[]; expensesByVehicle: Record<string, VehicleExpenseSummary> };
+  | { status: "ready"; vehicles: GarageVehicle[]; requests: CustomerServiceRequest[]; expensesByVehicle: Record<string, VehicleExpenseSummary>; maintenanceByVehicle: Record<string, MaintenanceRecord[] | null> };
 
 export interface CustomerJourneyController {
+  registerMaintenance(vehicleId: string, input: MaintenanceInput): Promise<JourneyResult>;
   getState(): JourneyState;
 
   subscribe(listener: () => void): () => void;
@@ -220,7 +224,15 @@ export function createCustomerJourney(facade: CustomerJourneyFacade, user: Journ
       }
       expensesByVehicle = byVehicle;
     }
-    state = { status: "ready", vehicles, requests: requestsResult.data ?? [], expensesByVehicle };
+    const maintenanceByVehicle: Record<string, MaintenanceRecord[] | null> = {};
+    await Promise.all(vehicles.map(async vehicle => {
+      if (!facade.listMaintenance) { maintenanceByVehicle[vehicle.id] = null; return; }
+      try {
+        const result = await facade.listMaintenance(vehicle.id);
+        maintenanceByVehicle[vehicle.id] = result.error ? null : (result.data ?? []);
+      } catch { maintenanceByVehicle[vehicle.id] = null; }
+    }));
+    state = { status: "ready", vehicles, requests: requestsResult.data ?? [], expensesByVehicle, maintenanceByVehicle };
     emit();
     return true;
   };
@@ -275,6 +287,14 @@ export function createCustomerJourney(facade: CustomerJourneyFacade, user: Journ
       if (error) return { ok: false, message: error.message };
       const loaded = await loadHome();
       return loaded ? { ok: true } : { ok: false, message: "Veículo removido, mas não foi possível atualizar sua garagem." };
+    },
+    async registerMaintenance(vehicleId, input) {
+      if (!facade.registerMaintenance) return { ok: false, message: "Manutenções indisponíveis." };
+      try {
+        const result = await facade.registerMaintenance(vehicleId, input);
+        if (result.error) return { ok: false, message: result.error.message };
+        return { ok: true };
+      } catch { return { ok: false, message: "Falha de conexão. Tente novamente com os mesmos dados." }; }
     },
     async registerMileage(vehicleId, input) {
       const value = Number(input.mileageValue);

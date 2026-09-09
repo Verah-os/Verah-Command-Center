@@ -274,6 +274,7 @@ run_sql supabase/tests/customer_identity_security.sql
 run_sql supabase/tests/identity_onboarding_security.sql
 run_sql supabase/tests/vehicle_onboarding_security.sql
 run_sql supabase/tests/vehicle_expenses_security.sql
+run_sql supabase/tests/vehicle_maintenance_security.sql
 run_sql supabase/tests/vehicle_fuel_logs_security.sql
 run_sql supabase/tests/vehicle_mileage_logs_security.sql
 run_sql supabase/tests/communication_intake_security.sql
@@ -308,6 +309,7 @@ run_sql supabase/tests/customer_identity_security.sql
 run_sql supabase/tests/identity_onboarding_security.sql
 run_sql supabase/tests/vehicle_onboarding_security.sql
 run_sql supabase/tests/vehicle_expenses_security.sql
+run_sql supabase/tests/vehicle_maintenance_security.sql
 run_sql supabase/tests/vehicle_fuel_logs_security.sql
 run_sql supabase/tests/vehicle_mileage_logs_security.sql
 run_sql supabase/tests/communication_intake_security.sql

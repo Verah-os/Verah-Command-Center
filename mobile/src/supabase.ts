@@ -4,6 +4,7 @@ import { Linking } from "react-native";
 import { createClient, type SupabaseClient, type User } from "@supabase/supabase-js";
 import { resolveSupabaseConfig } from "./config";
 import type { AuthFacade, AuthUser } from "./auth-session";
+import type { MaintenanceRecord } from "./maintenance";
 import {
   ONBOARDING_TERMS_VERSION,
   type CustomerJourneyFacade,
@@ -198,6 +199,22 @@ export function getCustomerJourneyFacade(): CustomerJourneyFacade | null {
   const client = getSupabaseClient();
   if (!client) return null;
   cachedJourneyFacade = {
+    listMaintenance: async (vehicleId) => {
+      const { data, error } = await client.from("vehicle_maintenance_records")
+        .select("id,vehicle_id,maintenance_type,description,occurred_on,odometer_km,amount_cents,next_due_on,next_due_km")
+        .eq("vehicle_id", vehicleId).order("occurred_on", { ascending: false });
+      return { data: data as MaintenanceRecord[] | null, error: error ?? null };
+    },
+    registerMaintenance: async (vehicleId, input) => {
+      const { error } = await client.rpc("register_vehicle_maintenance", {
+        p_vehicle_id: vehicleId, p_maintenance_type: input.maintenance_type,
+        p_description: input.description, p_occurred_on: input.occurred_on,
+        p_odometer_km: input.odometer_km, p_amount_cents: input.amount_cents,
+        p_next_due_on: input.next_due_on, p_next_due_km: input.next_due_km,
+        p_create_expense: input.create_expense, p_idempotency_key: input.idempotency_key,
+      });
+      return { error: error ?? null };
+    },
     refreshOnboarding: async () => {
       const { data, error } = await client.rpc("refresh_customer_onboarding");
       return { data, error: error ?? null };
@@ -239,7 +256,7 @@ export function getCustomerJourneyFacade(): CustomerJourneyFacade | null {
     listVehicles: async () => {
       const { data, error } = await client
         .from("customer_vehicles")
-        .select("id,brand,model,year,plate,nickname")
+        .select("id,brand,model,year,plate,nickname,current_mileage")
         .eq("active", true)
         .order("created_at", { ascending: true });
       return {

@@ -61,7 +61,7 @@ test("mobile workspace contains no server-only secrets or privileged keys", asyn
   const files = entries.filter(
     (entry) =>
       /\.(ts|tsx|js|json|md)$/.test(entry) &&
-      !/^(node_modules|\.expo|dist|build)\//.test(entry),
+      !/^(node_modules|\.expo|dist|build)[\\/]/.test(entry),
   );
   assert.ok(files.length > 0);
   const forbidden = /SUPABASE_SERVICE_ROLE_KEY|service_role_key|WHATSAPP_|N8N_|GITHUB_TOKEN|CONTROL_PLANE_|VERAH_OS_|PRIVATE KEY/i;
