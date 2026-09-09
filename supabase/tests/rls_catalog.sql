@@ -63,6 +63,7 @@ declare
     'vehicle_expenses',
     'vehicle_fuel_logs',
     'vehicle_mileage_logs',
+    'vehicle_maintenance_records',
     'vehicle_movement_guidance',
     'work_orders'
   ];

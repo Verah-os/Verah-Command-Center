@@ -18,6 +18,7 @@ import {
   type GarageVehicle,
 } from "./customer-journey";
 import { CustomerHome } from "./CustomerHome";
+import { MaintenanceScreen } from "./MaintenanceScreen";
 import { FuelHistoryScreen } from "./FuelHistoryScreen";
 import { MileageHistoryScreen } from "./MileageHistoryScreen";
 import { VehicleOnboardingStep } from "./VehicleOnboardingStep";
@@ -37,6 +38,7 @@ export function CustomerJourneyGate({
   const [addingVehicle, setAddingVehicle] = useState(false);
   const [mileageVehicle, setMileageVehicle] = useState<GarageVehicle | null>(null);
   const [fuelVehicle, setFuelVehicle] = useState<GarageVehicle | null>(null);
+  const [maintenanceVehicle, setMaintenanceVehicle] = useState<GarageVehicle | null>(null);
   const state = useSyncExternalStore(controller.subscribe, controller.getState);
 
   if (state.status === "loading") {
@@ -76,13 +78,17 @@ export function CustomerJourneyGate({
       </View>
     );
   }
+  if (maintenanceVehicle) {
+    return <MaintenanceScreen controller={controller} vehicle={maintenanceVehicle}
+      onBack={() => { setMaintenanceVehicle(null); void controller.restore(); }} />;
+  }
   if (mileageVehicle) {
     return (
       <View style={styles.additionalVehicleShell}>
         <MileageHistoryScreen
           controller={controller}
           vehicle={mileageVehicle}
-          onBack={() => setMileageVehicle(null)}
+          onBack={() => { setMileageVehicle(null); void controller.restore(); }}
         />
       </View>
     );
@@ -93,7 +99,7 @@ export function CustomerJourneyGate({
         <FuelHistoryScreen
           controller={controller}
           vehicle={fuelVehicle}
-          onBack={() => setFuelVehicle(null)}
+          onBack={() => { setFuelVehicle(null); void controller.restore(); }}
         />
       </View>
     );
@@ -111,6 +117,8 @@ export function CustomerJourneyGate({
       vehicles={state.vehicles}
       requests={state.requests}
       expensesByVehicle={state.expensesByVehicle}
+      maintenanceByVehicle={state.maintenanceByVehicle}
+      onOpenMaintenance={setMaintenanceVehicle}
       user={user}
       onAddVehicle={() => setAddingVehicle(true)}
       onReplaceVehicle={() => setAddingVehicle(true)}

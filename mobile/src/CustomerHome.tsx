@@ -4,6 +4,7 @@ import type { AuthUser } from "./auth-session";
 import type { CustomerServiceRequest, GarageVehicle, VehicleExpenseSummary } from "./customer-journey";
 import { formatCostPerKm, formatDistanceKm, formatBrzlCents } from "./customer-journey";
 import { CustomerRequests } from "./CustomerRequests";
+import { deriveMaintenanceReminders, type MaintenanceRecord } from "./maintenance";
 
 type Tab = "home" | "requests" | "vehicles" | "history" | "profile";
 
@@ -21,6 +22,8 @@ export function CustomerHome({
   vehicles,
   requests,
   expensesByVehicle,
+  maintenanceByVehicle,
+  onOpenMaintenance,
   user,
   onAddVehicle,
   onReplaceVehicle,
@@ -33,6 +36,8 @@ export function CustomerHome({
   vehicles: GarageVehicle[];
   requests: CustomerServiceRequest[];
   expensesByVehicle: Record<string, VehicleExpenseSummary>;
+  maintenanceByVehicle: Record<string, MaintenanceRecord[] | null>;
+  onOpenMaintenance: (vehicle: GarageVehicle) => void;
   user: AuthUser;
   onAddVehicle: () => void;
   onReplaceVehicle: (vehicle: GarageVehicle) => void;
@@ -133,6 +138,9 @@ export function CustomerHome({
               />
             ) : null}
 
+            {primaryVehicle ? <MaintenanceSummary vehicle={primaryVehicle}
+              records={maintenanceByVehicle[primaryVehicle.id] ?? null}
+              onOpen={() => onOpenMaintenance(primaryVehicle)} /> : null}
             <Section title="Atendimento atual" accent>
               {openRequest ? (
                 <>
@@ -212,6 +220,8 @@ export function CustomerHome({
                         }}
                       />
                     ) : null}
+                    <MaintenanceSummary vehicle={vehicle} records={maintenanceByVehicle[vehicle.id] ?? null}
+                      onOpen={() => onOpenMaintenance(vehicle)} />
                     <View style={styles.vehicleActions}>
                   <Pressable style={styles.smallAction} onPress={() => onOpenMileage(vehicle)}>
                     <Text style={styles.smallActionText}>Quilometragem</Text>
@@ -286,6 +296,29 @@ function Section({ title, accent = false, children }: { title: string; accent?: 
       {children}
     </View>
   );
+}
+
+function MaintenanceSummary({ vehicle, records, onOpen }: {
+  vehicle: GarageVehicle; records: MaintenanceRecord[] | null; onOpen: () => void;
+}) {
+  const reminders = deriveMaintenanceReminders(records ?? [], vehicle.id,
+    new Date().toISOString().slice(0, 10), vehicle.current_mileage ?? null);
+  return <View style={styles.expensesCard}>
+    <Text style={styles.rowTitle}>Manutenções</Text>
+    {records === null ? <Text>Não foi possível carregar as manutenções. Reabra a área para tentar novamente.</Text> : <>
+      {(["overdue", "upcoming"] as const).map(status => <View key={status}>
+        <Text style={styles.expensesCellLabel}>{status === "overdue" ? "Vencidas / vencem hoje" : "Próximas"}</Text>
+        {reminders.filter(r => r.status === status).map(r => <Text key={r.id} style={styles.meta}>
+          {r.description} · {[r.next_due_on, r.next_due_km === null ? null : `${r.next_due_km.toLocaleString("pt-BR")} km`].filter(Boolean).join(" / ")}
+        </Text>)}
+        {!reminders.some(r => r.status === status) ? <Text style={styles.meta}>Nenhuma</Text> : null}
+      </View>)}
+      {vehicle.current_mileage == null ? <Text style={styles.meta}>Registre a quilometragem para avaliar os lembretes por km.</Text> : null}
+    </>}
+    <Pressable accessibilityRole="button" onPress={onOpen} style={styles.smallAction}>
+      <Text style={styles.smallActionText}>Registrar manutenção</Text>
+    </Pressable>
+  </View>;
 }
 
 function ExpensesDashboard({
