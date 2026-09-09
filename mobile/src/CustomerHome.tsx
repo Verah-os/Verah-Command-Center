@@ -31,6 +31,7 @@ export function CustomerHome({
   onDeactivateVehicle,
   onOpenMileage,
   onOpenFuel,
+  onOpenDocuments,
   onSignOut,
 }: {
   vehicles: GarageVehicle[];
@@ -45,6 +46,7 @@ export function CustomerHome({
   onDeactivateVehicle: (vehicle: GarageVehicle) => Promise<void>;
   onOpenMileage: (vehicle: GarageVehicle) => void;
   onOpenFuel: (vehicle: GarageVehicle) => void;
+  onOpenDocuments: (vehicle: GarageVehicle) => void;
   onSignOut: () => void;
 }) {
   const [tab, setTab] = useState<Tab>("home");
@@ -228,6 +230,9 @@ export function CustomerHome({
                   </Pressable>
                   <Pressable style={styles.smallAction} onPress={() => onOpenFuel(vehicle)}>
                     <Text style={styles.smallActionText}>Abastecer</Text>
+                  </Pressable>
+                  <Pressable style={styles.smallAction} onPress={() => onOpenDocuments(vehicle)}>
+                    <Text style={styles.smallActionText}>Documentos</Text>
                   </Pressable>
                   <Pressable style={styles.smallAction} onPress={() => onReplaceVehicle(vehicle)}>
                     <Text style={styles.smallActionText}>Substituir</Text>
