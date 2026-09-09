@@ -34,15 +34,13 @@ para iOS físico será necessário conta **Apple Developer** + `eas credentials`
 
 ### 1. Conta Expo/EAS (HUMAN gate do fundador)
 
-
-
 ```bash
 cd mobile
-pnpm dlx eas-cli@latest login        # 1. conta Expo/EAS (HUMAN gate)
-pnpm dlx eas-cli@latest build:configure # 2. vincula o projeto EAS (id f971ac09-dad3-4ba5-8274-c8cbb1091cec
+pnpm dlx eas-cli@latest login
+pnpm dlx eas-cli@latest build:configure
 ```
 
-### 2. Variáveis públicas EAS (sem secrets
+### 2. Variáveis públicas EAS
 
 No EAS Build em nuvem as variáveis públicas entram como environment variables do
 projeto (o `.env` local é gitignored e o EAS não o lê):
@@ -66,70 +64,55 @@ pnpm dlx eas-cli@latest build --profile preview --platform android
 Instalação do artifact:
 
 ```bash
-adb install <arquivo>.apk         # ou abrir o link EAS no dispositivo
+adb install <arquivo>.apk
 ```
 
-### 4. Build iOS — Simulator (sem assinatura
+### 4. Build iOS — Simulator (sem assinatura)
 
 ```bash
 cd mobile
-pnpm dlx eas-cli@latest build --profile preview --platform ios
+pnpm dlx eas-cli@latest build --profile preview-simulator --platform ios
 ```
 
 Instalação no Simulator:
 
 ```bash
-# baixar o .app / .tar.gz do EAS e:
 xcrun simctl install booted <caminho-do-.app>
 ```
 
 ### 5. iOS em dispositivo físico — exige Apple Developer (HUMAN gate)
 
 ```bash
-# 1. criar conta/programa Apple Developer
-# 2. em eas.json: ios.simulator = false  (preview)
-# 3. eas credentials  (certificado + provisioning)
+# usar o profile preview para dispositivo físico após o gate de credenciais
 ```
 
 ### 6. TestFlight / internal testing Android — HUMAN gates
 
-```bash
-# Apple: registrar App ID / bundle de produção  (ex.: com.verah.app)  no Apple Developer
-#         e distribuir via TestFlight  (conta paga Apple Developer)
-# Google: registrar package de produção  (ex.: com.verah.app) no Play Console
-#         e subir AAB  (profile store-preview) para internal testing
-```
+Apple requer App ID/bundle de produção e distribuição via TestFlight. Google requer package de produção e AAB para internal testing.
 
 ### 7. Publicação (fora do escopo deste audit)
 
-```bash
-# App Store: assinar, submeter via App Store Connect e aguardar revisão
-# Google Play: assinar, submeter via Play Console e aguardar revisão
-```
+App Store e Google Play exigem assinatura, submissão e revisão humana.
 
-### 8. Ativação de produção no Supabase (HUMAN gate,#83)
+### 8. Ativação de produção no Supabase (HUMAN gate, #83)
 
 Antes de qualquer dado/uso de produção, seguir
 `docs/runbooks/supabase-production-reconciliation.md` e
-`docs/runbooks/supabase-reconciliation-manifest.md` ((#83)) — nenhuma migração
-remota é executada por esta auditoria.
-
-
+`docs/runbooks/supabase-reconciliation-manifest.md` (#83). Nenhuma migração remota
+é executada por esta auditoria.
 
 ## Human Gates explícitos (fail-closed)
 
 | # | Gate | Dono | Ação exigida | Impede |
 | --- | --- | --- | --- | --- |
-| 1 | Conta Expo/EAS | Fundador | `eas login` / `EXPO_TOKEN` + `eas build:configure` | qualquer build EAS |
-| 2 | Variáveis públicas EAS | Fundador | `eas env:create` das duas `EXPO_PUBLIC_*` (projeto não-prod) | app cloud aponta ao Supabase não-prod |
-| 3 | Apple Developer | Fundador | conta/programa Apple Developer; `eas credentials` | build iOS físico / TestFlight |
+| 1 | Conta Expo/EAS | Fundador | autenticar no EAS e vincular o projeto | qualquer build EAS |
+| 2 | Variáveis públicas EAS | Fundador | configurar as duas `EXPO_PUBLIC_*` do projeto não-prod | app cloud aponta ao Supabase não-prod |
+| 3 | Apple Developer | Fundador | conta/programa Apple Developer e credenciais de distribuição | build iOS físico / TestFlight |
 | 4 | Apple App ID/bundle | Fundador | registrar bundle de produção no Apple Developer | TestFlight / App Store |
 | 5 | Google Play package | Fundador | registrar package de produção no Play Console | internal testing Android / Play |
 | 6 | Signing/credenciais de loja | Fundador | assinatura de distribuição (Apple/Google) | submissão/publicação |
 | 7 | Publicação | Fundador | submeter e publicar nas lojas | usuárias reais via loja |
 | 8 | Produção Supabase | Fundador | reconciliar/migrar banco produção (#83) | qualquer uso de produção |
-
-
 
 ## Riscos e não-escopo
 
