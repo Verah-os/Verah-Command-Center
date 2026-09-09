@@ -26,7 +26,7 @@ select public.start_customer_onboarding('Document One');
 select public.complete_customer_basic_onboarding('Document One','pilot-alpha-onboarding-v1');
 select public.confirm_customer_vehicle('DOC1A23','Volkswagen','Gol',2021,'1.0',null,'Manual','manual',null,null,false,true)->>'vehicle_id' as vehicle_id \gset
 select set_config('vehicle_document_test.vehicle', :'vehicle_id',true);
-select public.register_vehicle_document(:'vehicle_id','nota_fiscal','2026-08-01','Ref 123','Nota fiscal de entrada','nota-entrada.pdf','application/pdf',245760,'doc-first')->>'document_id' as document_id \gset
+select public.register_vehicle_document(p_vehicle_id := :'vehicle_id', p_document_kind := 'nota_fiscal', p_document_date := '2026-08-01', p_reference := 'Ref 123', p_note := 'Nota fiscal de entrada', p_file_name := 'nota-entrada.pdf', p_mime_type := 'application/pdf', p_size_bytes := 245760, p_idempotency_key := 'doc-first')->>'document_id' as document_id \gset
 select set_config('vehicle_document_test.document', :'document_id',true);
 select storage_path from public.vehicle_documents where id = current_setting('vehicle_document_test.document')::uuid \gset storage_path
 select set_config('vehicle_document_test.path', :'storage_path',true);
@@ -57,7 +57,7 @@ do $$ begin
 end $$;
 
 -- Exact replay, including normalized reference/note, is a no-op andre-uses the same unguessable path.
-select public.register_vehicle_document(:'vehicle_id','nota_fiscal','2026-08-01',' Ref 123 ',' Nota fiscal de entrada ','nota-entrada.pdf','application/pdf',245760,'doc-first')->>'document_id' as replay_document_id \gset
+select public.register_vehicle_document(p_vehicle_id := :'vehicle_id', p_document_kind := 'nota_fiscal', p_document_date := '2026-08-01', p_reference := ' Ref 123 ', p_note := ' Nota fiscal de entrada ', p_file_name := 'nota-entrada.pdf', p_mime_type := 'application/pdf', p_size_bytes := 245760, p_idempotency_key := 'doc-first')->>'document_id' as replay_document_id \gset
 do $$ begin
   if (select count(*) from public.vehicle_documents where idempotency_key = 'doc-first') <> 1 then
     raise exception 'Document idempotency replay duplicated the record';
@@ -67,8 +67,8 @@ do $$ begin
   end if;
 end $$;
 -- Same key with a different payload (even file name) is rejected as collision. 
-select vehicle_document_test.expect_error($s$select public.register_vehicle_document(current_setting('vehicle_document_test.vehicle')::uuid,
- 'nota_fiscal','2026-08-01','Ref 123','Nota fiscal de entrada','outra.pdf','application/pdf',245760,'doc-first')$s$,'23505');
+select vehicle_document_test.expect_error($s$select public.register_vehicle_document(p_vehicle_id := current_setting('vehicle_document_test.vehicle')::uuid,
+ p_document_kind := 'nota_fiscal', p_document_date := '2026-08-01', p_reference := 'Ref 123', p_note := 'Nota fiscal de entrada', p_file_name := 'outra.pdf', p_mime_type := 'application/pdf', p_size_bytes := 245760, p_idempotency_key := 'doc-first')$s$,'23505');
 -- Direct metadata mutation is impossible for clients; history stays append-only. 
 select vehicle_document_test.expect_error($s$update public.vehicle_documents set note = 'x'$s$,'42501');
 select vehicle_document_test.expect_error($s$delete from public.vehicle_documents$s$,'42501');
@@ -91,7 +91,7 @@ do $$ begin
 end $$;
 select vehicle_document_test.expect_error($s$update public.vehicle_documents set status = 'active' where id = current_setting('vehicle_document_test.document')::uuid$s$,'42501');
 -- Re-registering with the same key reactivates the removed history and mints the same path. 
-select public.register_vehicle_document(:'vehicle_id','nota_fiscal','2026-08-01','Ref 123','Nota fiscal de entrada','nota-entrada.pdf','application/pdf',245760,'doc-first')->>'document_id' as reactivated_id \gset
+select public.register_vehicle_document(p_vehicle_id := :'vehicle_id', p_document_kind := 'nota_fiscal', p_document_date := '2026-08-01', p_reference := 'Ref 123', p_note := 'Nota fiscal de entrada', p_file_name := 'nota-entrada.pdf', p_mime_type := 'application/pdf', p_size_bytes := 245760, p_idempotency_key := 'doc-first')->>'document_id' as reactivated_id \gset
 do $$ begin
   if (select status from public.vehicle_documents where id = current_setting('vehicle_document_test.document')::uuid) <> 'active'
     or (select count(*) from public.vehicle_documents where idempotency_key = 'doc-first') <> 1
@@ -108,8 +108,8 @@ do $$ begin
   if exists(select 1 from public.vehicle_documents) or exists(select 1 from storage.objects where name = current_setting('vehicle_document_test.path')) then
     raise exception 'Cross-owner document or object leaked through RLS'; end if;
 end $$;
-select vehicle_document_test.expect_error($s$select public.register_vehicle_document(current_setting('vehicle_document_test.vehicle')::uuid,
- 'nota_fiscal','2026-08-01','Ref 123','Nota fiscal de entrada','x.pdf','application/pdf',245760,'cross-owner-doc')$s$,'42501');
+select vehicle_document_test.expect_error($s$select public.register_vehicle_document(p_vehicle_id := current_setting('vehicle_document_test.vehicle')::uuid,
+ p_document_kind := 'nota_fiscal', p_document_date := '2026-08-01', p_reference := 'Ref 123', p_note := 'Nota fiscal de entrada', p_file_name := 'x.pdf', p_mime_type := 'application/pdf', p_size_bytes := 245760, p_idempotency_key := 'cross-owner-doc')$s$,'42501');
 do $$ begin
   if exists(select 1 from public.vehicle_documents where idempotency_key = 'cross-owner-doc') then
     raise exception 'Cross-owner document write was persisted';
@@ -117,8 +117,8 @@ do $$ begin
 end $$;
 -- Missing application role must not pass SECURITY DEFINER authorization. 
 select set_config('request.jwt.claim.sub','d2170000-0000-4000-8000-000000000003',true);
-select vehicle_document_test.expect_error($s$select public.register_vehicle_document(current_setting('vehicle_document_test.vehicle')::uuid,
- 'nota_fiscal','2026-08-01','Ref 123','Nota fiscal de entrada','unprofiled.pdf','application/pdf',1024,'unprofiled-doc')$s$,'42501');
+select vehicle_document_test.expect_error($s$select public.register_vehicle_document(p_vehicle_id := current_setting('vehicle_document_test.vehicle')::uuid,
+ p_document_kind := 'nota_fiscal', p_document_date := '2026-08-01', p_reference := 'Ref 123', p_note := 'Nota fiscal de entrada', p_file_name := 'unprofiled.pdf', p_mime_type := 'application/pdf', p_size_bytes := 1024, p_idempotency_key := 'unprofiled-doc')$s$,'42501');
 do $$ begin
   if exists(select 1 from public.vehicle_documents) then raise exception 'Unprofiled identity read vehicle documents'; end if;
 end $$;
@@ -137,16 +137,16 @@ reset role;
 set local role authenticated;
 select set_config('request.jwt.claim.role','authenticated',true);
 select set_config('request.jwt.claim.sub','d2170000-0000-4000-8000-000000000001',true);
-select vehicle_document_test.expect_error($s$select public.register_vehicle_document(current_setting('vehicle_document_test.vehicle')::uuid,
- 'nota_fiscal','2026-08-01','Ref 123','Nota fiscal de entrada','x.exe','application/octet-stream',1024,'bad-mime')$s$,'23514');
-select vehicle_document_test.expect_error($s$select public.register_vehicle_document(current_setting('vehicle_document_test.vehicle')::uuid,
- 'nota_fiscal','2026-08-01','Ref 123','Nota fiscal de entrada','big.pdf','application/pdf',10485761,'too-big')$s$,'23514');
-select vehicle_document_test.expect_error($s$select public.register_vehicle_document(current_setting('vehicle_document_test.vehicle')::uuid,
- 'nota_fiscal',current_date+1,'Ref 123','Nota fiscal de entrada','future.pdf','application/pdf',1024,'future-date')$s$,'23514');
-select vehicle_document_test.expect_error($s$select public.register_vehicle_document(current_setting('vehicle_document_test.vehicle')::uuid,
- 'nota_fiscal','2026-08-01','Ref 123','Nota fiscal de entrada','  ','application/pdf',1024,'blank-file')$s$,'23514');
-select vehicle_document_test.expect_error($s$select public.register_vehicle_document(current_setting('vehicle_document_test.vehicle')::uuid,
- 'invalido','2026-08-01','Ref 123','Nota fiscal de entrada','x.pdf','application/pdf',1024,'bad-kind')$s$,'23514');
-select vehicle_document_test.expect_error($s$select public.register_vehicle_document(current_setting('vehicle_document_test.vehicle')::uuid,
- 'nota_fiscal','2026-08-01',null, repeat('x',161),'x.pdf','application/pdf',1024,'long-note')$s$,'23514');
+select vehicle_document_test.expect_error($s$select public.register_vehicle_document(p_vehicle_id := current_setting('vehicle_document_test.vehicle')::uuid,
+ p_document_kind := 'nota_fiscal', p_document_date := '2026-08-01', p_reference := 'Ref 123', p_note := 'Nota fiscal de entrada', p_file_name := 'x.exe', p_mime_type := 'application/octet-stream', p_size_bytes := 1024, p_idempotency_key := 'bad-mime')$s$,'23514');
+select vehicle_document_test.expect_error($s$select public.register_vehicle_document(p_vehicle_id := current_setting('vehicle_document_test.vehicle')::uuid,
+ p_document_kind := 'nota_fiscal', p_document_date := '2026-08-01', p_reference := 'Ref 123', p_note := 'Nota fiscal de entrada', p_file_name := 'big.pdf', p_mime_type := 'application/pdf', p_size_bytes := 10485761, p_idempotency_key := 'too-big')$s$,'23514');
+select vehicle_document_test.expect_error($s$select public.register_vehicle_document(p_vehicle_id := current_setting('vehicle_document_test.vehicle')::uuid,
+ p_document_kind := 'nota_fiscal', p_document_date := current_date+1, p_reference := 'Ref 123', p_note := 'Nota fiscal de entrada', p_file_name := 'future.pdf', p_mime_type := 'application/pdf', p_size_bytes := 1024, p_idempotency_key := 'future-date')$s$,'23514');
+select vehicle_document_test.expect_error($s$select public.register_vehicle_document(p_vehicle_id := current_setting('vehicle_document_test.vehicle')::uuid,
+ p_document_kind := 'nota_fiscal', p_document_date := '2026-08-01', p_reference := 'Ref 123', p_note := 'Nota fiscal de entrada', p_file_name := '  ', p_mime_type := 'application/pdf', p_size_bytes := 1024, p_idempotency_key := 'blank-file')$s$,'23514');
+select vehicle_document_test.expect_error($s$select public.register_vehicle_document(p_vehicle_id := current_setting('vehicle_document_test.vehicle')::uuid,
+ p_document_kind := 'invalido', p_document_date := '2026-08-01', p_reference := 'Ref 123', p_note := 'Nota fiscal de entrada', p_file_name := 'x.pdf', p_mime_type := 'application/pdf', p_size_bytes := 1024, p_idempotency_key := 'bad-kind')$s$,'23514');
+select vehicle_document_test.expect_error($s$select public.register_vehicle_document(p_vehicle_id := current_setting('vehicle_document_test.vehicle')::uuid,
+ p_document_kind := 'nota_fiscal', p_document_date := '2026-08-01', p_reference := null, p_note := repeat('x',161), p_file_name := 'x.pdf', p_mime_type := 'application/pdf', p_size_bytes := 1024, p_idempotency_key := 'long-note')$s$,'23514');
 rollback;
