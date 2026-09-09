@@ -28,7 +28,7 @@ select public.confirm_customer_vehicle('DOC1A23','Volkswagen','Gol',2021,'1.0',n
 select set_config('vehicle_document_test.vehicle', :'vehicle_id',true);
 select public.register_vehicle_document(p_vehicle_id := :'vehicle_id', p_document_kind := 'nota_fiscal', p_document_date := '2026-08-01', p_reference := 'Ref 123', p_note := 'Nota fiscal de entrada', p_file_name := 'nota-entrada.pdf', p_mime_type := 'application/pdf', p_size_bytes := 245760, p_idempotency_key := 'doc-first')->>'document_id' as document_id \gset
 select set_config('vehicle_document_test.document', :'document_id',true);
-select storage_path from public.vehicle_documents where id = current_setting('vehicle_document_test.document')::uuid \gset storage_path
+select storage_path from public.vehicle_documents where id = current_setting('vehicle_document_test.document')::uuid \gset
 select set_config('vehicle_document_test.path', :'storage_path',true);
 do $$ begin
   if (select count(*) from public.vehicle_documents) <> 1 then
