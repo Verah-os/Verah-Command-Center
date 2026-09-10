@@ -75,7 +75,7 @@ select public.complete_customer_basic_onboarding('Charge Customer One', 'pilot-a
 -- odometer interval: consumption must remain NULL deterministic.
 select public.confirm_customer_vehicle(
   'CHG1234', 'Volkswagen', 'ID.4', 2023, 'Pro', null, 'Automatico',
-  'automatic', null, null, false, true
+  'manual', null, null, false, true
 )->>'vehicle_id' as vehicle_id \gset
 
 select public.register_vehicle_charging(
