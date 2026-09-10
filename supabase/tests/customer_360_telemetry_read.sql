@@ -44,7 +44,7 @@ select public.confirm_customer_vehicle('CZA1B23','Volkswagen','ID.4',2023,'Pro',
 select pg_catalog.set_config('customer_360_test.vehicle_one',:'vehicle_one',true);
 
 -- Telemetria canônica via RPCs (todas pertencentes ao dono, idempotência própria).
-select public.register_vehicle_mileage(:'vehicle_one','2026-08-01T12:00:00Z',15000,null,'c360-m1');
+select public.register_vehicle_mileage(:'vehicle_one',15000,'2026-08-01T12:00:00Z',null,'c360-m1');
 select public.register_vehicle_fuel(:'vehicle_one','2026-08-02T12:00:00Z',15200,30.5,250.00,'gasolina',null,'c360-f1');
 select public.register_vehicle_charging(:'vehicle_one','2026-08-03T12:00:00Z',15400,28.5,90.00,82,'recarga_publica',null,'c360-c1');
 select public.register_vehicle_maintenance(:'vehicle_one','oleo','Troca de oleo','2026-08-04',15600,'c360-mt1',25000,'2026-10-04',25000,true);
@@ -58,7 +58,7 @@ select public.start_customer_onboarding('Cliente 360 Dois');
 select public.complete_customer_basic_onboarding('Cliente 360 Dois','pilot-alpha-onboarding-v1');
 select public.confirm_customer_vehicle('FRA2C34','Chevrolet','Onix',2022,'1.0',null,'Manual','manual',null,null,false,true)->>'vehicle_id' as vehicle_two \gset
 select pg_catalog.set_config('customer_360_test.vehicle_two',:'vehicle_two',true);
-select public.register_vehicle_mileage(:'vehicle_two','2026-08-10T12:00:00Z',20000,null,'c360-m2');
+select public.register_vehicle_mileage(:'vehicle_two',20000,'2026-08-10T12:00:00Z',null,'c360-m2');
 
 -- 1) Admin projection: leitura ampla das fontes telemetria com binding canônico só
 -- (política admin existente para mileage/fuel/charging; maintenance/expenses/documents
