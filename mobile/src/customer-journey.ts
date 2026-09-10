@@ -5,7 +5,7 @@ export type { VehicleDocument, VehicleDocumentInput, VehicleDocumentKind, Vehicl
 export const ONBOARDING_TERMS_VERSION = "pilot-alpha-onboarding-v1";
 
 export type JourneyUser = { id: string; email?: string };
-export type GarageVehicle = { id: string; brand: string; model: string; year: number | null; plate: string | null; nickname: string | null; current_mileage?: number | null };
+export type GarageVehicle = { id: string; brand: string; model: string; year: number | null; plate: string | null; nickname: string | null; current_mileage?: number | null; currentMileage?: number | null };
 export type VehicleExpenseSummary = {
   totalCents: number;
   fuelCents: number;
@@ -81,6 +81,33 @@ export type FuelInput = {
 };
 export type FuelResults = { logs: FuelLog[]; latest: FuelLog | null; nextMinimum: number };
 
+export const CHARGING_TYPES = ["recarga_domestica", "recarga_publica", "recarga_rapida", "outro"] as const;
+export type ChargingType = (typeof CHARGING_TYPES)[number];
+
+export type ChargingLog = {
+  id: string;
+  vehicleId: string;
+  recordedAt: string;
+  odometerValue: number;
+  kwh: number;
+  totalAmount: number;
+  batteryPercent: number | null;
+  chargingType: ChargingType | null;
+  consumptionKmKwh: number | null;
+  note: string | null;
+  createdAt: string;
+};
+export type ChargingInput = {
+  odometerValue: string | number;
+  kwh: string | number;
+  totalAmount: string | number;
+  batteryPercent?: string | number | null;
+  chargingType?: ChargingType | null;
+  recordedAt?: string;
+  note?: string;
+};
+export type ChargingResults = { logs: ChargingLog[]; latest: ChargingLog | null; nextMinimum: number };
+
 export interface CustomerJourneyFacade {
   listMaintenance?(vehicleId: string): Promise<{ data: MaintenanceRecord[] | null; error: RpcError }>;
   registerMaintenance?(vehicleId: string, input: MaintenanceInput): Promise<{ error: RpcError }>;
@@ -97,6 +124,8 @@ export interface CustomerJourneyFacade {
   listMileage(vehicleId: string): Promise<{ data: MileageLog[] | null; error: RpcError }>;
   registerFuel(vehicleId: string, input: FuelInput): Promise<{ data: FuelLog | null; error: RpcError }>;
   listFuel(vehicleId: string): Promise<{ data: FuelLog[] | null; error: RpcError }>;
+  registerCharging(vehicleId: string, input: ChargingInput): Promise<{ data: ChargingLog | null; error: RpcError }>;
+  listCharging(vehicleId: string): Promise<{ data: ChargingLog[] | null; error: RpcError }>;
   listVehicleDocuments?(vehicleId: string): Promise<{ data: VehicleDocument[] | null; error: RpcError }>;
   registerVehicleDocument?(
     vehicleId: string,
@@ -128,6 +157,8 @@ export interface CustomerJourneyController {
   listMileage(vehicleId: string): Promise<{ ok: true; data: MileageResults } | { ok: false; message: string }>;
   registerFuel(vehicleId: string, input: FuelInput): Promise<JourneyResult>;
   listFuel(vehicleId: string): Promise<{ ok: true; data: FuelResults } | { ok: false; message: string }>;
+registerCharging(vehicleId: string, input: ChargingInput): Promise<JourneyResult>;
+  listCharging(vehicleId: string): Promise<{ ok: true; data: ChargingResults } | { ok: false; message: string }>;
   registerVehicleDocument(vehicleId: string, input: VehicleDocumentInput, bytes: Blob): Promise<JourneyResult>;
   listVehicleDocuments(vehicleId: string): Promise<{ ok: true; data: VehicleDocument[] } | { ok: false; message: string }>;
   removeVehicleDocument(documentId: string): Promise<JourneyResult>;
@@ -164,6 +195,12 @@ export function sortMileageLogs(logs: MileageLog[]): MileageLog[] {
 }
 
 export function sortFuelLogs(logs: FuelLog[]): FuelLog[] {
+  return [...logs].sort((left, right) =>
+    new Date(right.recordedAt).getTime() - new Date(left.recordedAt).getTime()
+      || new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
+  );
+}
+export function sortChargingLogs(logs: ChargingLog[]): ChargingLog[] {
   return [...logs].sort((left, right) =>
     new Date(right.recordedAt).getTime() - new Date(left.recordedAt).getTime()
       || new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
@@ -383,6 +420,60 @@ export function createCustomerJourney(facade: CustomerJourneyFacade, user: Journ
       const result = await facade.listFuel(vehicleId);
       if (result.error) return { ok: false, message: result.error.message };
       const logs = sortFuelLogs(result.data ?? []);
+      const latest = logs[0] ?? null;
+      const nextMinimum = latest ? latest.odometerValue : 0;
+      return { ok: true, data: { logs, latest, nextMinimum } };
+    },
+    async registerCharging(vehicleId, input) {
+      const odometer = Number(input.odometerValue);
+      if (!Number.isFinite(odometer) || !Number.isInteger(odometer) || odometer < 0) {
+        return { ok: false, message: "Informe o hodômetro atual do veículo." };
+      }
+      if (odometer > 2000000) {
+        return { ok: false, message: "Quilometragem acima do limite suportado." };
+      }
+      const kwh = Number(input.kwh);
+      if (!Number.isFinite(kwh) || kwh <=  0 || kwh >  10000) {
+        return { ok: false, message: "Informe a quantidade de energia (kWh) da recarga." };
+      }
+      const totalAmount = Number(input.totalAmount);
+      if (!Number.isFinite(totalAmount) || totalAmount <  0) {
+        return { ok: false, message: "Informe o valor total da recarga." };
+      }
+      let batteryPercent: number | null = null;
+      if (input.batteryPercent !== undefined && input.batteryPercent !== null && String(input.batteryPercent).trim() !== "") {
+        batteryPercent = Number(input.batteryPercent);
+        if (!Number.isFinite(batteryPercent) || batteryPercent <  0 || batteryPercent >  100) {
+          return { ok: false, message: "Informe um percentual de bateria entre 0 e 100." };
+        }
+      }
+      let chargingType: ChargingType | null = null;
+      if (input.chargingType !== undefined && input.chargingType !== null) {
+        if (!CHARGING_TYPES.includes(input.chargingType)) {
+          return { ok: false, message: "Selecione um tipo de recarga válido." };
+        }
+        chargingType = input.chargingType;
+      }
+      const trimmedNote = input.note?.trim() || null;
+      if (trimmedNote && trimmedNote.length > 200) {
+        return { ok: false, message: "Observação muito longa(limite de 200 caracteres." };
+      }
+      const result = await facade.registerCharging(vehicleId, {
+        odometerValue: odometer,
+        kwh,
+        totalAmount,
+        batteryPercent,
+        chargingType,
+        recordedAt: input.recordedAt ?? new Date().toISOString(),
+        note: trimmedNote ?? undefined,
+      });
+      if (result.error) return { ok: false, message: result.error.message };
+      return { ok: true };
+    },
+    async listCharging(vehicleId) {
+      const result = await facade.listCharging(vehicleId);
+      if (result.error) return { ok: false, message: result.error.message };
+      const logs = sortChargingLogs(result.data ?? []);
       const latest = logs[0] ?? null;
       const nextMinimum = latest ? latest.odometerValue : 0;
       return { ok: true, data: { logs, latest, nextMinimum } };
