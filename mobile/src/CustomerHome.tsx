@@ -29,7 +29,6 @@ export function CustomerHome({
   onReplaceVehicle,
   onExpensePeriodChange,
   onDeactivateVehicle,
-  onOpenMileage,
   onOpenFuel,
   onOpenDocuments,
   onSignOut,
@@ -44,7 +43,6 @@ export function CustomerHome({
   onReplaceVehicle: (vehicle: GarageVehicle) => void;
   onExpensePeriodChange?: (periodDays: number | null) => void;
   onDeactivateVehicle: (vehicle: GarageVehicle) => Promise<void>;
-  onOpenMileage: (vehicle: GarageVehicle) => void;
   onOpenFuel: (vehicle: GarageVehicle) => void;
   onOpenDocuments: (vehicle: GarageVehicle) => void;
   onSignOut: () => void;
@@ -116,10 +114,13 @@ export function CustomerHome({
                   <Text style={styles.meta}>
                     {[primaryVehicle.year, primaryVehicle.plate].filter(Boolean).join(" · ")}
                   </Text>
-                  <TextButton label="Registrar quilometragem" onPress={() => onOpenMileage(primaryVehicle)} />
-                  <TextButton label="Abastecimentos" onPress={() => onOpenFuel(primaryVehicle)} />
+                  <Text style={styles.informationalMileage}>
+                    {primaryVehicle.currentMileage === null || primaryVehicle.currentMileage === undefined
+                      ? "Quilometragem ainda não informada"
+                      : `${primaryVehicle.currentMileage.toLocaleString("pt-BR")} km`}
+                  </Text>
+                  <TextButton label="Abastecimentos e recargas" onPress={() => onOpenFuel(primaryVehicle)} />
                   <TextButton label="Ver veículos" onPress={() => setTab("vehicles")} />
-                  <TextButton label="Quilometragem" onPress={() => onOpenMileage(primaryVehicle)} />
                 </>
               ) : (
                 <>
@@ -225,20 +226,14 @@ export function CustomerHome({
                     <MaintenanceSummary vehicle={vehicle} records={maintenanceByVehicle[vehicle.id] ?? null}
                       onOpen={() => onOpenMaintenance(vehicle)} />
                     <View style={styles.vehicleActions}>
-                  <Pressable style={styles.smallAction} onPress={() => onOpenMileage(vehicle)}>
-                    <Text style={styles.smallActionText}>Quilometragem</Text>
-                  </Pressable>
                   <Pressable style={styles.smallAction} onPress={() => onOpenFuel(vehicle)}>
-                    <Text style={styles.smallActionText}>Abastecer</Text>
+                    <Text style={styles.smallActionText}>Energia</Text>
                   </Pressable>
                   <Pressable style={styles.smallAction} onPress={() => onOpenDocuments(vehicle)}>
                     <Text style={styles.smallActionText}>Documentos</Text>
                   </Pressable>
                   <Pressable style={styles.smallAction} onPress={() => onReplaceVehicle(vehicle)}>
                     <Text style={styles.smallActionText}>Substituir</Text>
-                  </Pressable>
-                  <Pressable style={styles.smallAction} onPress={() => onOpenMileage(vehicle)}>
-                    <Text style={styles.smallActionText}>Quilometragem</Text>
                   </Pressable>
                   <Pressable style={styles.smallDangerAction} onPress={() => confirmRemoval(vehicle)}>
                     <Text style={styles.smallDangerText}>Remover</Text>
@@ -466,6 +461,7 @@ const styles = StyleSheet.create({
   cardEyebrow: { color: "#A85F70", fontSize: 13, fontWeight: "700" },
   cardTitle: { color: "#263238", fontSize: 21, fontWeight: "700", marginTop: 5 },
   meta: { color: "#667085", fontSize: 14, lineHeight: 21, marginTop: 6 },
+  informationalMileage: { color: "#344054", fontSize:  15, lineHeight:  22, marginTop:  8, fontWeight: "600" },
   reference: { color: "#177F78", fontSize: 13, fontWeight: "800" },
   statusPill: { alignSelf: "flex-start", backgroundColor: "#FFFFFF", borderRadius: 999, paddingHorizontal: 11, paddingVertical: 7, marginTop: 12 },
   statusText: { color: "#176A65", fontSize: 13, fontWeight: "700" },

@@ -60,6 +60,7 @@ declare
     'user_profiles',
     'verah_identities',
     'vehicle_custody_events',
+    'vehicle_charging_logs',
     'vehicle_documents',
     'vehicle_expenses',
     'vehicle_fuel_logs',
