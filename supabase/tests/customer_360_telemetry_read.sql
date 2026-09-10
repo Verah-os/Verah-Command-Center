@@ -40,10 +40,10 @@ select pg_catalog.set_config('request.jwt.claim.role','authenticated',true);
 select pg_catalog.set_config('request.jwt.claim.sub','7a360000-0000-4000-8000-000000000001',true);
 select public.start_customer_onboarding('Cliente 360 Um');
 select public.complete_customer_basic_onboarding('Cliente 360 Um','pilot-alpha-onboarding-v1');
-select public.confirm_customer_vehicle('360A1B2','Volkswagen','ID.4',2023,'Pro',null,'Automatico','manual',null,null,false,true)->>'vehicle_id' as vehicle_one \gset
+select public.confirm_customer_vehicle('CZA1B23','Volkswagen','ID.4',2023,'Pro',null,'Automatico','manual',null,null,false,true)->>'vehicle_id' as vehicle_one \gset
 select pg_catalog.set_config('customer_360_test.vehicle_one',:'vehicle_one',true);
 
--- Telemetria canônica viа RPCs (todas pertencentes ao dono, idempotência própria).
+-- Telemetria canônica via RPCs (todas pertencentes ao dono, idempotência própria).
 select public.register_vehicle_mileage(:'vehicle_one','2026-08-01T12:00:00Z',15000,null,'c360-m1');
 select public.register_vehicle_fuel(:'vehicle_one','2026-08-02T12:00:00Z',15200,30.5,250.00,'gasolina',null,'c360-f1');
 select public.register_vehicle_charging(:'vehicle_one','2026-08-03T12:00:00Z',15400,28.5,90.00,82,'recarga_publica',null,'c360-c1');
@@ -51,19 +51,18 @@ select public.register_vehicle_maintenance(:'vehicle_one','oleo','Troca de oleo'
 select public.register_vehicle_document(:'vehicle_one','nota_fiscal','2026-08-05','NFS-360','Nota sintetica','nota.pdf','application/pdf',4096,'c360-d1');
 
 -- Cliente dois: identidade e veículo distintos para isolamento; vínculo por IDs canônicos.
-
 set local role authenticated;
 select pg_catalog.set_config('request.jwt.claim.role','authenticated',true);
 select pg_catalog.set_config('request.jwt.claim.sub','7a360000-0000-4000-8000-000000000002',true);
 select public.start_customer_onboarding('Cliente 360 Dois');
 select public.complete_customer_basic_onboarding('Cliente 360 Dois','pilot-alpha-onboarding-v1');
-select public.confirm_customer_vehicle('360C3D4','Chevrolet','Onix',2022,'1.0',null,'Manual','manual',null,null,false,true)->>'vehicle_id' as vehicle_two \gset
+select public.confirm_customer_vehicle('FRA2C34','Chevrolet','Onix',2022,'1.0',null,'Manual','manual',null,null,false,true)->>'vehicle_id' as vehicle_two \gset
 select pg_catalog.set_config('customer_360_test.vehicle_two',:'vehicle_two',true);
 select public.register_vehicle_mileage(:'vehicle_two','2026-08-10T12:00:00Z',20000,null,'c360-m2');
 
 -- 1) Admin projection: leitura ampla das fontes telemetria com binding canônico só
 -- (política admin existente para mileage/fuel/charging; maintenance/expenses/documents
---  permanecem SEM política admin e devem falhar/0 linhas — fail-closed documentado).
+-- permanecem SEM política admin e devem falhar/0 linhas — fail-closed documentado).
 reset role;
 update public.customer_vehicles set active=false where id=:'vehicle_two';
 set local role authenticated;
@@ -85,7 +84,6 @@ end
 $$;
 
 -- 2) Falha-fechada para fontes SEM política admin: manutenção, despesas e documentos.
-
 do $$
 begin
   if (select count(*) from public.vehicle_maintenance_records) <> 0 then
@@ -101,8 +99,7 @@ end
 $$;
 
 -- 3) O vínculo NUNCA é por placa/nome/telefone: só customer_vehicles.customer_id
--- aponta para o cliente da ficha; vehicle_id é a única ponte para telemetria..
--- (assert implícito: as contagens acima são exatamente as esperadas por owner.)
+-- aponta para o cliente da ficha; vehicle_id é a única ponte para telemetria.
 
 -- 4) Binding canônico de leitura por ficha: veículo de outro dono não é alcançável
 -- nem por km nem por recarga (mesmo admin por política, leitura permanece por ficha no pós-#236).
@@ -135,7 +132,6 @@ set local role authenticated;
 select pg_catalog.set_config('request.jwt.claim.role','authenticated',true);
 select pg_catalog.set_config('request.jwt.claim.sub','7a360000-0000-4000-8000-000000000005',true);
 select public.start_provider_application('Oficina 360 Ltda','Oficina 360','Franca');
--- O perfil virou provider; telemetria permanece invisível para o papel.
 select customer_360_test.expect_error($s$select public.register_vehicle_mileage(current_setting('customer_360_test.vehicle_one')::uuid,1,'2026-09-01T12:00:00Z',null,'c360-provider-write')$s$);
 select customer_360_test.expect_error($s$select public.register_vehicle_fuel(current_setting('customer_360_test.vehicle_one')::uuid,'2026-09-01T12:00:00Z',1,1,1,'gasolina',null,'c360-provider-fuel')$s$);
 select customer_360_test.expect_error($s$select public.register_vehicle_maintenance(current_setting('customer_360_test.vehicle_one')::uuid,'a','b','2026-09-01',1,'c360-provider-mnt')$s$);
@@ -157,5 +153,4 @@ select customer_360_test.expect_error($s$select public.register_vehicle_maintena
 
 -- 8) Umbrella registrado no CI: sem tocar arquivos da #236; fixture isolada por
 -- prefixo c360 e usuários únicos (nenhuma colisão com demais suítes do runner).
-
 rollback;
