@@ -48,7 +48,7 @@ select public.register_vehicle_mileage(:'vehicle_one',15000,'2026-08-01T12:00:00
 select public.register_vehicle_fuel(:'vehicle_one','2026-08-02T12:00:00Z',15200,30.5,250.00,'gasolina',null,'c360-f1');
 select public.register_vehicle_charging(:'vehicle_one','2026-08-03T12:00:00Z',15400,28.5,90.00,82,'recarga_publica',null,'c360-c1');
 select public.register_vehicle_maintenance(:'vehicle_one','oleo','Troca de oleo','2026-08-04',15600,'c360-mt1',25000,'2026-10-04',25000,true);
-select public.register_vehicle_document(:'vehicle_one','nota_fiscal','2026-08-05','NFS-360','Nota sintetica','nota.pdf','application/pdf',4096,'c360-d1');
+select public.register_vehicle_document(:'vehicle_one','nota_fiscal','2026-08-05','nota.pdf','application/pdf',4096,'c360-d1','NFS-360','Nota sintetica');
 
 -- Cliente dois: identidade e veículo distintos para isolamento; vínculo por IDs canônicos.
 set local role authenticated;
