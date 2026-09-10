@@ -24,13 +24,13 @@ create table public.vehicle_charging_logs (
     odometer_value between 0 and 2000000
   ),
   constraint vehicle_charging_logs_kwh_check check (
-    kwh > 0 and kwh <=  10000
+    kwh > 0 and kwh <= 10000
   ),
   constraint vehicle_charging_logs_total_amount_check check (
-    total_amount >=  0
+    total_amount >= 0
   ),
   constraint vehicle_charging_logs_battery_percent_check check (
-    battery_percent is null or battery_percent between  0 and  100
+    battery_percent is null or battery_percent between 0 and 100
   ),
   constraint vehicle_charging_logs_charging_type_check check (
     charging_type is null or charging_type in ('recarga_domestica', 'recarga_publica', 'recarga_rapida', 'outro')
@@ -39,10 +39,13 @@ create table public.vehicle_charging_logs (
     recorded_at <= now()
   ),
   constraint vehicle_charging_logs_note_length_check check (
-    note is null or(char_length(note) <=  200 and note !~* '([[:alnum:]_.+%-]+@[[:alnum:].-]+\.[[:alpha:]]{2,}|bearer[[:space:]]+|authorization|service[_-]?role|[0-9]{7,}})')
+    note is null or (
+      char_length(note) <= 200
+      and note !~* '([[:alnum:]_.+%-]+@[[:alnum:].-]+\.[[:alpha:]]{2,}|bearer[[:space:]]+|authorization|service[_-]?role|[0-9]{7,})'
+    )
   ),
   constraint vehicle_charging_logs_idempotency_key_check check (
-    btrim(idempotency_key) <> ''  and char_length(idempotency_key) <=  200
+    btrim(idempotency_key) <> '' and char_length(idempotency_key) <= 200
   ),
   constraint vehicle_charging_logs_idempotency_key_uidx unique (idempotency_key)
 );
@@ -102,8 +105,8 @@ create or replace function public.register_vehicle_charging(
   p_recorded_at timestamptz,
   p_odometer_value integer,
   p_kwh numeric,
-   p_total_amount numeric,
-   p_battery_percent integer default null,
+  p_total_amount numeric,
+  p_battery_percent integer default null,
   p_charging_type text default null,
   p_note text default null,
   p_idempotency_key text default null
@@ -124,75 +127,75 @@ declare
   effective_key text;
   computed_consumption numeric(8,3);
 begin
-  if actor_id is null or(select public.current_verah_role()) <> 'customer' then
+  if actor_id is null or (select public.current_verah_role()) <> 'customer' then
     raise exception using errcode = '42501', message = 'Customer authorization required';
-   end if;
+  end if;
 
   if p_vehicle_id is null or p_recorded_at is null or p_odometer_value is null
     or p_kwh is null or p_total_amount is null then
     raise exception using errcode = '22023', message = 'Invalid charging input.';
-   end if;
+  end if;
 
-  if p_odometer_value not between  0 and  2000000 then
+  if p_odometer_value not between 0 and 2000000 then
     raise exception using errcode = '22023', message = 'Invalid charging odometer value.';
-   end if;
+  end if;
 
-  if p_kwh <=  0 or p_kwh >  10000 then
+  if p_kwh <= 0 or p_kwh > 10000 then
     raise exception using errcode = '22023', message = 'Invalid charging kwh.';
-   end if;
+  end if;
 
- if p_total_amount <  0 then
+  if p_total_amount < 0 then
     raise exception using errcode = '22023', message = 'Invalid charging total amount.';
-   end if;
+  end if;
 
- if p_battery_percent is not null and (p_battery_percent <  0 or p_battery_percent >  100) then
+  if p_battery_percent is not null and (p_battery_percent < 0 or p_battery_percent > 100) then
     raise exception using errcode = '22023', message = 'Invalid charging battery percent.';
-   end if;
+  end if;
 
- if p_charging_type is not null
-    and p_charging_type notin ('recarga_domestica', 'recarga_publica', 'recarga_rapida', 'outro') then
+  if p_charging_type is not null
+    and p_charging_type not in ('recarga_domestica', 'recarga_publica', 'recarga_rapida', 'outro') then
     raise exception using errcode = '22023', message = 'Invalid charging type.';
-   end if;
+  end if;
 
- if p_recorded_at > pg_catalog.now() then
+  if p_recorded_at > pg_catalog.now() then
     raise exception using errcode = '22023', message = 'Charging date cannot be in the future.';
   end if;
 
- if nullif(pg_catalog.btrim(p_note, ''), '') is not null
+  if nullif(pg_catalog.btrim(p_note), '') is not null
     and (
-      pg_catalog.char_length(pg_catalog.btrim(p_note, '')) >  200
-       or pg_catalog.btrim(p_note, '') ~* '([[:alnum:]_.+%-]+@[[:alnum:].-]+\.[[:alpha:]]{2,}|bearer[[:space:]]+|authorization|service[_-]?role|[0-9]{7,}})'
+      pg_catalog.char_length(pg_catalog.btrim(p_note)) > 200
+      or pg_catalog.btrim(p_note) ~* '([[:alnum:]_.+%-]+@[[:alnum:].-]+\.[[:alpha:]]{2,}|bearer[[:space:]]+|authorization|service[_-]?role|[0-9]{7,})'
     ) then
     raise exception using errcode = '22023', message = 'Invalid charging note.';
-   end if;
+  end if;
 
- select * into vehicle_row
+  select * into vehicle_row
   from public.customer_vehicles
   where id = p_vehicle_id;
 
- if vehicle_row.idis null
+  if vehicle_row.id is null
     or vehicle_row.owner_id <> actor_id
     or vehicle_row.active is not true then
     raise exception using errcode = '42501', message = 'Vehicle authorization required.';
-   end if;
+  end if;
 
- effective_key := coalesce(
-    nullif(pg_catalog.btrim(p_idempotency_key, ''), ''),
+  effective_key := coalesce(
+    nullif(pg_catalog.btrim(p_idempotency_key), ''),
     'vehicle-charging:' || p_vehicle_id::text || ':' || p_recorded_at::text || ':' || p_odometer_value::text || ':' || p_kwh::text || ':' || coalesce(p_charging_type, 'null')
   );
- if pg_catalog.length(effective_key) >  200 then
+  if pg_catalog.length(effective_key) > 200 then
     raise exception using errcode = '22023', message = 'Invalid charging idempotency key.';
-   end if;
+  end if;
 
- perform pg_catalog.pg_advisory_xact_lock(
+  perform pg_catalog.pg_advisory_xact_lock(
     pg_catalog.hashtextextended('vehicle-charging:' || p_vehicle_id::text, 0)
   );
 
- select * into existing_log
+  select * into existing_log
   from public.vehicle_charging_logs
   where idempotency_key = effective_key;
 
- if existing_log.id is not null then
+  if existing_log.id is not null then
     if existing_log.vehicle_id <> p_vehicle_id
       or existing_log.odometer_value <> p_odometer_value
       or existing_log.recorded_at <> p_recorded_at
@@ -202,33 +205,33 @@ begin
       or existing_log.charging_type is distinct from p_charging_type then
       raise exception using errcode = '23505', message = 'Charging idempotency key collision.';
     end if;
-    return pg_catalog.jsonb_build_object('log_id', existing_log.id, 'registered', false,
-      'consumption_km_kwh', existing_log.consumption_km_kwh);
-   end if;
+    return pg_catalog.jsonb_build_object(
+      'log_id', existing_log.id,
+      'registered', false,
+      'consumption_km_kwh', existing_log.consumption_km_kwh
+    );
+  end if;
 
- select greatest(
-    coalesce((select max(log.odometer_value) from public.vehicle_charging_logs log where log.vehicle_id = p_vehicle_id),
-    -1),
-    coalesce((select max(log.odometer_value) from public.vehicle_fuel_logs log where log.vehicle_id = p_vehicle_id,
-    -1),
-    coalesce((select max(log.mileage_value) from public.vehicle_mileage_logs log where log.vehicle_id = p_vehicle_id,
-    -1),
+  select greatest(
+    coalesce((select max(log.odometer_value) from public.vehicle_charging_logs log where log.vehicle_id = p_vehicle_id), -1),
+    coalesce((select max(log.odometer_value) from public.vehicle_fuel_logs log where log.vehicle_id = p_vehicle_id), -1),
+    coalesce((select max(log.mileage_value) from public.vehicle_mileage_logs log where log.vehicle_id = p_vehicle_id), -1),
     coalesce(vehicle_row.current_mileage, -1)
   ) into latest_odometer;
 
- if p_odometer_value < latest_odometer then
+  if p_odometer_value < latest_odometer then
     raise exception using errcode = '23514', message = 'Charging odometer cannot regress below the latest logged reading.';
-   end if;
+  end if;
 
--- Deterministic consumption interval: previous charging record strictly earlier by record.
- select * into previous_log
-from public.vehicle_charging_logs
-where vehicle_id = p_vehicle_id
-  and recorded_at < p_recorded_at
-order by recorded_at desc, created_at desc, id desc
-limit 1;
+  -- Deterministic consumption interval: previous charging record strictly earlier by record.
+  select * into previous_log
+  from public.vehicle_charging_logs
+  where vehicle_id = p_vehicle_id
+    and recorded_at < p_recorded_at
+  order by recorded_at desc, created_at desc, id desc
+  limit 1;
 
- if previous_log.id is not null and p_odometer_value > previous_log.odometer_value then
+  if previous_log.id is not null and p_odometer_value > previous_log.odometer_value then
     computed_consumption := pg_catalog.round(
       (p_odometer_value - previous_log.odometer_value)::numeric / p_kwh,
       3
@@ -237,20 +240,23 @@ limit 1;
     computed_consumption := null;
   end if;
 
- insert into public.vehicle_charging_logs(
+  insert into public.vehicle_charging_logs (
     vehicle_id, recorded_at, odometer_value, kwh, total_amount, battery_percent,
-     charging_type, consumption_km_kwh, note, created_by, idempotency_key
+    charging_type, consumption_km_kwh, note, created_by, idempotency_key
   ) values (
     p_vehicle_id, p_recorded_at, p_odometer_value, p_kwh, p_total_amount,
     p_battery_percent, p_charging_type, computed_consumption,
-    nullif(pg_catalog.btrim(p_note, ''), ''),
+    nullif(pg_catalog.btrim(p_note), ''),
     actor_id, effective_key
   ) returning * into inserted_log;
 
- return pg_catalog.jsonb_build_object('log_id', inserted_log.id, 'registered', true,
+  return pg_catalog.jsonb_build_object(
+    'log_id', inserted_log.id,
+    'registered', true,
     'consumption_km_kwh', inserted_log.consumption_km_kwh,
-    'previous_odometer', previous_log.odometer_value);
- end;
+    'previous_odometer', previous_log.odometer_value
+  );
+end;
 $$;
 
 revoke execute on function public.register_vehicle_charging(
