@@ -272,7 +272,7 @@ select vehicle_charging_log_test.expect_error(
 select pg_catalog.set_config('request.jwt.claim.sub', 'b1111111-1111-4111-8111-111111111121', true);
 select vehicle_charging_log_test.expect_error(
   pg_catalog.format(
-    'select public.register_vehicle_charging(%L, %L, %L, %L, %L, null, null, null, %L)',
+    'select public.register_vehicle_charging(%L, %L, %L, %L, %L, null, %L, null, null)',
     :'vehicle_id', '2026-08-26T12:00:00Z',  17000,  20,  60.00, 'invalid-charging-type'
   )
 );
