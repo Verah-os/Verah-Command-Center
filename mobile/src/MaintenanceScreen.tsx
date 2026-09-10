@@ -2,14 +2,17 @@ import { useRef, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
 import type { CustomerJourneyController, GarageVehicle } from "./customer-journey";
-import { MAX_VEHICLE_DOCUMENT_BYTES, vehicleDocumentIdempotencyKey } from "./vehicle-documents";
-import { buildMaintenanceAssistedDraft, type MaintenanceAssistedDraft } from "./maintenance-assist";
+import { MAX_VEHICLE_DOCUMENT_BYTES } from "./vehicle-documents";
+import {
+  applyMaintenanceAssistedDraft,
+  buildMaintenanceAssistedDraft,
+  buildMaintenanceReceiptDocumentInput,
+  shouldConfirmAssistedSave,
+  type MaintenanceAssistedDraft,
+  type MaintenanceEditableFields,
+} from "./maintenance-assist";
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
-
-function receiptDocumentIdempotencyKey(vehicleId: string, occurredOn: string, note: string): string {
-  return `maintenance-receipt:${vehicleId}:${occurredOn}:${note.trim().slice(0, 80)}`;
-}
 
 export function MaintenanceScreen({ controller, vehicle, onBack }: {
   controller: CustomerJourneyController; vehicle: GarageVehicle; onBack: () => void;
@@ -26,6 +29,7 @@ export function MaintenanceScreen({ controller, vehicle, onBack }: {
   const [error, setError] = useState("");
   const [assistNote, setAssistNote] = useState("");
   const assistNoteRef = useRef("");
+  const [activeDraft, setActiveDraft] = useState<MaintenanceAssistedDraft | null>(null);
   const [receiptPicked, setReceiptPicked] = useState<{ name: string; bytes: Blob; mimeType: string } | null>(null);
 
   const pickReceipt = async () => {
@@ -54,24 +58,42 @@ export function MaintenanceScreen({ controller, vehicle, onBack }: {
       hasReceiptFile: receiptPicked !== null,
     });
 
-  const saveMaintenance = async (draft: MaintenanceAssistedDraft | null, pendingReceipt: { name: string; bytes: Blob; mimeType: string } | null) => {
+  const currentFields = (): MaintenanceEditableFields => ({
+    type,
+    description,
+    date,
+    km,
+    amount,
+    nextDate,
+    nextKm,
+  });
+
+  // "Usar rascunho assistido" only populates the editable fields and returns to
+  // review. Nothing is saved here: no OCR/extracted values are ever persisted
+  // automatically. The final save goes through an explicit confirmation.
+
+
+  const applyDraftToFields = (draft: MaintenanceAssistedDraft) => {
+    if (busy) return;
+    const next = applyMaintenanceAssistedDraft(currentFields(), draft);
+    setType(next.type);
+    setDescription(next.description);
+    setDate(next.date);
+    setKm(next.km);
+    setAmount(next.amount);
+    setNextDate(next.nextDate);
+    setNextKm(next.nextKm);
+    setActiveDraft(draft);
+  };
+
+  const saveMaintenance = async (pendingReceipt: { name: string; bytes: Blob; mimeType: string } | null) => {
     if (busy) return;
     setBusy(true); setError("");
-    if (draft) {
-      // Fail-closed assisted draft: nothing is extrapolated from the receipt photo.
-
-      setDescription(draft.description);
-      setDate(draft.date);
-      setKm(draft.km);
-      setAmount(draft.amount);
-      setNextDate(draft.nextDate);
-      setNextKm(draft.nextKm);
-    }
     const validDate = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value)
-      && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0,  10) === value;
+      && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value;
     const validKm = (value: string) => /^\d+$/.test(value) && Number(value) <= 2000000;
     if (!type.trim() || type.trim().length > 80 || !description.trim() || description.trim().length > 160
-      || !validDate(date) || date > new Date().toISOString().slice(0,  10) || !validKm(km)
+      || !validDate(date) || date > new Date().toISOString().slice(0, 10) || !validKm(km)
       || (nextDate && (!validDate(nextDate) || nextDate < date))
       || (nextKm && (!validKm(nextKm) || Number(nextKm) < Number(km)))
       || (amount && !/^\d+([.,]\d{1,2})?$/.test(amount))) {
@@ -91,26 +113,30 @@ export function MaintenanceScreen({ controller, vehicle, onBack }: {
     });
     if (!result.ok) { setBusy(false); setError(result.message); return; }
     if (pendingReceipt && controller.registerVehicleDocument) {
-      const docInput = {
-        documentKind: "outro",
-        documentDate: date,
-        fileName: pendingReceipt.name,
-        mimeType: pendingReceipt.mimeType,
-        reference: "recibo-de-manutencao",
-        note: `Recibo de manutenção: ${description.trim().slice(0,  120)}`,
-        idempotencyKey: receiptDocumentIdempotencyKey(vehicle.id, date, description),
-      };
-      const docResult = await controller.registerVehicleDocument(vehicle.id, docInput, pendingReceipt.bytes);
+
+      const docInput = buildMaintenanceReceiptDocumentInput(
+        vehicle.id,
+        date,
+        description,
+        pendingReceipt.name,
+      );
+      const docResult = await controller.registerVehicleDocument(vehicle.id, { ...docInput, mimeType: pendingReceipt.mimeType }, pendingReceipt.bytes);
       if (!docResult.ok) { setBusy(false); setError(docResult.message); return; }
     }
     setBusy(false);
+    setActiveDraft(null);
     onBack();
   };
 
-  const save = async () => { await saveMaintenance(null, null); };
-
-  const finishAssistedDraft = async (draft: MaintenanceAssistedDraft) => {
+  const save = async () => {
     if (busy) return;
+    const needsConfirmation = shouldConfirmAssistedSave(activeDraft, true);
+    if (!needsConfirmation) {
+      void saveMaintenance(receiptPicked);
+      return;
+    }
+    // Assisted flow: an explicit confirmation gates the final canonical save using
+    // Action currently edited field values — no OCR/extracted value is auto-persisted..
     const confirmed = await new Promise<boolean>((resolve) => {
       Alert.alert(
         "Confirmar rascunho assistido?",
@@ -122,11 +148,10 @@ export function MaintenanceScreen({ controller, vehicle, onBack }: {
       );
     });
     if (!confirmed) return;
-    const pendingReceipt = receiptPicked;
-    await saveMaintenance(draft, pendingReceipt);
+    void saveMaintenance(receiptPicked);
   };
 
-  return <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+return <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
     <Text style={styles.title}>Registrar manutenção</Text>
     <Text style={styles.subtitle}>{vehicle.brand} {vehicle.model}</Text>
 
@@ -153,9 +178,11 @@ export function MaintenanceScreen({ controller, vehicle, onBack }: {
           {receiptPicked ? `Recibo anexado: ${receiptPicked.name}` : "Adicionar foto ou nota do recibo"}
         </Text>
       </Pressable>
-      <Pressable accessibilityRole="button" disabled={busy} onPress={() => void finishAssistedDraft(buildDraft())}
+      <Pressable accessibilityRole="button" disabled={busy} onPress={() => applyDraftToFields(buildDraft())}
         style={[styles.assistButton, busy && styles.disabled]}>
-        <Text style={styles.assistButtonText}>Usar rascunho assistido</Text>
+        <Text style={styles.assistButtonText}>
+          {activeDraft ? "Rascunho assistido aplicado — revise os campos" : "Usar rascunho assistido"}
+        </Text>
       </Pressable>
     </View>
 

@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildMaintenanceAssistedDraft } from "../src/maintenance-assist.ts";
+import {
+  applyMaintenanceAssistedDraft,
+  buildMaintenanceAssistedDraft,
+  shouldConfirmAssistedSave,
+} from "../src/maintenance-assist.ts";
 
 test("assisted draft is fail-closed: no km/value/next fields are extrapolated", () => {
   const draft = buildMaintenanceAssistedDraft({
@@ -44,4 +48,42 @@ test("assisted draft never derives odometer/value/date from the photo", () => {
     assert.equal(draft.date, "2026-09-09");
     assert.equal(draft.requiresConfirmation, true);
   }
+});
+
+test("applying the assisted draft populates editable fields first without clobbering user edits", () => {
+  const draft = buildMaintenanceAssistedDraft({
+    note: "Troca de óleo",
+    today: "2026-09-09",
+    hasReceiptFile: true,
+  });
+  // Simulate fields the user has already typed before using the assisted draft:
+  const userTyped = {
+    type: "troca de óleo",
+    description: "",
+    date: "",
+    km: "85000",
+    amount: "300,00",
+    nextDate: "",
+    nextKm: "",
+  };
+  const applied = applyMaintenanceAssistedDraft(userTyped, draft);
+  // The draft fills notification/date placeholder only: km/amount typed by the user
+  // are preserved so the final save uses the currently edited (latest) values.
+  assert.equal(applied.type, "troca de óleo");
+  assert.equal(applied.km, "85000");
+  assert.equal(applied.amount, "300,00");
+  assert.equal(applied.date, "2026-09-09");
+  assert.equal(applied.description, "Nota do recibo: Troca de óleo");
+  assert.notEqual(applied, userTyped);  // fresh values, never stale closures
+  assert.deepEqual(Object.keys(applied).sort(), Object.keys(userTyped).sort());
+});
+
+test("assisted save requires explicit confirmation only when active draft presentes", () => {
+  const draft = buildMaintenanceAssistedDraft({ note: "Troca", today: "2026-09-09", hasReceiptFile: true });
+  assert.equal(shouldConfirmAssistedSave(draft, true), true);
+  assert.equal(shouldConfirmAssistedSave(null, true), false);
+  assert.equal(shouldConfirmAssistedSave(draft, false), false);
+  // Draft without receipt note has no assisted fields: no extra confirmation needed.
+  const emptyDraft = buildMaintenanceAssistedDraft({ note: "", today: "2026-09-09", hasReceiptFile: false });
+  assert.equal(shouldConfirmAssistedSave(emptyDraft, true), true);
 });

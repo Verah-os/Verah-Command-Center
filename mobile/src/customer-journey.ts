@@ -84,6 +84,80 @@ export type FuelResults = { logs: FuelLog[]; latest: FuelLog | null; nextMinimum
 export const CHARGING_TYPES = ["recarga_domestica", "recarga_publica", "recarga_rapida", "outro"] as const;
 export type ChargingType = (typeof CHARGING_TYPES)[number];
 
+export const CHARGING_TYPE_LABELS: Record<ChargingType, string> = {
+  recarga_domestica: "Recarga doméstica",
+  recarga_publica: "Recarga pública",
+  recarga_rapida: "Recarga rápida",
+  outro: "Outro",
+};
+
+export function chargingTypeLabel(type: ChargingType | null | undefined): string {
+  return type ? CHARGING_TYPE_LABELS[type] : "Recarga";
+}
+
+export type EnergyKind = "fuel" | "charging";
+
+export type EnergyHistoryEntry = {
+  kind: EnergyKind;
+  id: string;
+  recordedAt: string;
+  odometerValue: number;
+  quantity: number;
+  unit: "L" | "kWh";
+  totalAmount: number;
+  fuelType?: FuelType;
+  chargingType?: ChargingType | null;
+  batteryPercent?: number | null;
+  efficiency: number | null;
+  note: string | null;
+};
+
+export function formatEnergyQuantity(quantity: number, unit: "L" | "kWh"): string {
+  return `${quantity.toLocaleString("pt-BR", { maximumFractionDigits: 3 })} ${unit}`;
+}
+
+export function formatEnergyEfficiency(entry: EnergyHistoryEntry): string {
+  if (entry.efficiency === null) return "Sem intervalo válido para calcular consumo.";
+  return entry.kind === "fuel"
+    ? `Consumo ${entry.efficiency.toLocaleString("pt-BR")} km/L`
+    : `Eficiência ${entry.efficiency.toLocaleString("pt-BR")} km/kWh`;
+}
+
+export function mergeEnergyHistory(fuelLogs: FuelLog[], chargingLogs: ChargingLog[]): EnergyHistoryEntry[] {
+  const fuelEntries: EnergyHistoryEntry[] = fuelLogs.map((log) => ({
+    kind: "fuel" as const,
+    id: log.id,
+    recordedAt: log.recordedAt,
+    odometerValue: log.odometerValue,
+    quantity: log.liters,
+    unit: "L" as const,
+    totalAmount: log.totalAmount,
+    fuelType: log.fuelType,
+    chargingType: undefined,
+    batteryPercent: undefined,
+    efficiency: log.consumptionKmpl,
+    note: log.note,
+  }));
+  const chargingEntries: EnergyHistoryEntry[] = chargingLogs.map((log) => ({
+    kind: "charging" as const,
+    id: log.id,
+    recordedAt: log.recordedAt,
+    odometerValue: log.odometerValue,
+    quantity: log.kwh,
+    unit: "kWh" as const,
+    totalAmount: log.totalAmount,
+    chargingType: log.chargingType,
+    batteryPercent: log.batteryPercent,
+    efficiency: log.consumptionKmKwh,
+    note: log.note,
+  }));
+  return [...fuelEntries, ...chargingEntries].sort((leftFeft: EnergyHistoryEntry, rightFeft: EnergyHistoryEntry) => {
+    const tLeft = Date.parse(leftFeft.recordedAt);
+    const tRight = Date.parse(rightFeft.recordedAt);
+    return tRight - tLeft || leftFeft.id.localeCompare(rightFeft.id);
+  });
+}
+
 export type ChargingLog = {
   id: string;
   vehicleId: string;
