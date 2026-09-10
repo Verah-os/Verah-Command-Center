@@ -168,7 +168,7 @@ select vehicle_charging_log_test.expect_error(
 
 select public.register_vehicle_fuel(
   :'vehicle_id', '2026-08-21T12:00:00Z', 16000,  40,  350.00, 'gasolina', null, 'charge-fuel-cross-floor'
-')->>'log_id' as fuel_log_id \gset
+)->>'log_id' as fuel_log_id \gset
 
 do $$
 begin
