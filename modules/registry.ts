@@ -15,6 +15,15 @@ export const modules: CommandModule[] = [
     ]
   },
   {
+    slug: "clientes",
+    title: "Clientes",
+    description: "Visão operacional das identidades canônicas VERAH.",
+    owner: "VERAH",
+    status: "ready",
+    primaryAction: "Consultar clientes",
+    metrics: []
+  },
+  {
     slug: "roadmap",
     title: "Roadmap",
     description: "Strategic roadmap, sequencing and release readiness.",

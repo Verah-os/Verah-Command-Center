@@ -6,6 +6,8 @@ import type { UserRole } from "@/types/user-profile";
 
 export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
+  // Exact public entry points: never broaden this to internal/demo prefixes.
+  if (path === "/" || path === "/demo") return NextResponse.next({ request });
   const isPublicCustomerPilotDemo = [
     "/demo/cliente/piloto",
     "/customer-demo-sw.js",
