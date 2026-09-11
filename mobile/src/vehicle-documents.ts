@@ -130,7 +130,7 @@ export function validateVehicleDocumentInput(
   }
   const idempotencyKey = input.idempotencyKey.trim();
   if (!idempotencyKey || idempotencyKey.length > 200) {
-    return { ok: false, message: "Chave de idempotência inválida." };
+    return { ok: false, message: "Houve um erro ao preparar o arquivo. Tente novamente." };
   }
   return { ok: true, data: { vehicleId, documentKind: kind as VehicleDocumentKind, documentDate: input.documentDate, fileName, mimeType: mimeType as VehicleDocumentMimeType, sizeBytes, reference, note, idempotencyKey } };
 }

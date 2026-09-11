@@ -52,7 +52,7 @@ export async function createMobileServiceRequest(input: ServiceRequestInput): Pr
   if (!prepared.ok) return prepared;
 
   const client = getSupabaseClient();
-  if (!client) return { ok: false, message: "Supabase não configurado nesta build." };
+  if (!client) return { ok: false, message: "A conexão com a VERAH não está configurada neste build." };
 
   const {
     data: { user },

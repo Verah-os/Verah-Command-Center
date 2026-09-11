@@ -67,7 +67,7 @@ async function invokeCatalog(args: CatalogArgs) {
   if (error) throw new Error("Não foi possível consultar o catálogo FIPE agora.");
   if (!data?.ok) {
     if (data?.error === "provider_not_configured") {
-      throw new Error("O catálogo FIPE ainda não está configurado no backend da VERAH.");
+      throw new Error("O catálogo FIPE ainda não está configurado na VERAH.");
     }
     if (data?.error === "provider_error") {
       throw new Error("A FIPE API recusou a consulta. Tente novamente em instantes.");
