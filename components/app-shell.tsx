@@ -69,6 +69,10 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           </div>
         </header>
+        <nav aria-label="Navegação administrativa mobile" className="flex gap-2 border-b border-border px-5 py-2 lg:hidden">
+          <Link href="/dashboard" className="inline-flex min-h-11 items-center rounded-md px-3 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary hover:bg-muted">Dashboard</Link>
+          <Link href="/clientes" prefetch={false} className="inline-flex min-h-11 items-center rounded-md px-3 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary hover:bg-muted">Clientes</Link>
+        </nav>
         <div className="p-5">{children}</div>
       </main>
     </div>
