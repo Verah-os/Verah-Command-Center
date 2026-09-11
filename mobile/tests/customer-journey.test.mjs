@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  HOME_LOAD_UNAVAILABLE_MESSAGE,
   ONBOARDING_TERMS_VERSION,
   createCustomerJourney,
   defaultDisplayName,
@@ -281,7 +282,7 @@ test("reports garage load failure after a successful confirmation", async () => 
   assert.equal(result.ok, false);
   const state = controller.getState();
   assert.equal(state.status, "error");
-  assert.equal(state.message, "network down");
+  assert.equal(state.message, HOME_LOAD_UNAVAILABLE_MESSAGE);
 });
 
 test("normalizeBrazilianPlate accepts both canonical formats", () => {

@@ -3,6 +3,9 @@ import type { VehicleDocument, VehicleDocumentInput, VehicleDocumentRegisterData
 import { sortVehicleDocuments } from "./vehicle-documents.ts";
 export type { VehicleDocument, VehicleDocumentInput, VehicleDocumentKind, VehicleDocumentMimeType } from "./vehicle-documents";
 export const ONBOARDING_TERMS_VERSION = "pilot-alpha-onboarding-v1";
+export const FUEL_UNAVAILABLE_MESSAGE = "Abastecimentos indisponíveis no momento. Tente novamente em instantes.";
+export const CHARGING_UNAVAILABLE_MESSAGE = "Recargas indisponíveis no momento. Tente novamente em instantes.";
+export const HOME_LOAD_UNAVAILABLE_MESSAGE = "Não foi possível carregar sua área VERAH no momento. Tente novamente em instantes.";
 
 export type JourneyUser = { id: string; email?: string };
 export type GarageVehicle = { id: string; brand: string; model: string; year: number | null; plate: string | null; nickname: string | null; current_mileage?: number | null; currentMileage?: number | null };
@@ -181,6 +184,10 @@ export type ChargingInput = {
   note?: string;
 };
 export type ChargingResults = { logs: ChargingLog[]; latest: ChargingLog | null; nextMinimum: number };
+export type EnergyLoadResult = {
+  fuel: { ok: true; data: FuelResults } | { ok: false; message: string };
+  charging: { ok: true; data: ChargingResults } | { ok: false; message: string };
+};
 
 export interface CustomerJourneyFacade {
   listMaintenance?(vehicleId: string): Promise<{ data: MaintenanceRecord[] | null; error: RpcError }>;
@@ -231,8 +238,9 @@ export interface CustomerJourneyController {
   listMileage(vehicleId: string): Promise<{ ok: true; data: MileageResults } | { ok: false; message: string }>;
   registerFuel(vehicleId: string, input: FuelInput): Promise<JourneyResult>;
   listFuel(vehicleId: string): Promise<{ ok: true; data: FuelResults } | { ok: false; message: string }>;
-registerCharging(vehicleId: string, input: ChargingInput): Promise<JourneyResult>;
+  registerCharging(vehicleId: string, input: ChargingInput): Promise<JourneyResult>;
   listCharging(vehicleId: string): Promise<{ ok: true; data: ChargingResults } | { ok: false; message: string }>;
+  loadEnergy(vehicleId: string): Promise<EnergyLoadResult>;
   registerVehicleDocument(vehicleId: string, input: VehicleDocumentInput, bytes: Blob): Promise<JourneyResult>;
   listVehicleDocuments(vehicleId: string): Promise<{ ok: true; data: VehicleDocument[] } | { ok: false; message: string }>;
   removeVehicleDocument(documentId: string): Promise<JourneyResult>;
@@ -336,8 +344,8 @@ export function createCustomerJourney(facade: CustomerJourneyFacade, user: Journ
       facade.listVehicles(),
       facade.listServiceRequests ? facade.listServiceRequests() : Promise.resolve({ data: [] as CustomerServiceRequest[], error: null }),
     ]);
-    if (vehiclesResult.error) { fail(vehiclesResult.error.message); return false; }
-    if (requestsResult.error) { fail(requestsResult.error.message); return false; }
+    if (vehiclesResult.error) { fail(HOME_LOAD_UNAVAILABLE_MESSAGE); return false; }
+    if (requestsResult.error) { fail(HOME_LOAD_UNAVAILABLE_MESSAGE); return false; }
     const vehicles = vehiclesResult.data ?? [];
     let expensesByVehicle: Record<string, VehicleExpenseSummary> = {};
     if (facade.expenseForVehicle) {
@@ -492,7 +500,10 @@ export function createCustomerJourney(facade: CustomerJourneyFacade, user: Journ
     },
     async listFuel(vehicleId) {
       const result = await facade.listFuel(vehicleId);
-      if (result.error) return { ok: false, message: result.error.message };
+      if (result.error) {
+        console.warn("[verah-mobile] fuel history unavailable:", result.error.message);
+        return { ok: false, message: FUEL_UNAVAILABLE_MESSAGE };
+      }
       const logs = sortFuelLogs(result.data ?? []);
       const latest = logs[0] ?? null;
       const nextMinimum = latest ? latest.odometerValue : 0;
@@ -546,11 +557,21 @@ export function createCustomerJourney(facade: CustomerJourneyFacade, user: Journ
     },
     async listCharging(vehicleId) {
       const result = await facade.listCharging(vehicleId);
-      if (result.error) return { ok: false, message: result.error.message };
+      if (result.error) {
+        console.warn("[verah-mobile] charging history unavailable:", result.error.message);
+        return { ok: false, message: CHARGING_UNAVAILABLE_MESSAGE };
+      }
       const logs = sortChargingLogs(result.data ?? []);
       const latest = logs[0] ?? null;
       const nextMinimum = latest ? latest.odometerValue : 0;
       return { ok: true, data: { logs, latest, nextMinimum } };
+    },
+    async loadEnergy(vehicleId) {
+      const [fuel, charging] = await Promise.all([
+        this.listFuel(vehicleId),
+        this.listCharging(vehicleId),
+      ]);
+      return { fuel, charging };
     },
     async registerVehicleDocument(vehicleId, input, bytes) {
       if (!facade.registerVehicleDocument) return { ok: false, message: "Documentos indisponíveis." };
