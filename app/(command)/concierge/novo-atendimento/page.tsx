@@ -16,11 +16,11 @@ export default async function NewConciergeServiceRequestPage({
       <header className="rounded-[1.5rem] border border-rose-100 bg-white/95 p-5 shadow-[0_18px_45px_rgba(64,83,80,0.06)] sm:p-7">
         <Link
           href={"/concierge" as Route}
-          className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-teal-800 outline-none hover:underline focus-visible:ring-4 focus-visible:ring-teal-100"
+          className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-accent outline-none hover:underline focus-visible:ring-4 focus-visible:ring-accent/30"
         >
           <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Voltar aos atendimentos
         </Link>
-        <p className="mt-5 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-teal-700">
+        <p className="mt-5 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-accent">
           <PlusCircle className="h-4 w-4" aria-hidden="true" /> Criação operacional
         </p>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">Criar atendimento</h1>

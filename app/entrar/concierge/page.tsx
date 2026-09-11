@@ -12,7 +12,7 @@ export default async function ConciergeLoginPage({
       <div className="w-full max-w-md">
         <Link
           href="/"
-          className="mb-5 inline-flex min-h-11 items-center text-sm font-semibold text-teal-800 outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
+          className="mb-5 inline-flex min-h-11 items-center text-sm font-semibold text-accent outline-none focus-visible:ring-4 focus-visible:ring-accent/30"
         >
           ← Voltar para a VERAH
         </Link>

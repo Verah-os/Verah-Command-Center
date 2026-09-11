@@ -38,7 +38,7 @@ export function AuthGate({
   if (state.status === "loading") {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color="#177F78" />
+        <ActivityIndicator color="#814455" />
         <Text style={styles.note}>Restaurando sessão…</Text>
       </View>
     );

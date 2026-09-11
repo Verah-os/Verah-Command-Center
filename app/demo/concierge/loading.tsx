@@ -12,7 +12,7 @@ export default function ConciergeDemoLoading() {
         <div className="mt-6 grid gap-6 lg:grid-cols-[0.72fr_1.28fr]">
           <div className="h-96 rounded-3xl bg-white" />
           <div className="space-y-6">
-            <div className="h-72 rounded-3xl bg-teal-900/20" />
+            <div className="h-72 rounded-3xl bg-ink/20" />
             <div className="h-80 rounded-3xl bg-white" />
           </div>
         </div>

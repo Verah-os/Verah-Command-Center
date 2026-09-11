@@ -46,7 +46,7 @@ export function CustomerJourneyGate({
   if (state.status === "loading") {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color="#177F78" />
+        <ActivityIndicator color="#814455" />
         <Text style={styles.note}>Restaurando sua jornada…</Text>
       </View>
     );
@@ -265,7 +265,7 @@ const styles = StyleSheet.create({
   card: { width: "100%", maxWidth: 420, backgroundColor: "#FFFFFF", padding: 22, borderRadius: 22 },
   form: { width: "100%", maxWidth: 420, alignSelf: "center", paddingBottom: 32 },
   additionalVehicleShell: { flex: 1, width: "100%", maxWidth: 520, alignSelf: "center", backgroundColor: "#111111", padding: 18 },
-  brand: { color: "#177F78", fontSize: 32, fontWeight: "800" },
+  brand: { color: "#814455", fontSize: 32, fontWeight: "800" },
   eyebrow: { color: "#A85F70", fontSize: 14, fontWeight: "700", marginTop: 16 },
   title: { color: "#263238", fontSize: 22, fontWeight: "700", marginTop: 4 },
   body: { color: "#667085", fontSize: 15, marginTop: 12, marginBottom: 20 },
@@ -281,14 +281,14 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   checkboxRow: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginTop: 4, marginBottom: 8 },
-  checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 1, borderColor: "#177F78", alignItems: "center", justifyContent: "center", marginTop: 2 },
-  checkboxChecked: { backgroundColor: "#177F78" },
+  checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 1, borderColor: "#814455", alignItems: "center", justifyContent: "center", marginTop: 2 },
+  checkboxChecked: { backgroundColor: "#814455" },
   checkboxMark: { color: "#FFFFFF", fontSize: 14, fontWeight: "700" },
   checkboxLabel: { color: "#667085", fontSize: 14, flex: 1 },
   error: { color: "#C84E59", fontSize: 14, marginTop: 4 },
-  submit: { backgroundColor: "#177F78", borderRadius: 12, marginTop: 16, paddingVertical: 13, alignItems: "center" },
+  submit: { backgroundColor: "#814455", borderRadius: 12, marginTop: 16, paddingVertical: 13, alignItems: "center" },
   submitDisabled: { opacity: 0.6 },
   submitLabel: { color: "#FFFFFF", fontSize: 16, fontWeight: "700" },
-  secondary: { borderWidth: 1, borderColor: "#177F78", borderRadius: 12, marginTop: 16, paddingVertical: 12, alignItems: "center" },
-  secondaryLabel: { color: "#177F78", fontSize: 16, fontWeight: "600" },
+  secondary: { borderWidth: 1, borderColor: "#814455", borderRadius: 12, marginTop: 16, paddingVertical: 12, alignItems: "center" },
+  secondaryLabel: { color: "#814455", fontSize: 16, fontWeight: "600" },
 });

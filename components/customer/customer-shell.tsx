@@ -15,16 +15,16 @@ const navigation = [
 
 export function CustomerShell({ children }: { children: ReactNode }) {
   return (
-    <div className="verah-surface min-h-screen text-foreground">
-      <header className="border-b border-border bg-[var(--verah-sidebar)]/95 backdrop-blur">
+    <div className="design-system-light min-h-screen text-foreground">
+      <header className="sticky top-0 z-40 border-b border-border bg-[var(--verah-card-light)]/90 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-5 px-4 py-4 sm:px-6">
           <Link
             href="/demo/cliente"
             aria-label="VERAH — início da área da cliente"
             className="flex min-h-11 items-center rounded-sm outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus)]"
           >
-            <VerahLogo kind="symbol" tone="light" size="sm" priority alt="" className="sm:hidden" />
-            <VerahLogo kind="wordmark" tone="light" size="sm" priority alt="" className="hidden sm:block" />
+            <VerahLogo kind="symbol" tone="dark" size="sm" priority alt="" className="sm:hidden" />
+            <VerahLogo kind="wordmark" tone="dark" size="sm" priority alt="" className="hidden sm:block" />
           </Link>
           <nav aria-label="Navegação da cliente" className="hidden items-center gap-1 lg:flex">
             {navigation.map(({ href, label }) => (
@@ -33,7 +33,7 @@ export function CustomerShell({ children }: { children: ReactNode }) {
                 href={href}
                 exact={href === "/demo/cliente"}
                 className="rounded-md px-3 py-2 text-sm font-medium text-muted-foreground outline-none transition hover:bg-muted hover:text-foreground focus-visible:ring-4 focus-visible:ring-[var(--focus)]"
-                activeClassName="bg-primary/10 text-primary shadow-[inset_0_-2px_0_var(--verah-pink)]"
+                activeClassName="bg-accent/10 text-accent shadow-[inset_0_-2px_0_var(--verah-accent)]"
               >
                 {label}
               </PortalNavLink>
@@ -56,7 +56,7 @@ export function CustomerShell({ children }: { children: ReactNode }) {
               exact={href === "/demo/cliente"}
               icon={<Icon className="h-4 w-4 shrink-0" aria-hidden="true" />}
               className="flex min-h-11 items-center justify-center gap-1.5 rounded-md px-2 py-2 text-center text-xs font-semibold text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-4 focus-visible:ring-[var(--focus)]"
-              activeClassName="bg-primary/10 text-primary"
+              activeClassName="bg-accent/10 text-accent"
             >
               <span>{label}</span>
             </PortalNavLink>

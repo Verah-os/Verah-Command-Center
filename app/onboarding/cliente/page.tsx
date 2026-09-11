@@ -60,7 +60,7 @@ export default async function CustomerOnboardingPage({
         {vehicle ? `${vehicle.brand} ${vehicle.model}${vehicle.plate ? ` · ${vehicle.plate}` : ""}` : "Seu veículo canônico foi salvo."}
         {" "}Atendimentos, Concierge, custódia e histórico usarão este mesmo veículo.
       </p>
-      <Link className="mt-6 flex min-h-11 items-center justify-center rounded-xl bg-teal-700 px-4 text-sm font-semibold text-white" href="/demo/cliente">
+      <Link className="mt-6 flex min-h-11 items-center justify-center rounded-xl bg-accent px-4 text-sm font-semibold text-white" href="/demo/cliente">
         Continuar na VERAH
       </Link>
     </Shell>;
@@ -108,7 +108,7 @@ export default async function CustomerOnboardingPage({
 function Shell({ eyebrow, title, children }: { eyebrow: string; title: string; children: ReactNode }) {
   return <main className="verah-surface flex min-h-screen items-center justify-center p-4 sm:p-6">
     <Card className="w-full max-w-xl p-5 sm:p-8">
-      <p className="text-sm font-semibold text-teal-700">{eyebrow}</p>
+      <p className="text-sm font-semibold text-accent">{eyebrow}</p>
       <h1 className="mt-2 text-2xl font-semibold">{title}</h1>
       <div className="mt-2">{children}</div>
     </Card>

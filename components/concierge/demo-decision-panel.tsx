@@ -68,7 +68,7 @@ export function DemoDecisionPanel({ prompt }: { prompt: string }) {
             <button
               type="button"
               onClick={() => setConfirmed(pending)}
-              className="min-h-11 rounded-xl bg-teal-700 px-4 text-sm font-semibold text-white outline-none hover:bg-teal-800 focus-visible:ring-4 focus-visible:ring-teal-200"
+              className="min-h-11 rounded-xl bg-accent px-4 text-sm font-semibold text-white outline-none hover:bg-accent/90 focus-visible:ring-4 focus-visible:ring-accent/30"
             >
               Confirmar decisão
             </button>
@@ -86,14 +86,14 @@ export function DemoDecisionPanel({ prompt }: { prompt: string }) {
           <button
             type="button"
             onClick={() => setPending("approve")}
-            className="min-h-12 rounded-xl bg-teal-700 px-4 text-sm font-semibold text-white outline-none hover:bg-teal-800 focus-visible:ring-4 focus-visible:ring-teal-200"
+            className="min-h-12 rounded-xl bg-accent px-4 text-sm font-semibold text-white outline-none hover:bg-accent/90 focus-visible:ring-4 focus-visible:ring-accent/30"
           >
             Registrar escolha da cliente
           </button>
           <button
             type="button"
             onClick={() => setPending("adjust")}
-            className="min-h-12 rounded-xl border border-teal-200 bg-white px-4 text-sm font-semibold text-teal-800 outline-none hover:bg-teal-50 focus-visible:ring-4 focus-visible:ring-teal-100"
+            className="min-h-12 rounded-xl border border-accent/40 bg-white px-4 text-sm font-semibold text-accent outline-none hover:bg-accent/10 focus-visible:ring-4 focus-visible:ring-accent/30"
           >
             Pedir esclarecimentos
           </button>

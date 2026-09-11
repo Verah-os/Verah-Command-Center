@@ -72,7 +72,7 @@ export function CustomerAnswersForm({
       {!locked && allAnswered && !showForm && (
         <button
           type="button"
-          className="min-h-12 w-full rounded-xl border border-teal-700 px-5 font-semibold text-teal-800"
+          className="min-h-12 w-full rounded-xl border border-accent px-5 font-semibold text-accent"
           onClick={() => setEditing(true)}
         >
           Editar respostas
@@ -99,14 +99,14 @@ export function CustomerAnswersForm({
                   id={`answer-${index}`}
                   name={`answer:${question}`}
                   defaultValue={answers[question] ?? ""}
-                  className={`mt-2 min-h-24 w-full rounded-xl border p-3 font-normal outline-none focus-visible:border-teal-600 focus-visible:ring-4 focus-visible:ring-teal-100 ${!answered && hasAnswers ? "border-amber-300 bg-amber-50/40" : "border-rose-100"}`}
+                  className={`mt-2 min-h-24 w-full rounded-xl border p-3 font-normal outline-none focus-visible:border-accent focus-visible:ring-4 focus-visible:ring-accent/30 ${!answered && hasAnswers ? "border-amber-300 bg-amber-50/40" : "border-rose-100"}`}
                   disabled={locked}
                 />
               </label>
             );
           })}
           {!locked && (
-            <button className="min-h-12 w-full rounded-xl bg-teal-700 px-5 font-semibold text-white">
+            <button className="min-h-12 w-full rounded-xl bg-accent px-5 font-semibold text-white">
               {hasAnswers ? "Salvar alterações" : "Enviar respostas"}
             </button>
           )}

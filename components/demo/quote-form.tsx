@@ -25,7 +25,7 @@ const empty = (type = "part"): Item => ({
 });
 
 const inputClass =
-  "mt-2 h-11 w-full rounded-xl border border-rose-100 bg-white px-3 text-sm outline-none focus-visible:border-teal-500 focus-visible:ring-4 focus-visible:ring-teal-100";
+  "mt-2 h-11 w-full rounded-xl border border-rose-100 bg-white px-3 text-sm outline-none focus-visible:border-accent focus-visible:ring-4 focus-visible:ring-accent/30";
 
 export function QuoteForm({
   requestId,
@@ -111,7 +111,7 @@ export function QuoteForm({
                 </Field>
                 <Field label="Opcional">
                   <label className="mt-2 flex h-11 items-center gap-2 rounded-xl border border-rose-100 px-3 text-sm font-normal">
-                    <input type="checkbox" checked={item.is_optional} onChange={(event) => update(index, { is_optional: event.target.checked })} className="h-4 w-4 accent-teal-700" /> Sim
+                    <input type="checkbox" checked={item.is_optional} onChange={(event) => update(index, { is_optional: event.target.checked })} className="h-4 w-4 accent-accent" /> Sim
                   </label>
                 </Field>
               </div>
@@ -133,16 +133,16 @@ export function QuoteForm({
         })}
       </div>
 
-      <button type="button" className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-teal-200 bg-teal-50 px-4 text-sm font-semibold text-teal-800 outline-none hover:bg-teal-100 focus-visible:ring-4 focus-visible:ring-teal-100 sm:w-auto" onClick={() => setItems((current) => [...current, empty()])}>
+      <button type="button" className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-accent/40 bg-accent/10 px-4 text-sm font-semibold text-accent outline-none hover:bg-accent/10 focus-visible:ring-4 focus-visible:ring-accent/30 sm:w-auto" onClick={() => setItems((current) => [...current, empty()])}>
         <Plus className="h-4 w-4" aria-hidden="true" /> Adicionar item
       </button>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Prazo estimado"><input className={inputClass} name="estimatedDuration" defaultValue={initial?.estimatedDuration ?? ""} placeholder="Ex.: 2 horas ou 1 dia útil" /></Field>
         <Field label="Validade do orçamento"><input className={inputClass} name="validUntil" defaultValue={initial?.validUntil ?? ""} type="date" /></Field>
-        <Field label="Observações técnicas"><textarea className="mt-2 min-h-28 w-full rounded-xl border border-rose-100 p-3 outline-none focus-visible:border-teal-500 focus-visible:ring-4 focus-visible:ring-teal-100" name="technicalNotes" defaultValue={initial?.technicalNotes ?? ""} /></Field>
-        <Field label="Resumo para a cliente"><textarea className="mt-2 min-h-28 w-full rounded-xl border border-rose-100 p-3 outline-none focus-visible:border-teal-500 focus-visible:ring-4 focus-visible:ring-teal-100" name="customerSummary" defaultValue={initial?.customerSummary ?? ""} /></Field>
-        <Field label="Garantia"><textarea className="mt-2 min-h-28 w-full rounded-xl border border-rose-100 p-3 outline-none focus-visible:border-teal-500 focus-visible:ring-4 focus-visible:ring-teal-100" name="warrantyText" defaultValue={initial?.warrantyText ?? ""} /></Field>
+        <Field label="Observações técnicas"><textarea className="mt-2 min-h-28 w-full rounded-xl border border-rose-100 p-3 outline-none focus-visible:border-accent focus-visible:ring-4 focus-visible:ring-accent/30" name="technicalNotes" defaultValue={initial?.technicalNotes ?? ""} /></Field>
+        <Field label="Resumo para a cliente"><textarea className="mt-2 min-h-28 w-full rounded-xl border border-rose-100 p-3 outline-none focus-visible:border-accent focus-visible:ring-4 focus-visible:ring-accent/30" name="customerSummary" defaultValue={initial?.customerSummary ?? ""} /></Field>
+        <Field label="Garantia"><textarea className="mt-2 min-h-28 w-full rounded-xl border border-rose-100 p-3 outline-none focus-visible:border-accent focus-visible:ring-4 focus-visible:ring-accent/30" name="warrantyText" defaultValue={initial?.warrantyText ?? ""} /></Field>
       </div>
 
       <section aria-label="Prévia financeira" className="grid gap-3 rounded-2xl bg-slate-50 p-4 sm:grid-cols-3 sm:p-5">
@@ -151,7 +151,7 @@ export function QuoteForm({
         <PreviewMoney label="Serviços e adicionais" value={additional} />
         <div className="border-t border-slate-200 pt-4 sm:col-span-3">
           <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Total geral</p>
-          <p className="mt-1 text-2xl font-semibold tabular-nums text-teal-800">{money(labor + parts + additional)}</p>
+          <p className="mt-1 text-2xl font-semibold tabular-nums text-accent">{money(labor + parts + additional)}</p>
           <p className="mt-2 text-xs text-slate-500">Prévia local. Após salvar, os valores exibidos são recarregados do banco.</p>
         </div>
       </section>
@@ -160,7 +160,7 @@ export function QuoteForm({
         <button name="intent" value="draft" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-slate-200 px-4 font-semibold text-slate-800 outline-none hover:bg-slate-300 focus-visible:ring-4 focus-visible:ring-slate-200">
           <Save className="h-4 w-4" aria-hidden="true" /> Salvar rascunho
         </button>
-        <button name="intent" value="submit" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-teal-700 px-4 font-semibold text-white outline-none hover:bg-teal-800 focus-visible:ring-4 focus-visible:ring-teal-100">
+        <button name="intent" value="submit" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-accent px-4 font-semibold text-white outline-none hover:bg-accent/90 focus-visible:ring-4 focus-visible:ring-accent/30">
           <Send className="h-4 w-4" aria-hidden="true" /> Enviar para aprovação
         </button>
       </div>

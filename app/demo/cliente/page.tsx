@@ -53,7 +53,7 @@ export default async function CustomerPage() {
           <VerahNetworkMotif className="absolute -right-10 -top-2 w-[28rem] opacity-15" />
           <div className="relative flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.16em] text-teal-700">
+              <p className="text-sm font-semibold uppercase tracking-[0.16em] text-accent">
                 Sua jornada VERAH · Olá, {firstName}
               </p>
               <h1 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight sm:text-4xl">
@@ -65,7 +65,7 @@ export default async function CustomerPage() {
             </div>
             <Link
               href="/demo/cliente/novo-atendimento"
-              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-teal-700 px-5 font-semibold text-white outline-none transition hover:bg-teal-800 focus-visible:ring-4 focus-visible:ring-teal-200"
+              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-accent px-5 font-semibold text-white outline-none transition hover:bg-accent focus-visible:ring-4 focus-visible:ring-accent/30"
             >
               Solicitar atendimento <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
@@ -125,7 +125,7 @@ export default async function CustomerPage() {
                           <Link
                             key={otherVehicle.id}
                             href={`/demo/cliente/veiculo/${otherVehicle.id}`}
-                            className="rounded-full border border-teal-100 bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-800 outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
+                            className="rounded-full border border-accent/25 bg-accent/10 px-3 py-2 text-sm font-semibold text-accent outline-none focus-visible:ring-4 focus-visible:ring-accent/30"
                           >
                             {otherVehicle.nickname ?? `${otherVehicle.brand} ${otherVehicle.model}`}
                           </Link>
@@ -145,18 +145,18 @@ export default async function CustomerPage() {
             </CardContent>
           </Card>
 
-          <Card className="border-teal-100 bg-teal-50/70 shadow-sm">
+          <Card className="border-accent/25 bg-accent/15 shadow-sm">
             <CardContent className="p-6 sm:p-7">
               <SectionHeading icon={Clock3} title="Atendimento atual" />
               {openRequest ? (
                 <div className="mt-5">
-                  <p className="font-mono text-sm font-semibold text-teal-800">
+                  <p className="font-mono text-sm font-semibold text-accent">
                     {openRequest.referenceCode}
                   </p>
                   <h2 className="mt-2 text-xl font-semibold">
                     {openRequest.vehicleBrand} {openRequest.vehicleModel}
                   </h2>
-                  <span className="mt-4 inline-flex rounded-full bg-white px-3 py-1.5 text-sm font-semibold text-teal-900">
+                  <span className="mt-4 inline-flex rounded-full bg-white px-3 py-1.5 text-sm font-semibold text-accent">
                     {customerStageLabels[openRequest.serviceStage]}
                   </span>
                   <p className="mt-4 text-sm leading-6 text-slate-600">
@@ -207,13 +207,13 @@ export default async function CustomerPage() {
                   <Link
                     key={request.id}
                     href={`/demo/cliente/atendimento/${request.id}`}
-                    className="grid gap-2 rounded-xl border border-slate-100 p-4 outline-none hover:border-teal-200 focus-visible:ring-4 focus-visible:ring-teal-100 sm:grid-cols-[1fr_auto]"
+                    className="grid gap-2 rounded-xl border border-slate-100 p-4 outline-none hover:border-accent/30 focus-visible:ring-4 focus-visible:ring-accent/30 sm:grid-cols-[1fr_auto]"
                   >
                     <div>
                       <p className="font-medium">{request.probableCategory ? naturalLabel(request.probableCategory) : "Atendimento VERAH"}</p>
                       <p className="mt-1 text-sm text-slate-500">{request.completedAt ? dateFormatter.format(new Date(request.completedAt)) : "Data não informada"} · {request.customerRating ? `Avaliação ${request.customerRating}/5` : "Sem avaliação"}</p>
                     </div>
-                    <p className="font-semibold text-teal-800">{quotes.get(request.id)?.status === "approved" ? money.format(quotes.get(request.id)?.totalAmount ?? 0) : "Valor não informado"}</p>
+                    <p className="font-semibold text-accent">{quotes.get(request.id)?.status === "approved" ? money.format(quotes.get(request.id)?.totalAmount ?? 0) : "Valor não informado"}</p>
                   </Link>
                 )) : <p className="text-sm text-slate-500">Seu histórico aparecerá aqui após a conclusão de um atendimento.</p>}
               </div>
@@ -222,7 +222,7 @@ export default async function CustomerPage() {
           </Card>
         </div>
 
-        <Card className="mt-6 border-teal-100 bg-white/90">
+        <Card className="mt-6 border-accent/25 bg-white/90">
           <CardContent className="p-6">
             <SectionHeading icon={ShieldCheck} title="Garantias da rede VERAH" />
             <p className="mt-4 text-sm leading-6 text-slate-600">
@@ -239,13 +239,13 @@ export default async function CustomerPage() {
 }
 
 function SectionHeading({ icon: Icon, title }: { icon: typeof CarFront; title: string }) {
-  return <div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-50 text-teal-700"><Icon className="h-5 w-5" aria-hidden="true" /></span><h2 className="text-lg font-semibold">{title}</h2></div>;
+  return <div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10 text-accent"><Icon className="h-5 w-5" aria-hidden="true" /></span><h2 className="text-lg font-semibold">{title}</h2></div>;
 }
 function Fact({ label, value }: { label: string; value: string }) {
   return <div><dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</dt><dd className="mt-1 text-sm font-medium text-slate-800">{value}</dd></div>;
 }
 function LinkButton({ href, label }: { href: Route; label: string }) {
-  return <Link href={href} className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-lg px-1 font-semibold text-teal-800 outline-none hover:text-teal-950 focus-visible:ring-4 focus-visible:ring-teal-100">{label}<ArrowRight className="h-4 w-4" aria-hidden="true" /></Link>;
+  return <Link href={href} className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-lg px-1 font-semibold text-accent outline-none hover:text-accent focus-visible:ring-4 focus-visible:ring-accent/30">{label}<ArrowRight className="h-4 w-4" aria-hidden="true" /></Link>;
 }
 function EmptyCopy({ title, text, href, action }: { title: string; text: string; href: Route; action: string }) {
   return <div className="mt-5"><p className="font-semibold">{title}</p><p className="mt-2 text-sm leading-6 text-slate-500">{text}</p><LinkButton href={href} label={action} /></div>;

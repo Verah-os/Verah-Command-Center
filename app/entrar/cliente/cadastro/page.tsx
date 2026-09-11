@@ -17,7 +17,7 @@ export default async function CustomerSignupPage({ searchParams }: { searchParam
         {error ? <p role="alert" className="text-sm text-accent">Não foi possível criar a conta. Revise os dados e tente novamente.</p> : null}
         <Button className="w-full" type="submit">Criar conta</Button>
       </form>
-      <Link href="/entrar/cliente" className="mt-5 block text-center text-sm font-semibold text-teal-800">Já tenho uma conta</Link>
+      <Link href="/entrar/cliente" className="mt-5 block text-center text-sm font-semibold text-accent">Já tenho uma conta</Link>
     </Card>
   </main>;
 }

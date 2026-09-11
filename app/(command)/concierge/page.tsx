@@ -127,7 +127,7 @@ export default async function ConciergePage({
     <div className="space-y-7">
       <header className="flex flex-col gap-5 rounded-[1.5rem] border border-rose-100 bg-white/90 p-5 shadow-[0_18px_45px_rgba(64,83,80,0.06)] sm:p-7 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="flex items-center gap-2 text-sm font-semibold text-teal-800">
+          <p className="flex items-center gap-2 text-sm font-semibold text-accent">
             <CalendarDays className="h-4 w-4" aria-hidden="true" />
             <span className="capitalize">{dayFormatter.format(new Date())}</span>
           </p>
@@ -140,7 +140,7 @@ export default async function ConciergePage({
         </div>
         <Link
           href={"/concierge/novo-atendimento" as Route}
-          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-teal-700 px-5 text-sm font-semibold text-white shadow-sm outline-none transition hover:bg-teal-800 focus-visible:ring-4 focus-visible:ring-teal-100"
+          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-accent px-5 text-sm font-semibold text-white shadow-sm outline-none transition hover:bg-accent/90 focus-visible:ring-4 focus-visible:ring-accent/30"
         >
           <Plus className="h-4 w-4" aria-hidden="true" />
           Criar atendimento
@@ -161,7 +161,7 @@ export default async function ConciergePage({
           {indicatorCards.map(([label, value]) => (
             <Card key={label} className="concierge-card min-w-0 overflow-hidden border-rose-100/80">
               <CardContent className="p-4">
-                <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-rose-50 text-teal-800">
+                <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-rose-50 text-accent">
                   <IndicatorIcon label={label} />
                 </span>
                 <p className="mt-3 text-[11px] font-semibold leading-4 text-slate-500">
@@ -181,7 +181,7 @@ export default async function ConciergePage({
               key={value}
               href={filterHref(query, value)}
               aria-current={filter === value ? "page" : undefined}
-              className={`inline-flex min-h-11 items-center rounded-full border px-4 text-sm font-semibold outline-none transition focus-visible:ring-4 focus-visible:ring-teal-100 ${filter === value ? "border-teal-700 bg-teal-700 text-white shadow-sm" : "border-rose-100 bg-white text-slate-600 hover:border-teal-200 hover:bg-teal-50"}`}
+              className={`inline-flex min-h-11 items-center rounded-full border px-4 text-sm font-semibold outline-none transition focus-visible:ring-4 focus-visible:ring-accent/30 ${filter === value ? "border-accent bg-accent text-white shadow-sm" : "border-rose-100 bg-white text-slate-600 hover:border-accent/30 hover:bg-accent/10"}`}
             >
               {label}
             </Link>
@@ -190,8 +190,8 @@ export default async function ConciergePage({
       </nav>
 
       <details className="group rounded-2xl border border-rose-100 bg-white/90" open={hasSecondaryFilters(query)}>
-        <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 px-4 text-sm font-semibold text-slate-700 outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-teal-100 sm:px-5">
-          <span className="flex items-center gap-2"><Filter className="h-4 w-4 text-teal-700" aria-hidden="true" /> Filtros avançados</span>
+        <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 px-4 text-sm font-semibold text-slate-700 outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-accent/30 sm:px-5">
+          <span className="flex items-center gap-2"><Filter className="h-4 w-4 text-accent" aria-hidden="true" /> Filtros avançados</span>
           <ChevronDown className="h-4 w-4 transition group-open:rotate-180" aria-hidden="true" />
         </summary>
         <form method="get" className="grid gap-4 border-t border-rose-100 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-6">
@@ -212,8 +212,8 @@ export default async function ConciergePage({
             <option value="hoje">Hoje</option><option value="7_dias">Últimos 7 dias</option><option value="todos">Todos</option>
           </Select>
           <div className="flex items-end gap-2">
-            <button className="min-h-11 rounded-xl bg-teal-700 px-4 text-sm font-semibold text-white outline-none hover:bg-teal-800 focus-visible:ring-4 focus-visible:ring-teal-100">Aplicar</button>
-            <Link href={"/concierge" as Route} className="inline-flex min-h-11 items-center rounded-xl px-3 text-sm font-semibold text-teal-800 hover:underline">Limpar</Link>
+            <button className="min-h-11 rounded-xl bg-accent px-4 text-sm font-semibold text-white outline-none hover:bg-accent/90 focus-visible:ring-4 focus-visible:ring-accent/30">Aplicar</button>
+            <Link href={"/concierge" as Route} className="inline-flex min-h-11 items-center rounded-xl px-3 text-sm font-semibold text-accent hover:underline">Limpar</Link>
           </div>
         </form>
       </details>
@@ -221,7 +221,7 @@ export default async function ConciergePage({
       <section aria-labelledby="queue-title" className="rounded-[1.5rem] border border-rose-100 bg-white/95 p-4 shadow-[0_18px_45px_rgba(64,83,80,0.05)] sm:p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-teal-700">Fila real</p>
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-accent">Fila real</p>
             <h2 id="queue-title" className="mt-1 text-xl font-semibold text-slate-950">Atendimentos autorizados</h2>
           </div>
           <p className="text-sm text-slate-500">{visible.length} {visible.length === 1 ? "atendimento" : "atendimentos"}</p>
@@ -243,12 +243,12 @@ export default async function ConciergePage({
                 <Link
                   key={request.id}
                   href={`/concierge/${request.id}` as Route}
-                  className="group rounded-2xl border border-slate-100 bg-slate-50/70 p-4 outline-none transition hover:border-teal-200 hover:bg-teal-50/60 focus-visible:ring-4 focus-visible:ring-teal-100 sm:p-5"
+                  className="group rounded-2xl border border-slate-100 bg-slate-50/70 p-4 outline-none transition hover:border-accent/30 hover:bg-accent/15 focus-visible:ring-4 focus-visible:ring-accent/30 sm:p-5"
                 >
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-xs font-bold text-teal-800">{request.referenceCode}</span>
+                        <span className="text-xs font-bold text-accent">{request.referenceCode}</span>
                         <StatusPill stage={request.serviceStage} />
                         {request.requiresHumanReview && <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-bold text-amber-800">Revisão humana</span>}
                       </div>
@@ -265,7 +265,7 @@ export default async function ConciergePage({
                       <span>{formatter.format(new Date(request.createdAt))}</span>
                     </div>
                   </div>
-                  <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-teal-800">Abrir atendimento <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" aria-hidden="true" /></span>
+                  <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-accent">Abrir atendimento <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" aria-hidden="true" /></span>
                 </Link>
               );
             })}
@@ -312,7 +312,7 @@ function Select({ name, label, value, children }: { name: string; label: string;
   return (
     <label className="grid gap-1.5 text-sm font-semibold text-slate-700">
       {label}
-      <select name={name} defaultValue={value ?? ""} className="h-11 rounded-xl border border-rose-100 bg-white px-3 text-sm font-normal text-slate-700 outline-none focus-visible:border-teal-500 focus-visible:ring-4 focus-visible:ring-teal-100">
+      <select name={name} defaultValue={value ?? ""} className="h-11 rounded-xl border border-rose-100 bg-white px-3 text-sm font-normal text-slate-700 outline-none focus-visible:border-accent focus-visible:ring-4 focus-visible:ring-accent/30">
         {children}
       </select>
     </label>
@@ -320,7 +320,7 @@ function Select({ name, label, value, children }: { name: string; label: string;
 }
 
 function StatusPill({ stage }: { stage: string }) {
-  return <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-teal-800 ring-1 ring-inset ring-teal-100">{stageLabels[stage] ?? naturalLabel(stage)}</span>;
+  return <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-accent ring-1 ring-inset ring-accent/30">{stageLabels[stage] ?? naturalLabel(stage)}</span>;
 }
 
 function IndicatorIcon({ label }: { label: string }) {

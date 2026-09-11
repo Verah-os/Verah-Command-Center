@@ -6,7 +6,7 @@ import { updateCustomerVehicle } from "@/services/customer-vehicles/actions";
 import type { CustomerVehicle } from "@/types/customer-vehicle";
 
 const fieldClass =
-  "mt-2 h-12 w-full rounded-xl border border-rose-100 bg-white px-4 text-base outline-none focus-visible:border-teal-600 focus-visible:ring-4 focus-visible:ring-teal-100";
+  "mt-2 h-12 w-full rounded-xl border border-rose-100 bg-white px-4 text-base outline-none focus-visible:border-accent focus-visible:ring-4 focus-visible:ring-accent/30";
 
 export function VehicleEditForm({ vehicle }: { vehicle: CustomerVehicle }) {
   const [state, setState] = useState(vehicle.state ?? "");
@@ -71,7 +71,7 @@ export function VehicleEditForm({ vehicle }: { vehicle: CustomerVehicle }) {
         </datalist>
       </label>
       <div className="sm:col-span-2">
-        <button className="min-h-12 rounded-xl bg-teal-700 px-5 font-semibold text-white outline-none hover:bg-teal-800 focus-visible:ring-4 focus-visible:ring-teal-200">
+        <button className="min-h-12 rounded-xl bg-accent px-5 font-semibold text-white outline-none hover:bg-accent/90 focus-visible:ring-4 focus-visible:ring-accent/30">
           Salvar informações
         </button>
       </div>
