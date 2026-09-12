@@ -9,6 +9,9 @@ import { getWorkOrderStats } from "@/services/work-orders";
 import { getConciergeStats } from "@/services/service-requests";
 import { getProviderStats } from "@/services/service-providers";
 import { getQuoteStats } from "@/services/service-quotes";
+import { Suspense } from "react";
+import { CustomerDashboardMetrics } from "@/components/customer-crm/dashboard-metrics";
+import { requireRole } from "@/services/auth/profile";
 
 export const dynamic = "force-dynamic";
 
@@ -110,6 +113,7 @@ function formatLastUpdated(value: string | null) {
 }
 
 export default async function DashboardPage() {
+  await requireRole(["admin"]);
   const github = await getGitHubCardState();
   const workOrderStats = await getWorkOrderStats();
   const dispatcherStats = await getDispatcherStats();
@@ -125,6 +129,10 @@ export default async function DashboardPage() {
       <header>
         <h1 className="text-2xl font-semibold">VERAH Command Center</h1>
       </header>
+
+      <Suspense fallback={<p role="status">Carregando indicadores de clientes…</p>}>
+        <CustomerDashboardMetrics />
+      </Suspense>
 
       <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
         <Card><CardHeader><h2 className="text-sm font-medium text-muted-foreground">Satisfação</h2></CardHeader><CardContent><div className="grid gap-1 text-sm"><p>Avaliações: {conciergeStats.ratings}</p><p>Média: {conciergeStats.averageRating===null?"—":conciergeStats.averageRating.toFixed(1)}</p><p>Notas 4 ou 5: {conciergeStats.promoters===null?"—":`${conciergeStats.promoters.toFixed(0)}%`}</p><p>Concluídos: {conciergeStats.completed}</p></div></CardContent></Card>
