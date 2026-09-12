@@ -24,9 +24,8 @@ function FailClosedNotice() {
         <Text style={styles.brand}>VERAH</Text>
         <Text style={styles.title}>Build de desenvolvimento — M1</Text>
         <Text style={styles.body}>
-          Supabase público não configurado. Defina EXPO_PUBLIC_SUPABASE_URL e
-          EXPO_PUBLIC_SUPABASE_ANON_KEY. Fail-closed: nenhuma chamada de backend
-          é possível.
+          VERAH ainda não está conectada neste ambiente. Nenhuma informação
+          é enviada ou recebida enquanto a configuração não estiver completa.
         </Text>
       </View>
     </View>

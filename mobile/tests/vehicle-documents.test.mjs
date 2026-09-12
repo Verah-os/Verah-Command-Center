@@ -50,7 +50,8 @@ test("rejects invalid documents locally without calling the storage/RPC", async 
     { input: { ...validInput }, size: MAX_VEHICLE_DOCUMENT_BYTES + 1, message: /10 MiB/ },
     { input: { ...validInput, reference: "x".repeat(81) }, size:  1024, message: /80/ },
     { input: { ...validInput, note: "y".repeat(161) }, size:  1024, message: /160/ },
-    { input: { ...validInput, idempotencyKey: "   " }, size:  1024, message: /idempotência/ },
+    { input: { ...validInput, idempotencyKey: "   " }, size:  1024, message: /erro ao preparar/ },
+    { input: { ...validInput, idempotencyKey: "k".repeat(201) }, size:  1024, message: /nome do arquivo é muito longo/ },
   ];
   for (const { input, size, message } of cases) {
     const result = validateVehicleDocumentInput(input, size, today, "v-1");
