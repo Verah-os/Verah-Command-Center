@@ -16,15 +16,15 @@
   `#250` (3 paths,, esta PR, rebaseada na `main`), `#254` (8 paths,, UX copy/a11y pack;),
   `#255` (46 paths,, Design System V1 retint,, sem F5/F6), `#258` (3 paths,, delta de refresh do mapa;;
   o conteúdo deste mapa canônico agora subsume em grande parte o delta da #258,, sem editar os arquivos dela)) —
-  zero file overlap entre todos os pares;; todas `behind` mas `clean`, CI `Required` ⇒ `success` em todas..
+  zero file overlap entre todos os pares;; esta PR (#250) rebaseada (`mergeable: true`, `blocked` por Draft-gate); as demais 3 `behind` mas `clean`, CI `Required` ⇒ `success` em todas..
 - **Focused tests:** `node --experimental-strip-types --test tests/release-1.0-merge-sequencing-references.test.mjs` — estático,, sem rede/sem deps..
 
 - **Required checks:** CI desta PR (`Application`, `Database authorization`, `Mobile workspace`,
   `Required`) deve ficar verde;; nenhum outro check novo., docs-only + teste estático isolado..
 - **Invariant/decision discovered:** zero arquivo overlap entre o conjunto vivo (`#250/#254/#255/#258`,
   60 paths únicos) e o contexto mergeado (`#236/#239/#240/#242/#244/#246/#248/#256`,
-  33 paths únicos) — 93 paths únicos totais, interseção vazia; todas as 4 Drafts abertas
-  estão `behind` (base desatualizada,, sem `conflict`); `#255` não implementa F5/F6
+  33 paths únicos) — 93 paths únicos totais, interseção vazia; esta PR (#250) rebaseada sobre `c71ec30`;
+  `#254/#255/#258` estão `behind` (base desatualizada,, sem `conflict`); `#255` não implementa F5/F6
   (diff é só troca de tokens de cor,, mantendo a11y do pack #254 aberto/blocked até #255 landed);;
   ordem canônica preserva backend/identidade/`customer_id`/ownership/
   `service_request`/mileage/fuel/charging(L+kWh separados)/expenses/maintenance/documents/RLS/auth..
