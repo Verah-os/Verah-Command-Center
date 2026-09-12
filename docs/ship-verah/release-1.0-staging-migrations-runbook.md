@@ -4,6 +4,11 @@ Data: 2026-09-11. Base: `main` em `d391782` (2026-09-10).
 Escopo: documento repository-safe da sequência exata de migrations canônicas,
 dependências, invariantes e checklist de aplicação/validação para projeto
 Supabase **staging/Alpha separado**. Produção permanece intocada.
+Atualização (PR #262): `20260912131500_staging_advisor_security_hardening`
+(endurecimento #259) é a 54ª migration versionada, **repository-only pendente** —
+presente no repositório, **não** aplicada ao staging até o Human Gate
+(ver `release-1.0-staging-advisor-audit.md` e `PENDING_REPOSITORY_VERSIONS`
+em `tests/staging-migrations-sequence.test.mjs`).
 
 
 
@@ -100,8 +105,13 @@ avançar a sequência, atualizar o teste **e** este runbook explicitamente, uma 
 
 Nota: `20260910000000_vehicle_charging_logs` (charging) foi adicionada depois da última
 auditoria de readiness de 2026-09-09(que listava 52 migrations); o `main` atual
-tem **53** migrations. A contagem esperada de migrations aplicadas no staging após
-este runbook é **53** — conferida por `select count(*) from supabase_migrations.schema_migrations;`.
+tem **53** migrations **aplicadas no staging**. A PR #262 adiciona uma 54ª migration
+versionada, `20260912131500_staging_advisor_security_hardening` (endurecimento #259),
+classificada como **repository-only pendente** (ver `PENDING_REPOSITORY_VERSIONS` no
+teste de sequência): permanece no repositório mas **não integra a contagem aplicada**
+no staging até o Human Gate. A contagem esperada de migrations aplicadas no staging
+após este runbook é portanto **53** — conferida por
+`select count(*) from supabase_migrations.schema_migrations;`.
 
 ## 3. Cobertura das milestones exigidas pela issue
 
@@ -251,7 +261,8 @@ aplicação; **nenhuma query de escrita**):
 - [ ] `pnpm test` (os testes, incluindo `tests/staging-migrations-sequence.test.mjs`; verde.
 - [ ] `pnpm typecheck && pnpm lint && pnpm build` (verde).
 - [ ] `pnpm ci:database` quando CLI Supabase/Docker local disponível (CI local de database;
-   aplica todas as 53 migrations desde zero em container isolado + suíte SQL).
+   aplica todos os arquivos do repositório desde zero em container isolado + suíte SQL;
+   inclui a 54ª `20260912131500_staging_advisor_security_hardening` repository-only).
 
 
 
@@ -264,8 +275,11 @@ aplicação; **nenhuma query de escrita**):
    a divergência e escalar (a estratégia reconciliation da
    `docs/runbooks/supabase-reconciliation-manifest.md` aplica-se ao staging também).
 4. `supabase db push --dry-run` — a proposta deve listar **exatamente** o delta
-   entre o histórico remoto e as 53 versões deste runbook (sem migrations extras
-   nem arquivos inventados..
+   entre o histórico remoto e as 53 versões aplicadas deste runbook (sem migrations
+   extras nem arquivos inventados). Se listar a 54ª
+   `20260912131500_staging_advisor_security_hardening`, ela é **repository-only
+   pendente** (Human Gate de staging ainda aberto): **STOP** e não aplicar; ver
+   `release-1.0-staging-advisor-audit.md`.
 
 **Aplicação:**
 
