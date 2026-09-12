@@ -1,85 +1,186 @@
 # SHIP VERAH — plano mestre executável (Issue #164)
 
-Data: 2026-09-01. Companheiro da auditoria em
-`docs/ship-verah/audit-release-1.0.md`. Escopo estritamente NÃO-produção.
+Atualizado em 2026-09-12. Escopo estritamente NÃO-produção.
 
-## Princípios de execução
+Fonte operacional: GitHub (`main`, Issues/PRs/checks). Este documento resume o estado
+atual e aponta para os artefatos versionados de aceitação/readiness; não substitui o
+backend canônico, os runbooks ou os Human Gates.
 
-- Vertical slices demonstráveis; uma issue pequena por vez, ordenada pela rota
-  crítica até o build instalável.
-- Toda issue responde: **isso aproxima a VERAH de estar no celular de uma
-  cliente?** Se não e não for bloqueador técnico/segurança, adiar.
-- Zero backend paralelo: o app consome Supabase Auth + PostgREST + RPCs
-  existentes, com anon key e RLS. Novas tabelas seguem o padrão já estabelecido
-  (migration + grants mínimos + policies owner-based + teste de segurança SQL).
-- HUMAN gates fail-closed: contas de loja, signing, credenciais, push,
-  pagamentos, mensagens reais, qualquer migração remota e publicação.
+## Estado executivo atual
 
-## Marcos e saídas verificáveis
+A implementação repository-safe do **Release 1.0 — VERAH Free** está consolidada na
+`main` para M1–M3. As 11 capacidades do escopo do #164 estão implementadas sobre os
+contratos canônicos e foram cobertas pela auditoria de aceitação em
+`docs/ship-verah/release-1.0-acceptance-audit.md`.
 
-### M1 — VERAH no celular (rota crítica)
-Saída: APK Android interno + build iOS (simulador/dev client) instaláveis em
-ambiente não-prod, com login, onboarding e garagem funcionando contra o mesmo
-Supabase.
+Desde essa auditoria, o ciclo adicionou e integrou preparação de build/distribuição,
+smoke/readiness, reconciliação de integração e hardening de segurança. O ponto de
+parada deliberado é o **Human Gate de aplicação/validação das migrations no Supabase
+não-produtivo**. Enquanto esse gate estiver pendente, o ciclo pode continuar somente
+com trabalho independente repository-safe.
 
-1. Workspace mobile instalável e verificado (deps, lockfile, Expo SDK fixado).
-2. Auth mobile: login/cadastro e sessão persistida (AsyncStorage) com o
-   contrato `user_profiles`/`verah_identities`.
-3. Onboarding mobile: RPCs `start_customer_onboarding`,
-   `complete_customer_basic_onboarding`, `refresh_customer_onboarding`.
-4. Garagem mobile: listar veículos via `customer_vehicles` (RLS owner-based) e
-   criar/confirmar via RPC `confirm_customer_vehicle` (contrato final do #139,
-   mergeado em `7f0b987`; insert direto revogado de `authenticated`).
-5. Perfil EAS de desenvolvimento + APK interno (gate de build instalável).
+### Regra de prioridade
+
+1. Não reabrir features já entregues em M1–M3.
+2. Não criar backend, identidade, veículo, `service_request` ou state machine paralelos.
+3. Corrigir somente regressões P0/P1 comprovadas ou gaps repository-safe novos.
+4. Manter migrations remotas, produção, secrets, pagamentos/mensagens reais, signing,
+   App IDs/packages irreversíveis e publicação bloqueados por Human Gate.
+5. Não promover backlog estratégico para Release 1.0 sem evidência de bloqueio real.
+
+## Invariantes obrigatórios
+
+- **Backend canônico:** Supabase e contratos versionados permanecem fonte da verdade.
+- **Identidade:** auth provider é método de acesso; `customer_id`/identidade canônica
+  permanece o domínio da cliente.
+- **Ownership:** `customer_vehicles` e demais dados da cliente continuam protegidos por
+  RLS/RPCs canônicos, sem inserts paralelos ou ownership implícito.
+- **Atendimento:** `service_requests` é o atendimento canônico; mobile/cliente,
+  Concierge e Prestador projetam o mesmo registro autorizado.
+- **Quilometragem:** logs preservam regras de ownership e não regressão.
+- **Combustível/energia:** litros/km/L e kWh/km/kWh permanecem semanticamente separados.
+- **Despesas:** custo por km deriva dos contratos canônicos, sem ledger paralelo.
+- **Manutenção:** histórico/lembretes reutilizam registros canônicos; previsão não vira
+  diagnóstico automático.
+- **Documentos:** storage/metadados permanecem privados e owner-based.
+- **Auth/RLS:** nenhuma UI substitui autorização server-side; falhas devem ser
+  fail-closed.
+- **Demo/sintético:** nunca apresentado como produção ou dado real.
+
+## Marcos Release 1.0
+
+### M1 — VERAH no celular
+
+**Estado: PASS repository-safe.**
+
+Entregue:
+- workspace mobile Expo/React Native versionado e verificável;
+- login/cadastro e sessão persistida;
+- Google OAuth no cliente, mantendo configuração externa como gate separado;
+- onboarding canônico;
+- garagem com múltiplos veículos e operações de veículo preservando histórico;
+- catálogo/FIPE e fallback compatível com a arquitetura aprovada;
+- configuração EAS non-prod preparada sem executar signing/publicação.
+
+Validação física/externa continua condicionada aos Human Gates correspondentes.
 
 ### M2 — VERAH útil
-Saída: cliente registra km, abastecimento, despesa e manutenção, recebe
-lembretes derivados de data/km e vê o painel Quanto meu carro me custa?.
 
-6. Registro de quilometragem (`vehicle_mileage_logs` + RLS + teste SQL).
-7. Abastecimentos (`vehicle_fuel_logs`) + cálculo de consumo.
-8. Despesas (`vehicle_expenses`) + custo por km + dashboard M2.
-9. Manutenções pela cliente (`vehicle_maintenance_records`).
-10. Lembretes por data/km (derivação local; push fora até gate de credenciais)
-    + documentos/notas do veículo.
+**Estado: PASS repository-safe.**
+
+Entregue:
+- quilometragem;
+- abastecimentos e consumo;
+- despesas e custo por km;
+- dashboard "Quanto meu carro me custa?";
+- manutenções;
+- lembretes por data/km sem depender de push real;
+- documentos/notas/histórico;
+- ownership/RLS/testes de segurança associados.
 
 ### M3 — VERAH resolve
-Saída: CTA Preciso de ajuda no app cria `service_requests` real (pipeline de
-intake/triagem existente) e a cliente acompanha o `service_stage` canônico.
 
-11. Preciso de ajuda mobile + acompanhamento (projeção do estado canônico;
-    sem segundo state machine).
+**Estado: PASS repository-safe.**
 
-### M4 — Distribuição
-12. Perfis EAS de produção, TestFlight + teste fechado Android, checklist de
-    loja. Todos os passos com conta/assinatura/publicação são HUMAN gates.
+Entregue:
+- CTA `Preciso de ajuda` ligado ao `service_request` canônico;
+- fila operacional real do Concierge;
+- portal Prestador projetando o mesmo atendimento quando autorizado;
+- tracking/estado derivados da fonte canônica, sem segunda máquina de estados;
+- jornada multi-dispositivo baseada no backend, não no aparelho;
+- segregação entre rotas reais e `/demo/*` sintético.
 
-## Issues seguintes (pequenas, ordenadas por dependência)
+### M4 — distribuição
 
-Ordem de criação sugerida; cada uma cabe em um PR:
+**Estado: PREPARADO até Human Gates.**
 
-1. **Mobile workspace bootstrap**: instalar deps do `mobile/`, lockfile,
-   `expo-doctor`, decisão pnpm workspaces vs. lockfile isolado, job de CI.
-2. **Auth mobile (M1)**: telas de login/cadastro + sessão Supabase; teste de
-   contrato com `user_profiles`/identidade.
-3. **Onboarding + garagem mobile (M1)**: RPCs de onboarding + garagem sobre o
-   contrato final do #139 (já mergeado em `7f0b987`): leitura de
-   `customer_vehicles` via RLS, criação/confirmação via RPC
-   `confirm_customer_vehicle` com proveniência obrigatória.
-4. **EAS dev build (M1 gate)**: `eas.json` com perfis non-prod, APK interno,
-   doc de instalação; iOS dev client sem conta paga enquanto possível.
-5. **Quilometragem (M2)**: `vehicle_mileage_logs` + RLS + security test + tela.
-6. **Abastecimentos e consumo (M2)**.
-7. **Despesas, custo por km e dashboard (M2)**.
-8. **Manutenções e lembretes data/km (M2)**.
-9. **Documentos/notas do veículo (M2)**.
-10. **Preciso de ajuda mobile + acompanhamento (M3)**.
-11. **Distribuição M4**: HUMAN gates de contas Apple/Google e publicação.
+Artefatos principais:
+- `docs/ship-verah/release-1.0-build-readiness-checklist.md`;
+- `docs/ship-verah/release-1.0-android-physical-smoke.md`;
+- `docs/ship-verah/release-1.0-ios-readiness.md`;
+- `docs/ship-verah/release-1.0-m4-distribution-readiness.md`.
 
-## Segurança (inalterada)
+A configuração versionada já evita prompts desnecessários de versão de build e deixa
+metadados/checklists de loja preparados. Não executar neste ciclo:
+- criação irreversível de App ID/bundle/package de produção;
+- signing/certificados;
+- TestFlight/Play Console submission;
+- publicação Apple/Google.
 
-- Apenas `EXPO_PUBLIC_SUPABASE_URL`/`EXPO_PUBLIC_SUPABASE_ANON_KEY` no app;
-  nunca service role ou qualquer secret server-side.
-- Sem pagamentos reais, sem mensagens reais, sem migrações remotas, sem
-  operações destrutivas, sem bypass de CI/review/RLS/branch protection.
-- Demo/sintético nunca representado como produção.
+## Gate ativo conhecido — Supabase não-produção
+
+A preparação repository-safe da sequência de migrations e o hardening de segurança
+foram concluídos e versionados. O estado remoto **não deve ser inferido pelo GitHub**.
+
+Até ação humana explícita:
+- não executar `db push`, `migration repair`, reset ou reconciliation remota;
+- não marcar migration repository-only como aplicada;
+- não alterar produção;
+- não tentar contornar o bloqueio por outro ambiente/projeto.
+
+Referências:
+- `docs/ship-verah/release-1.0-staging-migrations-runbook.md`;
+- `docs/ship-verah/release-1.0-staging-advisor-audit.md`;
+- migration de hardening versionada e ainda repository-only conforme documentação.
+
+## Trabalho permitido enquanto o gate estiver bloqueado
+
+Somente itens independentes e repository-safe, por exemplo:
+- correções P0/P1 comprovadas em código já existente;
+- testes unitários/contratuais/CI;
+- lint/typecheck/build local/CI;
+- UX e acessibilidade que não criem arquitetura paralela;
+- documentação/runbooks/checklists;
+- preparação não-produtiva de build que não exija signing ou identificador irreversível;
+- limpeza de backlog obsoleto com evidência de supersession/conclusão.
+
+Antes de abrir PR, verificar PRs Draft abertas e evitar colisão de branch/arquivos.
+
+## Fora do Release 1.0
+
+Continuam deliberadamente fora do caminho crítico, salvo regressão que prove o
+contrário:
+- Vehicle Health/Score e pesquisa veicular ampla;
+- OCR/Invoice Intelligence;
+- VERAH Pro;
+- Passaporte ampliado/transferível;
+- rede homologada em escala;
+- pagamentos/split reais e assinaturas;
+- WhatsApp outbound real/campanhas;
+- automações avançadas e AI Factory;
+- CRM expandido e demais backlog estratégico.
+
+Esses itens permanecem no backlog para descoberta/priorização posterior e não devem
+impedir a primeira validação do Release 1.0.
+
+## Próxima sequência após o Human Gate de staging
+
+Quando a ação humana de migrations não-produtivas for concluída e validada:
+
+1. confirmar schema/migrations/RLS no staging com o runbook versionado;
+2. executar smoke Android físico contra o ambiente não-produtivo;
+3. corrigir apenas P0/P1 encontrados e revalidar CI;
+4. executar readiness/smoke iOS permitido pelo ambiente;
+5. congelar o candidate do Release 1.0;
+6. avançar para gates humanos de distribuição/beta sem tocar produção implicitamente;
+7. iniciar coorte pequena do Pilot Alpha somente com os gates operacionais aplicáveis.
+
+## Critério de conclusão técnica do ciclo repository-safe
+
+O ciclo repository-safe está concluído quando:
+- M1–M3 permanecem verdes e sem regressão conhecida;
+- todos os checks obrigatórios do candidate estão verdes;
+- não existe GAP de código Release 1.0 independente do gate remoto;
+- documentação de build, smoke, rollback/readiness e distribuição está consistente;
+- os únicos próximos passos restantes são Human Gates explícitos ou validação física que
+  dependa desses gates.
+
+## Segurança — permanece inalterada
+
+- nunca armazenar service role, secrets ou credenciais privadas no app/GitHub/logs;
+- nenhuma migration remota sem autorização humana explícita;
+- nenhum pagamento/mensagem real;
+- nenhuma operação destrutiva;
+- nenhum bypass de CI/review/RLS/branch protection;
+- nenhuma submissão/publicação Apple/Google implícita;
+- Human Gates permanecem fail-closed.
