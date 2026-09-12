@@ -280,6 +280,7 @@ run_sql supabase/tests/vehicle_documents_security.sql
 run_sql supabase/tests/vehicle_replacement_security.sql
 run_sql supabase/tests/vehicle_fuel_logs_security.sql
 run_sql supabase/tests/vehicle_mileage_logs_security.sql
+run_sql supabase/tests/customer_360_telemetry_read.sql
 run_sql supabase/tests/communication_intake_security.sql
 run_sql supabase/tests/whatsapp_worker_media_security.sql
 run_sql supabase/tests/whatsapp_production_readiness_security.sql
@@ -318,6 +319,7 @@ run_sql supabase/tests/vehicle_documents_security.sql
 run_sql supabase/tests/vehicle_replacement_security.sql
 run_sql supabase/tests/vehicle_fuel_logs_security.sql
 run_sql supabase/tests/vehicle_mileage_logs_security.sql
+run_sql supabase/tests/customer_360_telemetry_read.sql
 run_sql supabase/tests/communication_intake_security.sql
 run_sql supabase/tests/whatsapp_worker_media_security.sql
 run_sql supabase/tests/whatsapp_production_readiness_security.sql
