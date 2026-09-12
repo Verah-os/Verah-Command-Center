@@ -5,9 +5,10 @@ import test from "node:test";
 
 const MIGRATIONS_DIR = path.join(import.meta.dirname, "../supabase/migrations");
 
-// Frozen Release 1.0 staging sequence, copied verbatim from the canonical
-// filenames on `main` (d391782, 2026-09-10). When the canonical set changes,
-// update this list AND docs/ship-verah/release-1.0-staging-migrations-runbook.md.
+// Frozen Release 1.0 staging-applied baseline, copied verbatim from the canonical
+// filenames on `main` (d391782, 2026-09-10). This list describes the already-
+// applied non-production baseline only. Repository-only migrations prepared
+// after that freeze must be listed separately until the Human Gate is handled.
 const EXPECTED_VERSIONS = [
   "20260709050000_create_work_orders.sql",
   "20260709053000_create_dispatcher_jobs.sql",
@@ -64,6 +65,12 @@ const EXPECTED_VERSIONS = [
   "20260910000000_vehicle_charging_logs.sql",
 ];
 
+// Versioned repository-only migrations that intentionally remain unapplied
+// while the non-production Supabase migration-application Human Gate is open.
+const PENDING_REPOSITORY_VERSIONS = [
+  "20260912131500_staging_advisor_security_hardening.sql",
+];
+
 const MILESTONE = {
   serviceRequests: "20260712000000_create_service_requests.sql",
   customerVehicles: "20260716000000_create_customer_vehicles.sql",
@@ -101,31 +108,41 @@ async function readMigration(name) {
   return readFile(path.join(MIGRATIONS_DIR, name), "utf8");
 }
 
-test("staging migration files form the exact frozen Release 1.0 sequence", async () => {
+test("staging migration files preserve the frozen applied baseline plus explicit repository-only pending migrations", async () => {
   const files = (await readdir(MIGRATIONS_DIR))
     .filter((name) => name.endsWith(".sql"))
     .sort();
 
-  const extra = files.filter((name) => !EXPECTED_VERSIONS.includes(name));
-  const missing = EXPECTED_VERSIONS.filter((name) => !files.includes(name));
+  const allowedRepositoryVersions = [
+    ...EXPECTED_VERSIONS,
+    ...PENDING_REPOSITORY_VERSIONS,
+  ].sort();
+  const extra = files.filter((name) => !allowedRepositoryVersions.includes(name));
+  const missingApplied = EXPECTED_VERSIONS.filter((name) => !files.includes(name));
+  const missingPending = PENDING_REPOSITORY_VERSIONS.filter((name) => !files.includes(name));
 
   assert.equal(
     files.length,
-    EXPECTED_VERSIONS.length,
-    `expected ${EXPECTED_VERSIONS.length} canonical migrations, found ${files.length}`,
+    allowedRepositoryVersions.length,
+    `expected ${EXPECTED_VERSIONS.length} applied + ${PENDING_REPOSITORY_VERSIONS.length} pending repository migrations, found ${files.length}`,
   );
   assert.deepEqual(
-    missing,
+    missingApplied,
     [],
-    "every frozen Release 1.0 migration must exist on disk",
+    "every frozen Release 1.0 staging-applied migration must remain on disk",
+  );
+  assert.deepEqual(
+    missingPending,
+    [],
+    "every explicitly pending repository-only migration must remain on disk",
   );
   assert.deepEqual(
     extra,
     [],
-    "no migration outside the frozen Release 1.0 sequence (update the freeze and runbook explicitly when advancing the sequence)",
+    "every migration after the frozen staging baseline must be explicitly classified as repository-only pending until the Human Gate is handled",
   );
 
-  for (const name of EXPECTED_VERSIONS) {
+  for (const name of allowedRepositoryVersions) {
     assert.match(
       name,
       /^\d{14}_[a-z0-9_]+\.sql$/,
@@ -139,6 +156,14 @@ test("staging migration files form the exact frozen Release 1.0 sequence", async
     assert.ok(
       versions[i] > versions[i - 1],
       `migration versions must strictly increase: ${versions[i - 1]} -> ${versions[i]}`,
+    );
+  }
+
+  const lastAppliedVersion = versionPrefix(EXPECTED_VERSIONS.at(-1));
+  for (const pending of PENDING_REPOSITORY_VERSIONS) {
+    assert.ok(
+      versionPrefix(pending) > lastAppliedVersion,
+      `pending migration must follow the frozen staging-applied baseline: ${pending}`,
     );
   }
 });
