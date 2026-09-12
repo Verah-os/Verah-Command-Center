@@ -18,10 +18,12 @@
     ],
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.verah.app.dev"
+      "bundleIdentifier": "com.verah.app.dev",
+      "buildNumber": "1"
     },
     "android": {
-      "package": "com.verah.app.dev"
+      "package": "com.verah.app.dev",
+      "versionCode": 1
     },
     "extra": {
       "environment": "development",
