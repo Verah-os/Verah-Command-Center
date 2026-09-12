@@ -12,13 +12,17 @@ import type {
 import {
   CHARGING_TYPES,
   CHARGING_TYPE_LABELS,
+  CHARGING_UNAVAILABLE_MESSAGE,
   FUEL_TYPES,
+  FUEL_UNAVAILABLE_MESSAGE,
   chargingTypeLabel,
   formatBrzlCents,
   formatEnergyEfficiency,
   formatEnergyQuantity,
   mergeEnergyHistory,
 } from "./customer-journey";
+
+type SourceAvailability = "available" | "unavailable" | "loading";
 
 const fuelLabels: Record<FuelType, string> = {
   gasolina: "Gasolina",
@@ -41,6 +45,8 @@ export function FuelHistoryScreen({
 }) {
   const [fuelResults, setFuelResults] = useState<EnergyResults<FuelLog> | null>(null);
   const [chargingResults, setChargingResults] = useState<EnergyResults<ChargingLog> | null>(null);
+  const [fuelAvailability, setFuelAvailability] = useState<SourceAvailability>("loading");
+  const [chargingAvailability, setChargingAvailability] = useState<SourceAvailability>("loading");
   const [mode, setMode] = useState<EnergyMode>("combustao");
   const [odometerInput, setOdometerInput] = useState("");
   const [litersInput, setLitersInput] = useState("");
@@ -57,16 +63,28 @@ export function FuelHistoryScreen({
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setFuelAvailability("loading");
+    setChargingAvailability("loading");
     const [fuelResult, chargingResult] = await Promise.all([
       controller.listFuel(vehicle.id),
       controller.listCharging(vehicle.id),
     ]);
     setLoading(false);
-    if (!fuelResult.ok) { setError(fuelResult.message); return; }
-    if (!chargingResult.ok) { setError(chargingResult.message); return; }
-    setFuelResults(fuelResult.data);
-    setChargingResults(chargingResult.data);
-  }, [controller, vehicle.id]);
+    if (fuelResult.ok) {
+      setFuelResults(fuelResult.data);
+      setFuelAvailability("available");
+    } else {
+      setFuelResults(null);
+      setFuelAvailability("unavailable");
+    }
+    if (chargingResult.ok) {
+      setChargingResults(chargingResult.data);
+      setChargingAvailability("available");
+    } else {
+      setChargingResults(null);
+      setChargingAvailability("unavailable");
+    }
+    }, [controller, vehicle.id]);
 
   useEffect(() => {
     void load();
@@ -114,6 +132,9 @@ export function FuelHistoryScreen({
 
   const latestFuel = fuelResults?.latest ?? null;
   const latestCharging = chargingResults?.latest ?? null;
+  const fuelUnavailable = fuelAvailability === "unavailable";
+  const chargingUnavailable = chargingAvailability === "unavailable";
+  const activeUnavailable = mode === "combustao" ? fuelUnavailable : chargingUnavailable;
   const nextMinimum = mode === "combustao"
     ? (fuelResults?.nextMinimum ?? 0)
     : (chargingResults?.nextMinimum ?? 0);
@@ -165,7 +186,9 @@ export function FuelHistoryScreen({
         {loading ? (
           <Text style={styles.meta}>Carregando histórico…</Text>
         ) : mode === "combustao" ? (
-          latestFuel ? (
+          fuelUnavailable ? (
+            <Text style={styles.meta}>{FUEL_UNAVAILABLE_MESSAGE}</Text>
+          ) : latestFuel ? (
             <>
               <Text style={styles.latestValue}>
                 {`${fuelLabels[latestFuel.fuelType ?? "gasolina"]} · ${formatEnergyQuantity(latestFuel.liters, "L")}`}
@@ -182,6 +205,8 @@ export function FuelHistoryScreen({
           ) : (
             <Text style={styles.meta}>Nenhum abastecimento registrado neste veículo.</Text>
           )
+        ) : chargingUnavailable ? (
+          <Text style={styles.meta}>{CHARGING_UNAVAILABLE_MESSAGE}</Text>
         ) : latestCharging ? (
           <>
             <Text style={styles.latestValue}>
@@ -206,6 +231,10 @@ export function FuelHistoryScreen({
 
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>{mode === "combustao" ? "Registrar abastecimento" : "Registrar recarga"}</Text>
+        {loading ? null : activeUnavailable ? (
+          <Text style={styles.meta}>{mode === "combustao" ? FUEL_UNAVAILABLE_MESSAGE : CHARGING_UNAVAILABLE_MESSAGE}</Text>
+        ) : (
+          <>
         <TextInput
           style={styles.input}
           placeholder={nextMinimum ? `Hodômetro atual (mín. ${nextMinimum.toLocaleString("pt-BR")} km` : "Hodômetro atual (km)"}
@@ -294,12 +323,16 @@ export function FuelHistoryScreen({
             {busy ? "Salvando…" : mode === "combustao" ? "Registrar abastecimento" : "Registrar recarga"}
           </Text>
         </Pressable>
+          </>
+        )}
       </View>
 
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Histórico {mode === "combustao" ? "(litros)" : "(kWh)"}</Text>
         {loading ? (
           <Text style={styles.meta}>Carregando…</Text>
+        ) : activeUnavailable ? (
+          <Text style={styles.meta}>{mode === "combustao" ? FUEL_UNAVAILABLE_MESSAGE : CHARGING_UNAVAILABLE_MESSAGE}</Text>
         ) : !history.length ? (
           <Text style={styles.empty}>
             {mode === "combustao"
