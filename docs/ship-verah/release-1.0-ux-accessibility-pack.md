@@ -1,6 +1,6 @@
 # Release 1.0 — Customer-facing UX copy/accessibility/readability QA pack (repository-safe)
 
-Data: 2026-09-11. Base: `main` em `d391782` (`#232/#234`). Refs: #164, #228/#229, #233/#234, #244, #246, #248, #250. PRs Draft abertas: **#236/#239/#240/#242/#244/#246/#248/#250** — **nenhum arquivo tocado por elas é alterado aqui** (ver `tests/release-1.0-ux-accessibility-copy-references.test.mjs` para o snapshot dos file sets). Escopo: **auditoria de copy/legibilidade/acessibilidade customer-facing somente**, com correções **bounded** de strings em arquivos **não-owners**, sem nenhuma ação externa.
+Data: 2026-09-11 (pack), 2026-09-12 (rebase sobre `main` `c71ec30`, pós-merge #244/#246/#248). Base: `main` em `d391782` (`#232/#234`), rebase limpo sobre `c71ec30`. Refs: #164, #228/#229, #233/#234, #250. PRs Draft abertas na data do rebase: **#250/#151/#255/#258** (verificados via GitHub API em 2026-09-12; #236/#239/#240/#242/#244/#246/#248 já **merged**) — **nenhum arquivo tocado por elas é alterado aqui** (ver `tests/release-1.0-ux-accessibility-copy-references.test.mjs` para o snapshot atualizado dos file sets). Escopo: **auditoria de copy/legibilidade/acessibilidade customer-facing somente**, com correções **bounded** de strings em arquivos **não-owners**, sem nenhuma ação externa.
 
 
 
@@ -88,7 +88,7 @@ Legenda: **PASS** = aprovado por evidência repo (strings/estilos/contratos); **
 | --- | --- | --- |
 | Unidades L × kWh **distintas** | `mobile/src/FuelHistoryScreen.tsx`: "Registre cada abastecimento ( litros) ou recarga ( kWh)… litros nunca viram kWh."; `customer-journey.ts` `mergeEnergyHistory` preserva `unit`; teste `mobile/tests/energy-history.test.mjs` | Pass (**invariante preservado**) |
 | Consumo/eficiência | "Consumo … km/L" / "Eficiência … km/kWh"; "Sem intervalo válido para calcular consumo/eficiência." | Pass |
-| Formulário | labels/placeholders claros; erro customer-safe; **arquivo `FuelHistoryScreen.tsx` é dono da Draft PR #244 — nenhuma alteração aplicada aqui** | Pass ( auditado; sem edição por collisão) |
+| Formulário | labels/placeholders claros; erro customer-safe; `FuelHistoryScreen.tsx` era dono da Draft PR #244 (merged em 2026-09-12) — **nenhuma alteração aplicada aqui por escopo copy-only** | Pass ( auditado; sem edição por escopo) |
 | Vazio/loading | "Nenhum abastecimento registrado neste veículo."/"Ainda não há recargas registradas."/"Carregando histórico…" | Pass |
 
 ###​​ 3.4 Despesas/custo por km
@@ -141,18 +141,18 @@ Legenda: **PASS** = aprovado por evidência repo (strings/estilos/contratos); **
 
 ##  ​​4. Follow-ups repo-safe (não aplicados por colisão/escopo)
 
-Estes são candidatos a issues futuras**sem tocar arquivos donos das Draft PRs abertas** na data deste pack. Nenhum deles é executado por este pack.
+Estes são candidatos a issues futuras**sem tocar arquivos donos das Draft PRs abertas** na data deste pack (#250/#151/#255/#258). Nenhum deles é executado por este pack.
 
 
 
 | # | Follow-up | Arquivos | Motivo ( colisão/escopo) |
 | --- | --- | --- | --- |
 | F1 | Sanitizar/mapear erros dinâmicos de auth/Supabase em mensagens customer-safe( ex.: "Invalid login credentials" → "E-mail ou senha incorretos.") em `auth-session.ts`/`supabase.ts` | `mobile/src/auth-session.ts`, `mobile/src/supabase.ts` ( sem dono, mas mudança de comportamento ampla; fora do escopo copy-only) | Escopo: este pack é copy/QA estático; mudança comportamental merece issue própria com testes dedicados |
-| F2 | Fallback para `serviceStage` desconhecido em copy customer-facing ("Em andamento" em vez de exibir o estágio cru) | `mobile/src/CustomerHome.tsx`, `mobile/src/CustomerRequests.tsx` ( sem dono; é decisão de produto de copy) | Escopo/decisão de produto; duas telas ( projeção de estado canônico) |
-| F3 | Confirmação destrutiva antes de "Remover" documento | `mobile/src/VehicleDocumentsScreen.tsx` ( sem dono; UX behavior change) | Escopo: exigiria decisão de produto ( irreversível?) + teste dedicado |
+| F2 | Fallback para `serviceStage` desconhecido em copy customer-facing ("Em andamento" em vez de exibir o estágio cru) | `mobile/src/CustomerHome.tsx`, `mobile/src/CustomerRequests.tsx` ( donas da Draft PR #255; é decisão de produto de copy) | Escopo/decisão de produto; duas telas ( projeção de estado canônico) |
+| F3 | Confirmação destrutiva antes de "Remover" documento | `mobile/src/VehicleDocumentsScreen.tsx` ( dona da Draft PR #255; UX behavior change) | Escopo: exigiria decisão de produto ( irreversível?) + teste dedicado |
 | F4 | Mapear erros de upload/storage (`supabase.ts` `registerVehicleDocumentSafely`) para copy customer-safe( hoje `error.message` cru chega ao cliente em falhas não-409) | `mobile/src/vehicle-documents.ts` ( teste atual espera "already exists"/"quota"; mudança de contrato de mensagem exigiria atualizar testes — mudança comportamental) | Escopo |
-| F5 | Adicionar `maxFontSizeMultiplier` / verificar layout com fonte dinâmica | `mobile/src/*.tsx` ( cross-cutting; exigiria tocar telas donas (#244 é dona de `FuelHistoryScreen.tsx`) + validação física) | Escopo + [FÍSICO] |
-| F6 | Adicionar `accessibilityRole="alert"` aos erros e `accessibilityLabel` aos inputs em todas as telas | `mobile/src/*.tsx` ( cross-cutting; `FuelHistoryScreen.tsx` e `customer-journey.ts` são donos de #244) | Escopo + colisão parcial |
+| F5 | Adicionar `maxFontSizeMultiplier` / verificar layout com fonte dinâmica | `mobile/src/*.tsx` ( cross-cutting; 9 telas são donas da Draft PR #255 `design-system-v1` — `AuthGate`, `AuthScreen`, `CustomerHome`, `CustomerJourney`, `CustomerRequests`, `MaintenanceScreen`, `MileageHistoryScreen`, `VehicleDocumentsScreen`, `VehicleOnboardingStep` — + validação física) | Escopo + colisão + [FÍSICO] |
+| F6 | Adicionar `accessibilityRole="alert"` aos erros e `accessibilityLabel` aos inputs em todas as telas | `mobile/src/*.tsx` ( cross-cutting; mesmas 9 telas donas de #255) | Escopo + colisão parcial |
 
 ##​​ 5. Stática checks deste pack (repository-only)
 
@@ -180,4 +180,4 @@ A captura abaixo é o **conjunto mínimo sem PII/secrets** a coletar após a exi
 
 ##​ 7. Conclusão
 
-O estoque atual da `main` (+ os 4 copy-fixes bounded deste pack, todos em arquivos sem dono) já apresenta copy customer-safe, unidades L/kWh separadas, draft assistido de manutenção **draft-only até confirmação explícita**, fluxo "Preciso de ajuda" com revisão/privacy e estados vazios/erro em **PT-BR claro**, sem termos Supabase/PostgREST/schema/RLS/RPC/tabela/função/cache/env-var. Os itens restantes são **follow-ups repo-safe** (seção 4) e **validação física** (seção 6), esta última exigindo os Human Gates de build/distribuição (#228/#229, #248) — nenhum dos quais é executado por este pack.. **Nenhum merge foi executado.**
+O estoque atual da `main` `c71ec30` (+ os 4 copy-fixes bounded deste pack, todos em arquivos sem dono) já apresenta copy customer-safe, unidades L/kWh separadas, draft assistido de manutenção **draft-only até confirmação explícita**, fluxo "Preciso de ajuda" com revisão/privacy e estados vazios/erro em **PT-BR claro**, sem termos Supabase/PostgREST/schema/RLS/RPC/tabela/função/cache/env-var. Os itens restantes são **follow-ups repo-safe** (seção 4) e **validação física** (seção 6), esta última exigindo os Human Gates de build/distribuição (#228/#229/#248) — nenhum dos quais é executado por este pack. **Nenhum merge foi executado.**

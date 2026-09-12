@@ -1,6 +1,6 @@
 # Handoff — Issue #251 — Release 1.0 UX/accessibility pack (Draft PR)
 
-Data: 2026-09-11. Branch: `openhands/251-release-1.0-ux-accessibility-pack`. Base: `main` em `d391782` (`#232/#234`). Refs: #164 (EPIC), #228/#229 (auditorias de aceite, merged), #233/#234 (mobile merged), #244/#246/#248/#250 (Draft PRs abertas).
+Data: 2026-09-11 (pack), 2026-09-12 (rebase sobre `main` `c71ec30`). Branch: `openhands/251-release-1.0-ux-accessibility-pack`. Base: `main` em `d391782` (`#232/#234`), rebase limpo sobre `c71ec30` (pós-merge #244/#246/#248). Refs: #164 (EPIC), #228/#229 (auditorias de aceite, merged), #233/#234 (mobile merged), #250 (merge-sequencing map, Draft), #151/#255/#258 (Draft PRs abertas na data do rebase).
 
 ## Deliverable
 
@@ -8,7 +8,7 @@ QA pack **repository-safe** para copy/legibilidade/acessibilidade customer-facin
 
 1. `docs/ship-verah/release-1.0-ux-accessibility-pack.md` — matriz por tela, princípios de copy, checklist de acessibilidade, follow-ups, evidência pós-gate;
 2. `tests/release-1.0-ux-accessibility-copy-references.test.mjs` — teste estático (sem rede/secrets/DB) que verifica:
-   - arquivos tocados não colidem com file sets das Draft PRs abertas #236/#239/#240/#242/#244/#246/#248/#250;
+   - arquivos tocados não colidem com file sets das Draft PRs abertas #250/#151/#255/#258 (snapshot atualizado no rebase de 2026-09-12);
    - copy customer-facing não contém termos crus de backend/env-var( "Supabase não configurado", "EXPO_PUBLIC_SUPABASE_*", "Chave de idempotência", "backend da VERAH");
    - fallbacks aprovados presentes (`App.tsx`, `service-request-supabase.ts`, `fipe-catalog.ts`, `vehicle-documents.ts`);
    - contratos canônicos citados( `customer_id`, `created_by`, `confirm_customer_vehicle`, `replace_customer_vehicle`, `register_vehicle_mileage/fuel/charging/maintenance`, `vehicle_expense_summary`, `createMobileServiceRequest`, `service_request`, RLS);
@@ -44,7 +44,7 @@ Nenhum arquivo dono de Draft PR foi tocado. O teste estático leva snapshot dos 
 
 - **FÍSICO**: validação de leitor de tela/contraste/touch targets/safe areas exigem dispositivo físico e os Human Gates de build/distribuição (#228/#229/#248) — **não executados aqui**.
 - Draft PR **não merge**; nenhuma migration remota, secret, conta, publicação.
-- Files donos de #244 (`FuelHistoryScreen.tsx`, `customer-journey.ts`, testes) não foram editados; follow-ups F5/F6 citam isso.
+- Files donos de #244 (`FuelHistoryScreen.tsx`, `customer-journey.ts`, testes) não foram editados; #244 foi **merged** em 2026-09-12 e a colisão original foi substituída por #255 (`design-system-v1`), que agora é dona de 9 telas mobile — follow-ups F2/F3/F5/F6 citam isso.
 
 
 

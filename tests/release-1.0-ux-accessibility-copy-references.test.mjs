@@ -31,56 +31,71 @@ const AUDITED_FILES = [
   "mobile/src/supabase.ts",
   "mobile/src/vehicle-documents.ts",
 ];
+// Snapshot refreshed 2026-09-12 after rebase onto main c71ec30 (post-merge
+// #244/#246/#248). Merged PRs #236/#239/#240/#242/#244/#246/#248 are no longer
+// open Draft PRs. Current open Draft PRs (verified via GitHub API): #250, #151,
+// #255, #258. Open non-draft #145 touches only GEMINI.md (no collision).
 const DRAFT_PRS = {
-  236: [
-    "app/(command)/clientes/[id]/loading.tsx",
-    "app/(command)/clientes/[id]/not-found.tsx",
-    "app/(command)/clientes/[id]/page.tsx",
-    "app/(command)/clientes/error.tsx",
-    "app/(command)/clientes/loading.tsx",
-    "app/(command)/clientes/page.tsx",
-    "app/(command)/dashboard/page.tsx",
-    "components/app-shell.tsx",
-    "components/customer-crm/dashboard-metrics.tsx",
-    "components/customer-crm/panels.tsx",
-    "docs/customer-crm-v1.md",
-    "modules/registry.ts",
-    "services/customer-crm/read-model.ts",
-    "services/customer-crm/service.ts",
-    "tests/customer-crm.test.mjs",
-    "vercel.json",
-  ],
-  239: [
-    "docs/alpha-5-operations-runbook.md",
-    "docs/handoffs/2026-09-10-issue-237-alpha5-runbook-readiness.md",
-  ],
-  240: [
-    "docs/crm-leads-v0.md",
-  ],
-  242: [
-    "docs/customer-360-telemetry-v1.md",
-    "scripts/ci/test-database.sh",
-    "supabase/tests/customer_360_telemetry_read.sql",
-  ],
-  244: [
-    "mobile/src/FuelHistoryScreen.tsx",
-    "mobile/src/customer-journey.ts",
-    "mobile/tests/customer-journey.test.mjs",
-    "mobile/tests/telemetry-availability.test.mjs",
-  ],
-  246: [
-    "docs/ship-verah/release-1.0-android-physical-smoke.md",
-    "tests/android-smoke-pack-references.test.mjs",
-  ],
-  248: [
-    "docs/handoffs/2026-09-11-issue-247-ios-readiness.md",
-    "docs/ship-verah/release-1.0-ios-readiness.md",
-    "tests/ios-readiness-references.test.mjs",
-  ],
   250: [
     "docs/handoffs/2026-09-11-issue-249-merge-sequencing-map.md",
     "docs/ship-verah/release-1.0-merge-sequencing.md",
     "tests/release-1.0-merge-sequencing-references.test.mjs",
+  ],
+  151: [
+    ".openhands/skills/repo.md",
+  ],
+  255: [
+    "app/(command)/concierge/[id]/page.tsx",
+    "app/(command)/concierge/novo-atendimento/page.tsx",
+    "app/(command)/concierge/page.tsx",
+    "app/(command)/settings/commercial/page.tsx",
+    "app/demo/cliente/atendimento/[id]/page.tsx",
+    "app/demo/cliente/garantias/page.tsx",
+    "app/demo/cliente/historico/page.tsx",
+    "app/demo/cliente/novo-atendimento/page.tsx",
+    "app/demo/cliente/page.tsx",
+    "app/demo/cliente/veiculo/[id]/page.tsx",
+    "app/demo/cliente/veiculos/page.tsx",
+    "app/demo/concierge/loading.tsx",
+    "app/demo/concierge/page.tsx",
+    "app/demo/page.tsx",
+    "app/demo/prestador/atendimento/[id]/page.tsx",
+    "app/demo/prestador/page.tsx",
+    "app/demo/whatsapp/page.tsx",
+    "app/demo/whatsapp/submit-button.tsx",
+    "app/entrar/cliente/cadastro/page.tsx",
+    "app/entrar/cliente/page.tsx",
+    "app/entrar/concierge/page.tsx",
+    "app/entrar/prestador/cadastro/page.tsx",
+    "app/entrar/prestador/page.tsx",
+    "app/globals.css",
+    "app/onboarding/cliente/page.tsx",
+    "app/onboarding/prestador/page.tsx",
+    "components/concierge/demo-decision-panel.tsx",
+    "components/concierge/provider-assignment-form.tsx",
+    "components/concierge/provider-trust-panel.tsx",
+    "components/customer/customer-shell.tsx",
+    "components/customer/vehicle-edit-form.tsx",
+    "components/demo/customer-answers-form.tsx",
+    "components/demo/quote-form.tsx",
+    "components/demo/service-request-form.tsx",
+    "docs/design-system-v1.md",
+    "mobile/src/AuthGate.tsx",
+    "mobile/src/AuthScreen.tsx",
+    "mobile/src/CustomerHome.tsx",
+    "mobile/src/CustomerJourney.tsx",
+    "mobile/src/CustomerRequests.tsx",
+    "mobile/src/MaintenanceScreen.tsx",
+    "mobile/src/MileageHistoryScreen.tsx",
+    "mobile/src/VehicleDocumentsScreen.tsx",
+    "mobile/src/VehicleOnboardingStep.tsx",
+    "next-env.d.ts",
+    "tailwind.config.ts",
+  ],
+  258: [
+    "docs/handoffs/2026-09-11-issue-257-integration-map-refresh.md",
+    "docs/ship-verah/release-1.0-integration-map-refresh-254-255-256.md",
+    "tests/release-1.0-integration-map-refresh-references.test.mjs",
   ],
 };
 function ownedPaths() {
@@ -96,11 +111,18 @@ const OWNED_MOBILE = [];
 for (const path of OWNED) {
   if (path.startsWith("mobile/")) OWNED_MOBILE.push(path);
 }
+// #255 (design-system-v1) owns the mobile screen files listed below.
+// #244 is now merged, so FuelHistoryScreen.tsx / customer-journey.ts are free.
 const OWNED_MOBILE_EXPECTED = [
-  "mobile/src/FuelHistoryScreen.tsx",
-  "mobile/src/customer-journey.ts",
-  "mobile/tests/customer-journey.test.mjs",
-  "mobile/tests/telemetry-availability.test.mjs",
+  "mobile/src/AuthGate.tsx",
+  "mobile/src/AuthScreen.tsx",
+  "mobile/src/CustomerHome.tsx",
+  "mobile/src/CustomerJourney.tsx",
+  "mobile/src/CustomerRequests.tsx",
+  "mobile/src/MaintenanceScreen.tsx",
+  "mobile/src/MileageHistoryScreen.tsx",
+  "mobile/src/VehicleDocumentsScreen.tsx",
+  "mobile/src/VehicleOnboardingStep.tsx",
 ].sort();
 
 test("QA pack docs exist", () => {
