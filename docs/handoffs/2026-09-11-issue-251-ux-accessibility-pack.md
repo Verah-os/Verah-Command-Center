@@ -23,9 +23,14 @@ QA pack **repository-safe** para copy/legibilidade/acessibilidade customer-facin
 | `mobile/App.tsx` (`FailClosedNotice`) | expunha `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY` e "Supabase não configurado. Verifique EXPO_PUBLIC_SUPABASE_URL" | "VERAH ainda não está conectada neste ambiente. Nenhuma informação é enviada ou recebida enquanto a configuração não estiver completa." |
 | `mobile/src/service-request-supabase.ts` | "Supabase client is not configured" ( message herdada pelo facade) | "A conexão com a VERAH não está configurada neste build." |
 | `mobile/src/fipe-catalog.ts` | "…configurado no backend da VERAH." | "…configurado na VERAH." ( remove "backend") |
-| `mobile/src/vehicle-documents.ts` | "Chave de idempotência inválida." | "Houve um erro ao preparar o arquivo. Tente novamente." |
+| `mobile/src/vehicle-documents.ts` | "Chave de idempotência inválida." | "Houve um erro ao preparar o arquivo. Tente novamente." + ( overflow determinístico da chave > 200) "O nome do arquivo é muito longo. Renomeie o arquivo com um nome mais curto e tente novamente." |
 
-Teste mobile atualizado: `mobile/tests/vehicle-documents.test.mjs` (asserções de limite/mensagem idempotência).
+Teste mobile atualizado: `mobile/tests/vehicle-documents.test.mjs` (asserções de limite/mensagem idempotência, incluindo caso de overflow > 200 da chave determinística).
+
+## Codex review atendido (2026-09-12)
+
+- **P2 #1 (thread `PRRT_...hulZT`, não-outdated)** — `vehicle-documents.ts`: retry fútil quando `vehicleDocumentIdempotencyKey()` deriva chave > 200 chars de nome de arquivo válido; como a chave é determinística, "Tente novamente" nunca funcionaria. Corrigido: agora o overflow retorna orientação de renomeação do arquivo, teste mobile cobre o caso.
+- **P2 #2 (thread `PRRT_...hulZW`, outdated)** — conclusão do QA doc superafirmava "copy customer-safe" enquanto `error.message` de RPC/storage ainda chega ao cliente por caminhos encaminhados. Corrigido na seção 7: marcado **"Risco de release não resolvido"** com os caminhos (F1/F4); teste estático agora exige as cláusulas "Risco de release não resolvido"/"não é garantidamente customer-safe".
 
 ## Não-colisão
 

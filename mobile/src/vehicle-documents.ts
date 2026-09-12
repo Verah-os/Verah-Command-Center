@@ -129,8 +129,14 @@ export function validateVehicleDocumentInput(
     return { ok: false, message: "Observação muito longa (limite de 160 caracteres." };
   }
   const idempotencyKey = input.idempotencyKey.trim();
-  if (!idempotencyKey || idempotencyKey.length > 200) {
+  if (!idempotencyKey) {
     return { ok: false, message: "Houve um erro ao preparar o arquivo. Tente novamente." };
+  }
+  if (idempotencyKey.length > 200) {
+    // The deterministic key always reproduces the same length for the same
+    // file, so retrying can never help: the only customer action that works is
+    // renaming the file to a shorter name.
+    return { ok: false, message: "O nome do arquivo é muito longo. Renomeie o arquivo com um nome mais curto e tente novamente." };
   }
   return { ok: true, data: { vehicleId, documentKind: kind as VehicleDocumentKind, documentDate: input.documentDate, fileName, mimeType: mimeType as VehicleDocumentMimeType, sizeBytes, reference, note, idempotencyKey } };
 }

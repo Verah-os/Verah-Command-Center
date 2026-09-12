@@ -163,6 +163,7 @@ test("approved customer-safe fallback patterns are present in the audited paths"
   assert.ok(read("mobile/src/service-request-supabase.ts").includes("A conexão com a VERAH não está configurada neste build."));
   assert.ok(read("mobile/src/fipe-catalog.ts").includes("configurado na VERAH"));
   assert.ok(read("mobile/src/vehicle-documents.ts").includes("Houve um erro ao preparar o arquivo."));
+  assert.ok(read("mobile/src/vehicle-documents.ts").includes("O nome do arquivo é muito longo. Renomeie o arquivo com um nome mais curto e tente novamente."));
 });
 
 test("canonical customer flows still reference canonical contracts and do not synthesize state", () => {
@@ -218,6 +219,7 @@ test("QA doc stays repository-safe,fail-closed,and within scope", () => {
   const clauses = [
     "Human Gate", "banco remoto", "fail-closed",
     "nenhum banco remoto", "nenhum merge", "FÍSICO", "sem PII",
+    "Risco de release não resolvido", "não é garantidamente customer-safe",
   ];
   for (const clause of clauses) {
     assert.ok(doc.includes(clause), "missing scope clause: " + clause);
