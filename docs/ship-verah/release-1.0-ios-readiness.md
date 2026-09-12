@@ -1,9 +1,12 @@
 # Release 1.0 — iOS build readiness e simulator/preflight pack (repository-safe)
 
-Data: 2026-09-11. Base: `main` em `d391782` (`#232/#234`). Refs: #164,
-#228/#229, #233, #239, #244, #246. PRs Draft abertas **#236/#239/#240/#242/
-#244/#246** — **nenhum arquivo tocado por elas é alterado aqui**. Escopo:
-preflight/repository-readiness **somente** — nenhuma ação externa Apple é executada.
+Data: 2026-09-12. Base: `main` em `bd90691` (`#246`, pós-merge de
+#236/#239/#240/#242/#244/#252). Refs: #164, #228/#229, #233, #239, #244,
+#246. Rebaseado sobre o `main` atual (commit `bd90691`), sem conflito. PRs
+Draft abertas **#250/#254/#255/#258** (#248 é esta própria branch; #151/#145
+também abertas) — **nenhum arquivo tocado por elas é alterado aqui**
+(verificado por diff contra cada head). Escopo: preflight/repository-readiness
+**somente** — nenhuma ação externa Apple é executada.
 
 ## 0. Escopo, pré-condições e invariantes
 
@@ -155,14 +158,13 @@ submetido. O caminho **Simulator** (`preview-simulator`) continua disponível
 
 ## 6. Checklist de evidência para validação pós-gate
 
-O smoke test físico Android (Draft PR #246,
-docs/ship-verah/release-1.0-android-physical-smoke.md, adicionado naquele PR)
-define a sequência G1–G14 que se aplica igualmente ao iOS,
+O smoke test físico Android (`docs/ship-verah/release-1.0-android-physical-smoke.md`, mergeado no
+`main` via #246) define a sequência G1–G14 que se aplica igualmente ao iOS,
 observadas as diferenças de instalação/signing documentadas neste arquivo.
 
 Para a validação iOS **após** os gates A1–A4 serem executados por humano (e o
 build instalado em device/TestFlight), o pack Android físico fornece a mesma
-sequência determinística G1–G14 do smoke test (adicionado no Draft PR #246).
+sequência determinística G1–G14 do smoke test**(mergeado no `main` via #246).
 
 os **mesmos** checks de canônico/fail-closed aplicam-se ao iOS; as evidências
 esperadas:
