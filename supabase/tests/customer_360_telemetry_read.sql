@@ -4,6 +4,7 @@
 -- Sem migration, sem fonte paralela, sem banco remoto. Roda no banco isolado do runner
 -- (scripts/ci/test-database.sh, bloco 1 e bloco 2) e não toca os arquivos da Draft #236.
 -- Contratos canônicos #233 exigidos: mileage, fuel, charging, maintenance, documents, expenses.
+-- Integration refresh: revalidar esta fatia contra a main consolidada após #240; sem mudança de contrato.
 
 begin;
 
