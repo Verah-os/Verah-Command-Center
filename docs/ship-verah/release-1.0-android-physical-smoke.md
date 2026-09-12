@@ -1,16 +1,30 @@
 # Release 1.0 — Pack de smoke-test físico Android (pós-gate de schema não-prod)
 
-Data: 2026-09-11. Base: `main` em `d391782` (`#232/#234`). Refs: #164, #228/#229, #233, #239, #244, #245. PRs Draft abertas **#236/#239/#240/#242/#244** — **nenhum arquivo tocado por elas é alterado aqui**.
+Data: 2026-09-12. Base: `main` em `be65bcb` (`#236/#239/#240` merged; `#252` staging-migrations runbook merged). Refs: #164, #228/#229, #233, #239, #244, #245, #252. PRs Draft abertas: **#244/#248/#250/#254/#255/#258** — **nenhum arquivo tocado por elas é alterado aqui** (verificado por diff contra cada head; zero overlap de paths). #242 permanece aberta (non-draft, repository-safe docs+SQL+CI; também sem overlap)。
 
-## 0. Escopo, pré-condições e invariantes
+## 0. Escopo, gate e invariantes
 
-Este pack é **documentação e validação somente**. Ele **não executa nenhuma ação externa**:
+**Status do Human Gate de staging:** **concluído** — as 53 migrations canônicas estão
+aplicadas no Supabase **não-produtivo** usado pelo preview APK, e o histórico Local/
+Remote está alinhado até `20260910000000_vehicle_charging_logs`. Este pack permanece
+**documentação e validação repository-safe somente** — **não executa nenhuma ação externa**:
 nenhum banco remoto, push/repair/reconciliation/aplicação de migration, secret,
 produção/deploy/promotion, pagamento ou mensagem real, App ID/package/signing/
-submissão/publicação ou merge. A aplicação das migrations não-prod revisadas no
-Supabase usado pelo preview APK continua sendo um **Human Gate separado** (`#83` h — ver
-`docs/runbooks/supabase-production-reconciliation.md` + `supabase-reconciliation-manifest.md`;
-aplicável também ao alvo não-prod pela mesma regra de gate) e **não é executado por este artefato**.
+submissão/publicação ou merge. As migrations não-prod revisadas (`#252`; Human Gate `#83`)
+já aplicadas por humano — este artefato **não as re-aplica** e **não as toca**. O
+**Human Gate separado** continua sendo o único executor autorizado de migrations
+remotas (não executado por este pack; ver `docs/runbooks/supabase-production-reconciliation.md`
++ `docs/runbooks/supabase-reconciliation-manifest.md`, aplicável também ao alvo não-prod
+pela mesma regra de gate).
+
+**Dependências abertas antes do teste físico (recomendado: aguardar a resolução):**
+
+- **#244** (Draft, base `d391782`): fail-closed de disponibilidade independente combustível/recarga + home fail-closed. É o alvo canônico dos checks **R3**, **R2** e **G6**. Até esta PR ser merged e rebased no `main` deste pack, o `FuelHistoryScreen` na `main` ainda retorna no **primeiro erro** entre as duas fontes (uma fonte indisponível esconde a outra e pode vazar texto cru de schema-cache). **Sem ela, R3/R2/G6 não podem ser GO.**
+- **#254** (Draft): pack de copy UX/accessibility — reescreve strings citadas neste pack
+(em `mobile/App.tsx` `FailClosedNotice` — passo 1 — e em `mobile/src/service-request-supabase.ts` — mensagem de falta de config, passo 12). Se #254 entrar antes, atualizar as aspas deste pack para a copy final; não bloqueia a sequência se ajustado.
+
+- **#255** (Draft, DS V1): em mobile, altera **somente tokens de cor** (`Styles/`colors) nas telas/StyleSheets — **nenhum string/lógica/contrato** é tocado nas telas referenciadas por este pack. Nenhum asserção deste pack depende de cor; **sem impacto**.
+- **#248/#250/#258** (Docs, Draft): packs de iOS-readiness, merge-sequencing e integration-map-refresh — **zero overlap** de arquivos com este pack; **sem impacto**.
 
 **Pré-condições para executar este smoke test (todas Human Gates prévios):**
 
@@ -18,7 +32,7 @@ aplicável também ao alvo não-prod pela mesma regra de gate) e **não é execu
 | --- | --- | --- |
 | P1 | Build APK `preview` instalável gerado (EAS, conta humana) e instalado no dispositivo | `docs/ship-verah/release-1.0-build-readiness-checklist.md`; `mobile/eas.json` (profile `preview`, `buildType: apk`) |
 | P2 | Variáveis públicas EAS `EXPO_PUBLIC_SUPABASE_URL`/`EXPO_PUBLIC_SUPABASE_ANON_KEY` apontando ao projeto **não-prod** | `docs/ship-verah/release-1.0-build-readiness-checklist.md`; `mobile/src/config.ts` (fail-closed; nunca service role) |
-| P3 | Migrations não-prod revisadas **aplicadas por humano** no Supabase usado pelo preview | Human Gate `#83`; `supabase/migrations/` (lista nas referências) |
+| P3 | Migrations não-prod revisadas **aplicadas e alinhadas** no Supabase usado pelo preview (Local/Remote alinhado até `20260910000000_vehicle_charging_logs`) | **Concluído** (Human Gate `#83` + runbook `#252`); `supabase/migrations/` (53 arquivos, lista nas referências) |
 | P4 | Dispositivo Android físico com instalação de fontes desconhecidas liberada e rede | — |
 
 **Invariantes preservados:** Supabase canônico como única fonte da verdade, identidade
@@ -70,13 +84,19 @@ a regressão (candidatos de correção já existentes: #233, #243/#244).
 
 ## 3. Go/no-go — validação física Alpha 5 (pós-gate de schema não-prod)
 
-Executar **somente após** o Human Gate de aplicação das migrations não-prod
-(`#83`) ter sido concluído por humano no Supabase usado pelo preview. Todos os
-checks são objetivos e **fail-closed**: qualquer falha listada abaixo bloqueia o GO.
+O **Human Gate de staging foi concluído** (`#83`; 53 migrations aplicadas e alinhadas
+até `20260910000000_vehicle_charging_logs` — runbook `#252`), **logo P3 está atendido**.
+Este pack **não executa** nenhuma ação remota: as migrations não são reaplicadas
+nem tocadas por este artefato. Os checks abaixo permanecem objetivos e **fail-closed**:
+qualquer falha listada bloqueia o GO.
+
+ Além de P1–P4, o GO físico também exige que
+as **dependências abertas** da seção 0 estejam resolvidas ou devidamente contidas
+(em especial **#244**, alvo de R3/R2/G6 — sem ela, R3/R2/G6 **não podem ser GO**).
 
 | # | Verificação | Critério de GO | Critério de NO-GO (fail-closed) |
 | --- | --- | --- | --- |
-| G1 | Build instalável abre | Home VERAH Dev renderiza sem texto cru | Home de build de desenvolvimento (sem env)é esperado **antes** P2; após P1–P3, tela bloqueada/crash/erro cru = NO-GO |
+| G1 | Build instalável abre | Home VERAH renderiza sem texto cru (com P2/P3 atendidos, o preview já deve abrir a jornada real) | Home de build de desenvolvimento/fail-closed (sem env)é esperado **somente** se P2 não estiver atendido; com P1–P3 verdes, tela bloqueada/crash/erro cru = NO-GO |
 | G2 | Login/auth e sessão | Entrar com conta piloto (email/senha ou Google); sessão restaura ao reabrir | Falha de auth com texto cru; sessão não restaura; identidade errada |
 | G3 | Onboarding + garagem e recuperação | Perfil+termos v1 → veículo manual → garagem; relogin recupera o mesmo veículo do backend | Etapa errada/zetada; veículo perdido; insert direto (sem `confirm_customer_vehicle`) |
 | G4 | Multi-veículo e ownership | CTA "+ Adicionar veículo" funciona; substituir/remover com confirmação; outra conta **não** vê os veículos desta (RLS) | Veículo de outra conta visível; remoção apaga histórico; CTA ausente |
@@ -92,9 +112,11 @@ checks são objetivos e **fail-closed**: qualquer falha listada abaixo bloqueia 
 | G14 | Fail-closed e sem texto cru | Nenhuma tela mostra SQL/PGRST/schema-cache/detalhe de ambiente; erros acionáveis | Qualquer ocorrência de texto cru/erro de ambiente = **NO-GO** |
 
 **Decisão:** GO para a validação física do Alpha 5 **somente se** P1–P4 e G1–G14
-estiverem todos verdes e o gate humano de schema não-prod (`#83`) tiver sido aplicado.
-Nenhuma etapa deste pack executa produção, migração remota, secret, pagamento/
-mensagem real, App ID/signing/submissão/publicação ou merge..
+estiverem todos verdes, o gate humano de schema não-prod (`#83`; **concluído**) estiver
+aplicado e as **dependências abertas** da seção 0 estiverem resolvidas ou devidamente
+contidas (em especial **#244** para R3/R2/G6). Nenhuma etapa deste pack executa
+produção, migração remota, secret, pagamento/mensagem real, App ID/signing/
+submissão/publicação ou merge..
 
 ## 4. Checklist de readiness executável — repository-safe
 
@@ -112,6 +134,14 @@ mensagem real, App ID/signing/submissão/publicação ou merge..
 
 A **fonte da verdade** dos checks executáveis é o CI da PR. Nenhum comando deste pack
 aplica migration remota nem toca ambiente alvo.,
+
+**Revalidação deste pack (2026-09-12, após rebase sobre `main` atual `be65bcb`):**
+- `node tests/android-smoke-pack-references.test.mjs` — **5/5 pass** (paths, R1–R5,
+  contratos canônicos, litros/kWh distintos, cláusulas repository-safe) contra o estado real do `main`.
+- `cd mobile && node --experimental-strip-types --test tests/*.test.mjs` — **80/80 pass** (mesma suíte
+  reportada na abertura do PR, agora re-executada no tree pós-rebase).
+- CI da PR continua a fonte da verdade final (`CI / Application`, `CI / Database authorization`,
+  `CI / Mobile workspace`).
 
 ## Referências verificáveis (check automatizado)
 
