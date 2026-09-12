@@ -39,7 +39,7 @@ export function ProviderAssignmentForm({
         {available.map((provider, index) => (
           <label
             key={provider.id}
-            className={`block cursor-pointer rounded-2xl border p-4 text-sm transition ${providerId === provider.id ? "border-teal-500 bg-teal-50 shadow-sm" : "border-rose-100 bg-white hover:border-teal-200"}`}
+            className={`block cursor-pointer rounded-2xl border p-4 text-sm transition ${providerId === provider.id ? "border-accent bg-accent/10 shadow-sm" : "border-rose-100 bg-white hover:border-accent/30"}`}
           >
             <span className="flex items-start gap-3">
               <input
@@ -49,7 +49,7 @@ export function ProviderAssignmentForm({
                 checked={providerId === provider.id}
                 onChange={() => setProviderId(provider.id)}
                 required
-                className="mt-1 h-4 w-4 accent-teal-700"
+                className="mt-1 h-4 w-4 accent-accent"
               />
               <span className="min-w-0 flex-1">
                 <span className="flex flex-wrap items-center justify-between gap-2">
@@ -99,7 +99,7 @@ export function ProviderAssignmentForm({
             <textarea
               name="reason"
               required
-              className="mt-2 min-h-24 w-full rounded-xl border border-rose-100 p-3 font-normal outline-none focus-visible:border-teal-500 focus-visible:ring-4 focus-visible:ring-teal-100"
+              className="mt-2 min-h-24 w-full rounded-xl border border-rose-100 p-3 font-normal outline-none focus-visible:border-accent focus-visible:ring-4 focus-visible:ring-accent/30"
             />
           </label>
           <p className="text-xs text-muted-foreground">
@@ -107,7 +107,7 @@ export function ProviderAssignmentForm({
           </p>
         </>
       )}
-      <Button className="min-h-12 w-full rounded-xl bg-teal-700 shadow-sm hover:bg-teal-800" disabled={!available.length}>
+      <Button className="min-h-12 w-full rounded-xl bg-accent shadow-sm hover:bg-accent/90" disabled={!available.length}>
         {mode === "reassign" ? "Confirmar alteração" : "Indicar prestador"}
       </Button>
     </form>

@@ -16,7 +16,7 @@ export default async function NewServiceRequestPage({
   return (
     <CustomerShell>
       <section className="mx-auto max-w-3xl px-5 py-10 sm:py-14">
-        <p className="text-sm font-semibold uppercase tracking-wider text-teal-700">
+        <p className="text-sm font-semibold uppercase tracking-wider text-accent">
           Novo atendimento
         </p>
         <h1 className="mt-3 text-3xl font-semibold sm:text-4xl">

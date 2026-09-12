@@ -115,7 +115,7 @@ export default async function ConciergeDetailPage({
         <div>
           <Link
             href={"/concierge" as Route}
-            className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-teal-800 outline-none hover:underline focus-visible:ring-4 focus-visible:ring-teal-100"
+            className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-accent outline-none hover:underline focus-visible:ring-4 focus-visible:ring-accent/30"
           >
             <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Voltar aos atendimentos
           </Link>
@@ -123,7 +123,7 @@ export default async function ConciergeDetailPage({
             {request.referenceCode}
           </p>
           {request.origin === "whatsapp" && (
-            <span className="mt-2 inline-flex rounded-full border border-teal-200 bg-teal-50 px-3 py-1 text-xs font-bold uppercase tracking-wide text-teal-800">
+            <span className="mt-2 inline-flex rounded-full border border-accent/40 bg-accent/10 px-3 py-1 text-xs font-bold uppercase tracking-wide text-accent">
               Origem WhatsApp
             </span>
           )}
@@ -287,7 +287,7 @@ export default async function ConciergeDetailPage({
           )}
           <Card>
             <CardHeader>
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-teal-700">Recomendação VERAH</p>
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-accent">Recomendação VERAH</p>
               <h2 className="mt-1 font-semibold">Resumo e triagem</h2>
             </CardHeader>
             <CardContent className="space-y-5">
@@ -572,7 +572,7 @@ function LifecycleActions({
             </form>
           ) : (
             <details className="rounded-xl border border-rose-100 p-4">
-              <summary className="min-h-11 cursor-pointer text-sm font-semibold text-teal-800 outline-none focus-visible:ring-4 focus-visible:ring-teal-100">
+              <summary className="min-h-11 cursor-pointer text-sm font-semibold text-accent outline-none focus-visible:ring-4 focus-visible:ring-accent/30">
                 Marcar como prioridade
               </summary>
               <form action={setServiceRequestPriority} className="mt-4 space-y-3">
@@ -583,7 +583,7 @@ function LifecycleActions({
                   <textarea
                     name="reason"
                     required
-                    className="mt-2 min-h-24 w-full rounded-xl border border-rose-100 p-3 font-normal outline-none focus-visible:border-teal-500 focus-visible:ring-4 focus-visible:ring-teal-100"
+                    className="mt-2 min-h-24 w-full rounded-xl border border-rose-100 p-3 font-normal outline-none focus-visible:border-accent focus-visible:ring-4 focus-visible:ring-accent/30"
                   />
                 </label>
                 <Button className="w-full">Confirmar prioridade</Button>
@@ -603,7 +603,7 @@ function LifecycleActions({
                 <select
                   name="reason"
                   required
-                  className="mt-2 h-11 w-full rounded-xl border border-rose-100 bg-white px-3 font-normal outline-none focus-visible:border-teal-500 focus-visible:ring-4 focus-visible:ring-teal-100"
+                  className="mt-2 h-11 w-full rounded-xl border border-rose-100 bg-white px-3 font-normal outline-none focus-visible:border-accent focus-visible:ring-4 focus-visible:ring-accent/30"
                 >
                   <option value="">Selecione</option>
                   <option value="customer_withdrew">Cliente desistiu</option>
@@ -624,7 +624,7 @@ function LifecycleActions({
                 Observação
                 <textarea
                   name="notes"
-                  className="mt-2 min-h-24 w-full rounded-xl border border-rose-100 p-3 font-normal outline-none focus-visible:border-teal-500 focus-visible:ring-4 focus-visible:ring-teal-100"
+                  className="mt-2 min-h-24 w-full rounded-xl border border-rose-100 p-3 font-normal outline-none focus-visible:border-accent focus-visible:ring-4 focus-visible:ring-accent/30"
                   placeholder="Obrigatória quando o motivo for Outro"
                 />
               </label>
@@ -668,7 +668,7 @@ function LifecycleActions({
               )}
             </div>
             <details className="rounded-xl border border-rose-100 p-4">
-              <summary className="min-h-11 cursor-pointer text-sm font-semibold text-teal-800 outline-none focus-visible:ring-4 focus-visible:ring-teal-100">
+              <summary className="min-h-11 cursor-pointer text-sm font-semibold text-accent outline-none focus-visible:ring-4 focus-visible:ring-accent/30">
                 Reabrir atendimento
               </summary>
               <form action={reopenServiceRequest} className="mt-4 space-y-3">
@@ -678,7 +678,7 @@ function LifecycleActions({
                   <textarea
                     name="reason"
                     required
-                    className="mt-2 min-h-24 w-full rounded-xl border border-rose-100 p-3 font-normal outline-none focus-visible:border-teal-500 focus-visible:ring-4 focus-visible:ring-teal-100"
+                    className="mt-2 min-h-24 w-full rounded-xl border border-rose-100 p-3 font-normal outline-none focus-visible:border-accent focus-visible:ring-4 focus-visible:ring-accent/30"
                   />
                 </label>
                 <label className="flex items-start gap-2 text-sm">
@@ -724,9 +724,9 @@ function IntelligentIntakeCard({
 }) {
   const data = intake.collectedData;
   return (
-    <Card className="overflow-hidden border-teal-200">
-      <CardHeader className="bg-teal-50/70">
-        <p className="text-xs font-bold uppercase tracking-[0.16em] text-teal-700">
+    <Card className="overflow-hidden border-accent/40">
+      <CardHeader className="bg-accent/15">
+        <p className="text-xs font-bold uppercase tracking-[0.16em] text-accent">
           Intake pelo WhatsApp
         </p>
         <h2 className="mt-1 font-semibold">Avaliação inicial para revisão humana</h2>
@@ -765,7 +765,7 @@ function IntelligentIntakeCard({
               {intake.attachments.map((attachment, index) => (
                 <li key={attachment.id}>
                   {attachment.signedUrl ? (
-                    <a className="inline-flex min-h-11 items-center rounded-md border px-3 text-sm font-semibold text-teal-800 hover:bg-teal-50" href={attachment.signedUrl} target="_blank" rel="noreferrer">
+                    <a className="inline-flex min-h-11 items-center rounded-md border px-3 text-sm font-semibold text-accent hover:bg-accent/10" href={attachment.signedUrl} target="_blank" rel="noreferrer">
                       Abrir anexo {index + 1}
                     </a>
                   ) : (
@@ -861,8 +861,8 @@ function ConciergeChecklist({
 function Timeline({ events }: { events: TimelineEvent[] }) {
   return (
     <Card className="overflow-hidden">
-      <CardHeader className="bg-teal-50/50">
-        <p className="text-xs font-bold uppercase tracking-[0.16em] text-teal-700">Histórico operacional</p>
+      <CardHeader className="bg-accent/10">
+        <p className="text-xs font-bold uppercase tracking-[0.16em] text-accent">Histórico operacional</p>
         <h2 className="mt-1 font-semibold">Timeline do atendimento</h2>
       </CardHeader>
       <CardContent>
@@ -874,12 +874,12 @@ function Timeline({ events }: { events: TimelineEvent[] }) {
             >
               <span
                 aria-hidden="true"
-                className="relative z-10 mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-4 border-teal-100 bg-teal-700"
+                className="relative z-10 mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-4 border-accent/25 bg-accent"
               />
               {index < events.length - 1 && (
                 <span
                   aria-hidden="true"
-                  className="absolute left-[9px] top-5 h-full w-px bg-teal-100"
+                  className="absolute left-[9px] top-5 h-full w-px bg-rose-100"
                 />
               )}
               <div className="min-w-0">
@@ -935,7 +935,7 @@ function CaseBadge({ label, kind }: { label: string; kind: CaseBadgeKind }) {
     baixa: "border-emerald-200 bg-emerald-50 text-emerald-800",
     success: "border-emerald-200 bg-emerald-50 text-emerald-800",
     neutral: "border-slate-200 bg-slate-100 text-slate-600",
-    stage: "border-teal-100 bg-teal-50 text-teal-800",
+    stage: "border-accent/25 bg-accent/10 text-accent",
   };
   return (
     <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold ${styles[kind]}`}>

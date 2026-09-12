@@ -50,7 +50,7 @@ export default async function ServiceRequestPage({
       <section className="mx-auto max-w-4xl px-5 py-10 sm:py-14">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="font-mono text-sm font-semibold text-teal-800">
+            <p className="font-mono text-sm font-semibold text-accent">
               {request.referenceCode}
             </p>
             <h1 className="mt-2 text-3xl font-semibold">
@@ -63,7 +63,7 @@ export default async function ServiceRequestPage({
                   : "Seu atendimento está em acompanhamento"}
             </h1>
           </div>
-          <span className="w-fit rounded-full bg-teal-100 px-4 py-2 text-sm font-semibold text-teal-900">
+          <span className="w-fit rounded-full bg-rose-100 px-4 py-2 text-sm font-semibold text-accent">
             {customerStageLabels[request.serviceStage]}
           </span>
         </div>
@@ -81,7 +81,7 @@ export default async function ServiceRequestPage({
               </Card>
             )}
             {request.reopenedAt && request.serviceStage !== "cancelado" && (
-              <Card className="border-teal-200 bg-teal-50">
+              <Card className="border-rose-200 bg-rose-50">
                 <CardContent className="p-6">
                   <h2 className="text-lg font-semibold">
                     Atendimento de volta para análise
@@ -150,13 +150,13 @@ export default async function ServiceRequestPage({
               </Card>
             )}
             {provider && (
-              <Card className="border-teal-200 bg-teal-50">
+              <Card className="border-rose-200 bg-rose-50">
                 <CardContent className="space-y-3 p-6">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <h2 className="text-lg font-semibold">
                       Prestador homologado VERAH
                     </h2>
-                    <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-teal-800">
+                    <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-accent">
                       Rede homologada VERAH
                     </span>
                   </div>
@@ -192,13 +192,13 @@ export default async function ServiceRequestPage({
               <CustomerQuote quote={quote} requestId={id} />
             )}
             {request.serviceStage === "concluido" && (
-              <Card className="border-teal-200">
+              <Card className="border-rose-200">
                 <CardContent className="space-y-4 p-6">
                   <h2 className="text-xl font-semibold">
                     Atendimento concluído
                   </h2>
                   <p>A VERAH acompanhou seu atendimento do início ao fim.</p>
-                  <p className="rounded-lg bg-teal-50 p-3 text-sm font-semibold text-teal-900">
+                  <p className="rounded-lg bg-rose-50 p-3 text-sm font-semibold text-accent">
                     Serviço realizado por Prestador homologado VERAH.
                   </p>
                   {request.completionNotes && (
@@ -252,7 +252,7 @@ export default async function ServiceRequestPage({
                         className="w-full rounded border p-2"
                         placeholder="Comentário opcional"
                       />
-                      <button className="rounded bg-teal-700 px-4 py-2 text-white">
+                      <button className="rounded bg-accent px-4 py-2 text-white">
                         Enviar avaliação
                       </button>
                     </form>
@@ -271,7 +271,7 @@ export default async function ServiceRequestPage({
                 {customerJourneyStages.map((stage, index) => (
                   <li key={stage} className="relative flex gap-3 pb-7 last:pb-0">
                     <span
-                      className={`relative z-10 mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-xs font-bold ${index < currentStage || (request.serviceStage === "concluido" && index === currentStage) ? "border-teal-700 bg-teal-700 text-white" : index === currentStage ? "border-teal-700 bg-white text-teal-800 ring-4 ring-teal-100" : "border-slate-200 bg-white text-slate-400"}`}
+                      className={`relative z-10 mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-xs font-bold ${index < currentStage || (request.serviceStage === "concluido" && index === currentStage) ? "border-accent bg-accent text-white" : index === currentStage ? "border-accent bg-white text-accent ring-4 ring-accent/30" : "border-slate-200 bg-white text-slate-400"}`}
                     >
                       {index < currentStage ||
                       (request.serviceStage === "concluido" &&
@@ -286,7 +286,7 @@ export default async function ServiceRequestPage({
                       <p
                         className={
                           index <= currentStage
-                            ? "font-semibold text-teal-900"
+                            ? "font-semibold text-accent"
                             : "font-medium text-slate-500"
                         }
                       >
@@ -436,7 +436,7 @@ function CustomerQuote({
                 <button
                   name="intent"
                   value="approve"
-                  className="rounded bg-teal-700 px-4 py-2 text-white"
+                  className="rounded bg-accent px-4 py-2 text-white"
                 >
                   Aprovar orçamento
                 </button>

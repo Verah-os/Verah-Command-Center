@@ -97,7 +97,7 @@ export default async function ProviderPortalPage({
     <ProviderShell displayName={selected?.name ?? profile.displayName}>
       <div className="space-y-7">
         <header className="rounded-[1.5rem] border border-rose-100 bg-white/95 p-5 shadow-[0_18px_45px_rgba(64,83,80,0.06)] sm:p-7">
-          <p className="flex items-center gap-2 text-sm font-semibold text-teal-800">
+          <p className="flex items-center gap-2 text-sm font-semibold text-accent">
             <Gauge className="h-4 w-4" aria-hidden="true" />
             <span className="capitalize">{dayFormatter.format(new Date())}</span>
           </p>
@@ -110,7 +110,7 @@ export default async function ProviderPortalPage({
                 Você tem <strong>{activeCount}</strong> {activeCount === 1 ? "atendimento ativo" : "atendimentos ativos"} para acompanhar.
               </p>
             </div>
-            <span className="inline-flex w-fit items-center gap-2 rounded-full bg-teal-50 px-4 py-2 text-sm font-semibold text-teal-800">
+            <span className="inline-flex w-fit items-center gap-2 rounded-full bg-accent/10 px-4 py-2 text-sm font-semibold text-accent">
               <Wrench className="h-4 w-4" aria-hidden="true" /> Operação do dia
             </span>
           </div>
@@ -118,11 +118,11 @@ export default async function ProviderPortalPage({
 
         {profile.role === "admin" && (
           <form method="get" className="flex flex-col gap-3 rounded-2xl border border-rose-100 bg-white p-4 sm:flex-row">
-            <select name="provider" defaultValue={providerId ?? ""} className="h-12 flex-1 rounded-xl border border-rose-100 px-3 outline-none focus-visible:border-teal-500 focus-visible:ring-4 focus-visible:ring-teal-100" required>
+            <select name="provider" defaultValue={providerId ?? ""} className="h-12 flex-1 rounded-xl border border-rose-100 px-3 outline-none focus-visible:border-accent focus-visible:ring-4 focus-visible:ring-accent/30" required>
               <option value="" disabled>Selecione um prestador</option>
               {providers.map((provider) => <option key={provider.id} value={provider.id}>{provider.name} · {provider.city}</option>)}
             </select>
-            <button className="min-h-12 rounded-xl bg-teal-700 px-5 font-semibold text-white outline-none hover:bg-teal-800 focus-visible:ring-4 focus-visible:ring-teal-100">Visualizar</button>
+            <button className="min-h-12 rounded-xl bg-accent px-5 font-semibold text-white outline-none hover:bg-accent/90 focus-visible:ring-4 focus-visible:ring-accent/30">Visualizar</button>
           </form>
         )}
 
@@ -139,7 +139,7 @@ export default async function ProviderPortalPage({
               ].map(([label, value, icon]) => (
                 <Card key={label as string} className="provider-card min-w-0">
                   <CardContent className="p-4">
-                    <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-rose-50 text-teal-800 [&>svg]:h-4 [&>svg]:w-4">{icon}</span>
+                    <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-rose-50 text-accent [&>svg]:h-4 [&>svg]:w-4">{icon}</span>
                     <p className="mt-3 text-[11px] font-semibold leading-4 text-slate-500">{label}</p>
                     <p className="mt-1 text-2xl font-semibold tabular-nums text-slate-900">{value}</p>
                   </CardContent>
@@ -150,7 +150,7 @@ export default async function ProviderPortalPage({
             <nav aria-label="Filtros dos atendimentos" className="-mx-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
               <div className="flex min-w-max gap-2 sm:min-w-0 sm:flex-wrap">
                 {filters.map(([value, label]) => (
-                  <Link key={value} href={filterHref(query, value)} aria-current={filter === value ? "page" : undefined} className={`inline-flex min-h-11 items-center rounded-full border px-4 text-sm font-semibold outline-none focus-visible:ring-4 focus-visible:ring-teal-100 ${filter === value ? "border-teal-700 bg-teal-700 text-white" : "border-rose-100 bg-white text-slate-600 hover:bg-teal-50"}`}>
+                  <Link key={value} href={filterHref(query, value)} aria-current={filter === value ? "page" : undefined} className={`inline-flex min-h-11 items-center rounded-full border px-4 text-sm font-semibold outline-none focus-visible:ring-4 focus-visible:ring-accent/30 ${filter === value ? "border-accent bg-accent text-white" : "border-rose-100 bg-white text-slate-600 hover:bg-accent/10"}`}>
                     {label}
                   </Link>
                 ))}
@@ -158,8 +158,8 @@ export default async function ProviderPortalPage({
             </nav>
 
             <details className="rounded-2xl border border-rose-100 bg-white" open={Boolean(query.urgency || query.category || query.period)}>
-              <summary className="flex min-h-14 cursor-pointer list-none items-center gap-2 px-4 text-sm font-semibold text-slate-700 outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-teal-100">
-                <Filter className="h-4 w-4 text-teal-700" aria-hidden="true" /> Filtros adicionais
+              <summary className="flex min-h-14 cursor-pointer list-none items-center gap-2 px-4 text-sm font-semibold text-slate-700 outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-accent/30">
+                <Filter className="h-4 w-4 text-accent" aria-hidden="true" /> Filtros adicionais
               </summary>
               <form method="get" className="grid gap-4 border-t border-rose-100 p-4 sm:grid-cols-2 lg:grid-cols-4">
                 {profile.role === "admin" && <input type="hidden" name="provider" value={providerId ?? ""} />}
@@ -167,7 +167,7 @@ export default async function ProviderPortalPage({
                 <Select name="urgency" label="Urgência" value={query.urgency}><option value="">Todas</option><option value="critica">Crítica</option><option value="alta">Alta</option><option value="media">Média</option><option value="baixa">Baixa</option></Select>
                 <Select name="category" label="Categoria" value={query.category}><option value="">Todas</option>{categories.map((category) => <option key={category} value={category}>{naturalLabel(category)}</option>)}</Select>
                 <Select name="period" label="Período" value={query.period}><option value="">Todos</option><option value="hoje">Hoje</option><option value="7_dias">Últimos 7 dias</option></Select>
-                <div className="flex items-end gap-2"><button className="min-h-11 rounded-xl bg-teal-700 px-4 text-sm font-semibold text-white">Aplicar</button><Link href={clearFiltersHref(query, filter)} className="inline-flex min-h-11 items-center rounded-xl border border-rose-100 px-3 text-sm font-semibold text-slate-600">Limpar</Link></div>
+                <div className="flex items-end gap-2"><button className="min-h-11 rounded-xl bg-accent px-4 text-sm font-semibold text-white">Aplicar</button><Link href={clearFiltersHref(query, filter)} className="inline-flex min-h-11 items-center rounded-xl border border-rose-100 px-3 text-sm font-semibold text-slate-600">Limpar</Link></div>
               </form>
             </details>
 
@@ -176,12 +176,12 @@ export default async function ProviderPortalPage({
               {visible.length ? visible.map((request) => {
                 const action = actionLabel(request);
                 return (
-                  <Link key={request.id} href={requestHref(request.id, profile.role, selected.id)} className="rounded-2xl outline-none focus-visible:ring-4 focus-visible:ring-teal-100">
-                    <Card className={`provider-card overflow-hidden transition hover:-translate-y-0.5 hover:border-teal-200 ${request.serviceStage === "cancelado" ? "bg-slate-50/80 opacity-80" : request.serviceStage === "concluido" ? "bg-emerald-50/30" : ""}`}>
+                  <Link key={request.id} href={requestHref(request.id, profile.role, selected.id)} className="rounded-2xl outline-none focus-visible:ring-4 focus-visible:ring-accent/30">
+                    <Card className={`provider-card overflow-hidden transition hover:-translate-y-0.5 hover:border-accent/30 ${request.serviceStage === "cancelado" ? "bg-slate-50/80 opacity-80" : request.serviceStage === "concluido" ? "bg-emerald-50/30" : ""}`}>
                       <CardContent className="grid gap-5 p-5 sm:p-6 md:grid-cols-[1fr_1fr_0.8fr] md:items-center">
-                        <div><p className="font-mono text-xs font-bold tracking-wide text-teal-800">{request.referenceCode}</p><p className="mt-2 font-semibold text-slate-900">{request.vehicleBrand} {request.vehicleModel}{request.vehicleYear ? ` · ${request.vehicleYear}` : ""}</p><p className="mt-1 text-sm text-slate-500">{request.city} · {naturalLabel(request.probableCategory ?? "outro")}</p></div>
+                        <div><p className="font-mono text-xs font-bold tracking-wide text-accent">{request.referenceCode}</p><p className="mt-2 font-semibold text-slate-900">{request.vehicleBrand} {request.vehicleModel}{request.vehicleYear ? ` · ${request.vehicleYear}` : ""}</p><p className="mt-1 text-sm text-slate-500">{request.city} · {naturalLabel(request.probableCategory ?? "outro")}</p></div>
                         <div className="flex flex-wrap gap-2"><StatusBadge label={naturalLabel(request.perceivedUrgency)} kind={request.perceivedUrgency} /><StatusBadge label={naturalLabel(request.serviceStage)} kind={request.serviceStage === "cancelado" ? "neutral" : request.serviceStage === "concluido" ? "success" : "stage"} /></div>
-                        <div className="md:text-right"><p className="text-xs text-slate-500">Indicado em {request.providerAssignedAt ? formatter.format(new Date(request.providerAssignedAt)) : "data não informada"}</p><p className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-teal-800 md:justify-end">{action} <ArrowRight className="h-4 w-4" aria-hidden="true" /></p></div>
+                        <div className="md:text-right"><p className="text-xs text-slate-500">Indicado em {request.providerAssignedAt ? formatter.format(new Date(request.providerAssignedAt)) : "data não informada"}</p><p className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-accent md:justify-end">{action} <ArrowRight className="h-4 w-4" aria-hidden="true" /></p></div>
                       </CardContent>
                     </Card>
                   </Link>
@@ -247,12 +247,12 @@ function actionLabel(request: ServiceRequest) {
 
 type BadgeKind = "critica" | "alta" | "media" | "baixa" | "success" | "neutral" | "stage";
 function StatusBadge({ label, kind }: { label: string; kind: BadgeKind }) {
-  const styles: Record<BadgeKind, string> = { critica: "border-red-200 bg-red-50 text-red-800", alta: "border-orange-200 bg-orange-50 text-orange-800", media: "border-amber-200 bg-amber-50 text-amber-800", baixa: "border-emerald-200 bg-emerald-50 text-emerald-800", success: "border-emerald-200 bg-emerald-50 text-emerald-800", neutral: "border-slate-200 bg-slate-100 text-slate-600", stage: "border-teal-100 bg-teal-50 text-teal-800" };
+  const styles: Record<BadgeKind, string> = { critica: "border-red-200 bg-red-50 text-red-800", alta: "border-orange-200 bg-orange-50 text-orange-800", media: "border-amber-200 bg-amber-50 text-amber-800", baixa: "border-emerald-200 bg-emerald-50 text-emerald-800", success: "border-emerald-200 bg-emerald-50 text-emerald-800", neutral: "border-slate-200 bg-slate-100 text-slate-600", stage: "border-accent/25 bg-accent/10 text-accent" };
   return <span className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold ${styles[kind]}`}>{kind === "critica" && <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />}{label}</span>;
 }
 
 function Select({ name, label, value, children }: { name: string; label: string; value?: string; children: React.ReactNode }) {
-  return <label className="text-xs font-semibold text-slate-600">{label}<select name={name} defaultValue={value ?? ""} className="mt-2 h-11 w-full rounded-xl border border-rose-100 bg-white px-3 text-sm font-normal outline-none focus-visible:border-teal-500 focus-visible:ring-4 focus-visible:ring-teal-100">{children}</select></label>;
+  return <label className="text-xs font-semibold text-slate-600">{label}<select name={name} defaultValue={value ?? ""} className="mt-2 h-11 w-full rounded-xl border border-rose-100 bg-white px-3 text-sm font-normal outline-none focus-visible:border-accent focus-visible:ring-4 focus-visible:ring-accent/30">{children}</select></label>;
 }
 
 function EmptyState({ filtered, filter }: { filtered: boolean; filter: ProviderFilter }) {

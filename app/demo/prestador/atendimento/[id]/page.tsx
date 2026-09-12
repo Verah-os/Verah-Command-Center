@@ -11,7 +11,6 @@ import {
   Clock3,
   FileText,
   ShieldAlert,
-  Wrench,
 } from "lucide-react";
 import { ProviderShell } from "@/components/provider/provider-shell";
 import { QuoteForm } from "@/components/demo/quote-form";
@@ -73,12 +72,12 @@ export default async function ProviderRequestPage({
     <ProviderShell displayName={adminProvider?.name ?? profile.displayName}>
       <div className="space-y-6">
         <header className="rounded-[1.5rem] border border-rose-100 bg-white/95 p-5 shadow-[0_18px_45px_rgba(64,83,80,0.06)] sm:p-7">
-          <Link href={providerBackHref(profile.role, providerId)} className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-teal-800 outline-none hover:underline focus-visible:ring-4 focus-visible:ring-teal-100">
+          <Link href={providerBackHref(profile.role, providerId)} className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-accent outline-none hover:underline focus-visible:ring-4 focus-visible:ring-accent/30">
             <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Voltar aos atendimentos
           </Link>
           <div className="mt-4 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <p className="font-mono text-xs font-bold tracking-wide text-teal-800">{request.referenceCode}</p>
+              <p className="font-mono text-xs font-bold tracking-wide text-accent">{request.referenceCode}</p>
               <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
                 {request.vehicleBrand} {request.vehicleModel}
               </h1>
@@ -91,7 +90,7 @@ export default async function ProviderRequestPage({
               </div>
             </div>
             {action.href ? (
-              <Link href={action.href as Route} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-teal-700 px-5 text-sm font-semibold text-white outline-none hover:bg-teal-800 focus-visible:ring-4 focus-visible:ring-teal-100">
+              <Link href={action.href as Route} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-accent px-5 text-sm font-semibold text-white outline-none hover:bg-accent focus-visible:ring-4 focus-visible:ring-accent/30">
                 {action.label} <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </Link>
             ) : (
@@ -113,8 +112,8 @@ export default async function ProviderRequestPage({
         <div className="grid gap-6 xl:grid-cols-[1.35fr_0.65fr]">
           <div className="space-y-6">
             <Card className="provider-card overflow-hidden">
-              <CardHeader className="bg-teal-50/50">
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-teal-700">Resumo VERAH</p>
+              <CardHeader className="bg-rose-50/80">
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-accent">Resumo VERAH</p>
                 <h2 className="mt-1 text-xl font-semibold text-slate-900">Informações para execução</h2>
               </CardHeader>
               <CardContent className="space-y-6 p-5 sm:p-6">
@@ -147,7 +146,7 @@ export default async function ProviderRequestPage({
 
             {request.serviceStage === "em_execucao" && (
               <Card id="execution" className="provider-card scroll-mt-24 overflow-hidden">
-                <CardHeader className="bg-teal-50/50"><p className="text-xs font-bold uppercase tracking-[0.16em] text-teal-700">Execução</p><h2 className="mt-1 text-xl font-semibold">Serviço em andamento</h2></CardHeader>
+                <CardHeader className="bg-rose-50/80"><p className="text-xs font-bold uppercase tracking-[0.16em] text-accent">Execução</p><h2 className="mt-1 text-xl font-semibold">Serviço em andamento</h2></CardHeader>
                 <CardContent className="space-y-5 p-5 sm:p-6">
                   {request.providerCompletedAt ? (
                     <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900"><p className="font-semibold">Serviço finalizado. Aguardando confirmação da VERAH.</p><p className="mt-2">Finalizado em {formatter.format(new Date(request.providerCompletedAt))}.</p>{request.completionNotes && <p className="mt-2">Observações: {request.completionNotes}</p>}</div>
@@ -156,10 +155,10 @@ export default async function ProviderRequestPage({
                       <input type="hidden" name="requestId" value={request.id} />
                       <input type="hidden" name="providerId" value={providerId} />
                       <ul className="grid gap-3 text-sm sm:grid-cols-3">
-                        {["Serviço executado", "Veículo revisado", "VERAH informada"].map((item) => <li key={item} className="flex items-center gap-2 rounded-xl bg-teal-50 p-3 text-teal-900"><Check className="h-4 w-4" aria-hidden="true" />{item}</li>)}
+                        {["Serviço executado", "Veículo revisado", "VERAH informada"].map((item) => <li key={item} className="flex items-center gap-2 rounded-xl bg-accent/10 p-3 text-accent"><Check className="h-4 w-4" aria-hidden="true" />{item}</li>)}
                       </ul>
-                      <label className="block text-sm font-semibold text-slate-700">Observações finais<textarea name="notes" className="mt-2 min-h-28 w-full rounded-xl border border-rose-100 p-3 font-normal outline-none focus-visible:border-teal-500 focus-visible:ring-4 focus-visible:ring-teal-100" placeholder="Registre informações úteis sobre a conclusão" /></label>
-                      <button className="min-h-12 w-full rounded-xl bg-teal-700 px-5 font-semibold text-white outline-none hover:bg-teal-800 focus-visible:ring-4 focus-visible:ring-teal-100 sm:w-auto">Marcar serviço como finalizado</button>
+                      <label className="block text-sm font-semibold text-slate-700">Observações finais<textarea name="notes" className="mt-2 min-h-28 w-full rounded-xl border border-rose-100 p-3 font-normal outline-none focus-visible:border-accent focus-visible:ring-4 focus-visible:ring-accent/30" placeholder="Registre informações úteis sobre a conclusão" /></label>
+                      <button className="min-h-12 w-full rounded-xl bg-accent px-5 font-semibold text-white outline-none hover:bg-accent focus-visible:ring-4 focus-visible:ring-accent/30 sm:w-auto">Marcar serviço como finalizado</button>
                     </form>
                   )}
                 </CardContent>
@@ -186,14 +185,14 @@ function QuoteView({ quote }: { quote: ServiceQuote }) {
         <div className="space-y-3">{quote.items.map((item) => <div key={item.id} className="grid gap-2 rounded-xl border border-rose-100 p-4 sm:grid-cols-[1fr_auto] sm:items-center"><div><p className="font-semibold text-slate-800">{item.description}</p><p className="mt-1 text-xs text-slate-500">{item.quantity.toLocaleString("pt-BR")} × {money(item.unitPrice)} · {itemTypeLabel(item.itemType)}{item.isOptional ? " · Opcional" : ""}</p></div><p className="font-semibold tabular-nums text-slate-900">{money(item.totalPrice)}</p></div>)}</div>
         <FinancialSummary quote={quote} />
         <div className="grid gap-4 sm:grid-cols-2"><Info label="Prazo" value={quote.estimatedDuration ?? "Não informado"} /><Info label="Validade" value={quote.validUntil ? new Intl.DateTimeFormat("pt-BR").format(new Date(`${quote.validUntil}T12:00:00`)) : "Não informada"} /><Info label="Garantia" value={quote.warrantyText ?? "Não informada"} /><Info label="Resumo para a cliente" value={quote.customerSummary ?? "Não informado"} /></div>
-        {quote.submittedAt && <p className="flex items-center gap-2 rounded-xl bg-teal-50 p-3 text-sm text-teal-900"><CheckCircle2 className="h-4 w-4" aria-hidden="true" />Enviado para aprovação em {formatter.format(new Date(quote.submittedAt))}.</p>}
+        {quote.submittedAt && <p className="flex items-center gap-2 rounded-xl bg-accent/10 p-3 text-sm text-accent"><CheckCircle2 className="h-4 w-4" aria-hidden="true" />Enviado para aprovação em {formatter.format(new Date(quote.submittedAt))}.</p>}
       </CardContent>
     </Card>
   );
 }
 
 function FinancialSummary({ quote }: { quote: ServiceQuote }) {
-  return <section aria-label="Resumo financeiro" className="grid gap-3 rounded-2xl bg-slate-50 p-4 sm:grid-cols-3"><Money label="Mão de obra" value={quote.laborTotal} /><Money label="Peças" value={quote.partsTotal} /><Money label="Serviços e adicionais" value={quote.additionalTotal} /><div className="border-t border-slate-200 pt-4 sm:col-span-3"><p className="text-xs font-bold uppercase tracking-wide text-slate-500">Total geral</p><p className="mt-1 text-2xl font-semibold tabular-nums text-teal-800">{money(quote.totalAmount)}</p></div></section>;
+  return <section aria-label="Resumo financeiro" className="grid gap-3 rounded-2xl bg-slate-50 p-4 sm:grid-cols-3"><Money label="Mão de obra" value={quote.laborTotal} /><Money label="Peças" value={quote.partsTotal} /><Money label="Serviços e adicionais" value={quote.additionalTotal} /><div className="border-t border-slate-200 pt-4 sm:col-span-3"><p className="text-xs font-bold uppercase tracking-wide text-slate-500">Total geral</p><p className="mt-1 text-2xl font-semibold tabular-nums text-accent">{money(quote.totalAmount)}</p></div></section>;
 }
 
 function ProviderChecklist({ items }: { items: Array<{ label: string; complete: boolean; current?: boolean }> }) {
@@ -202,7 +201,7 @@ function ProviderChecklist({ items }: { items: Array<{ label: string; complete: 
 
 type ProviderEvent = { timestamp: string; title: string; description: string };
 function ProviderTimeline({ events }: { events: ProviderEvent[] }) {
-  return <Card className="provider-card overflow-hidden"><CardHeader className="bg-teal-50/50"><p className="text-xs font-bold uppercase tracking-[0.16em] text-teal-700">Histórico operacional</p><h2 className="mt-1 font-semibold">Timeline</h2></CardHeader><CardContent className="p-5"><ol>{events.map((event, index) => <li key={`${event.timestamp}-${event.title}`} className="relative flex gap-4 pb-7 last:pb-0"><span className="relative z-10 mt-1 h-5 w-5 shrink-0 rounded-full border-4 border-teal-100 bg-teal-700" aria-hidden="true" />{index < events.length - 1 && <span className="absolute left-[9px] top-5 h-full w-px bg-teal-100" aria-hidden="true" />}<div><p className="text-sm font-semibold text-slate-800">{event.title}</p><p className="mt-1 text-sm leading-6 text-slate-600">{event.description}</p><p className="mt-2 inline-flex rounded-full bg-slate-100 px-2.5 py-1 font-mono text-[11px] text-slate-600">{formatter.format(new Date(event.timestamp))}</p></div></li>)}</ol></CardContent></Card>;
+  return <Card className="provider-card overflow-hidden"><CardHeader className="bg-rose-50/80"><p className="text-xs font-bold uppercase tracking-[0.16em] text-accent">Histórico operacional</p><h2 className="mt-1 font-semibold">Timeline</h2></CardHeader><CardContent className="p-5"><ol>{events.map((event, index) => <li key={`${event.timestamp}-${event.title}`} className="relative flex gap-4 pb-7 last:pb-0"><span className="relative z-10 mt-1 h-5 w-5 shrink-0 rounded-full border-4 border-accent/40 bg-accent" aria-hidden="true" />{index < events.length - 1 && <span className="absolute left-[9px] top-5 h-full w-px bg-accent/25" aria-hidden="true" />}<div><p className="text-sm font-semibold text-slate-800">{event.title}</p><p className="mt-1 text-sm leading-6 text-slate-600">{event.description}</p><p className="mt-2 inline-flex rounded-full bg-slate-100 px-2.5 py-1 font-mono text-[11px] text-slate-600">{formatter.format(new Date(event.timestamp))}</p></div></li>)}</ol></CardContent></Card>;
 }
 
 function providerChecklist(request: ServiceRequest, quote: ServiceQuote | null) {
@@ -247,7 +246,7 @@ function Info({ label, value }: { label: string; value: string }) { return <div>
 function InfoList({ label, items, empty }: { label: string; items: string[]; empty: string }) { return <div><p className="text-xs font-bold uppercase tracking-wide text-slate-500">{label}</p>{items.length ? <ul className="mt-3 space-y-2">{items.map((item) => <li key={item} className="flex gap-2 text-sm text-slate-700"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" aria-hidden="true" />{item}</li>)}</ul> : <p className="mt-2 text-sm text-slate-600">{empty}</p>}</div>; }
 function Money({ label, value }: { label: string; value: number }) { return <div><p className="text-xs font-bold uppercase tracking-wide text-slate-500">{label}</p><p className="mt-1 font-semibold tabular-nums text-slate-800">{money(value)}</p></div>; }
 type BadgeKind = "critica" | "alta" | "media" | "baixa" | "success" | "neutral" | "stage";
-function StatusBadge({ label, kind }: { label: string; kind: BadgeKind }) { const styles: Record<BadgeKind, string> = { critica: "border-red-200 bg-red-50 text-red-800", alta: "border-orange-200 bg-orange-50 text-orange-800", media: "border-amber-200 bg-amber-50 text-amber-800", baixa: "border-emerald-200 bg-emerald-50 text-emerald-800", success: "border-emerald-200 bg-emerald-50 text-emerald-800", neutral: "border-slate-200 bg-slate-100 text-slate-600", stage: "border-teal-100 bg-teal-50 text-teal-800" }; return <span className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold ${styles[kind]}`}>{kind === "critica" && <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />}{label}</span>; }
+function StatusBadge({ label, kind }: { label: string; kind: BadgeKind }) { const styles: Record<BadgeKind, string> = { critica: "border-red-200 bg-red-50 text-red-800", alta: "border-orange-200 bg-orange-50 text-orange-800", media: "border-amber-200 bg-amber-50 text-amber-800", baixa: "border-emerald-200 bg-emerald-50 text-emerald-800", success: "border-emerald-200 bg-emerald-50 text-emerald-800", neutral: "border-slate-200 bg-slate-100 text-slate-600", stage: "border-accent/25 bg-accent/10 text-accent" }; return <span className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold ${styles[kind]}`}>{kind === "critica" && <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />}{label}</span>; }
 const money = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 function naturalLabel(value: string) { const label = value.replaceAll("_", " "); return label.charAt(0).toUpperCase() + label.slice(1); }
 function itemTypeLabel(type: string) { return type === "labor" ? "Mão de obra" : type === "part" ? "Peça" : type === "service" ? "Serviço" : "Adicional"; }

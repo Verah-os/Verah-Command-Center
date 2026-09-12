@@ -26,7 +26,7 @@ export default function DemoPage() {
         <div className="relative overflow-hidden rounded-[2rem] border border-rose-100 bg-white px-6 py-12 shadow-[0_24px_80px_rgba(87,54,67,0.10)] sm:px-12 sm:py-16">
           <div className="absolute -right-20 -top-24 h-64 w-64 rounded-full bg-rose-100/70 blur-3xl" />
           <div className="relative max-w-3xl">
-            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-teal-700">
+            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-accent">
               Cuidado automotivo do seu jeito
             </p>
             <h1 className="mt-5 text-4xl font-semibold leading-[1.08] tracking-tight text-slate-900 sm:text-6xl">
@@ -39,19 +39,19 @@ export default function DemoPage() {
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Link
                 href="/demo/cliente/piloto"
-                className="inline-flex min-h-12 items-center justify-center rounded-xl bg-teal-700 px-6 font-semibold text-white shadow-sm outline-none hover:bg-teal-800 focus-visible:ring-4 focus-visible:ring-teal-200"
+                className="inline-flex min-h-12 items-center justify-center rounded-xl bg-accent px-6 font-semibold text-white shadow-sm outline-none hover:bg-accent focus-visible:ring-4 focus-visible:ring-accent/30"
               >
                 Iniciar trilha executiva · 3–5 min
               </Link>
               <Link
                 href="/demo/concierge"
-                className="inline-flex min-h-12 items-center justify-center rounded-xl border border-teal-200 bg-white px-6 font-semibold text-teal-800 outline-none hover:bg-teal-50 focus-visible:ring-4 focus-visible:ring-teal-100"
+                className="inline-flex min-h-12 items-center justify-center rounded-xl border border-accent/40 bg-white px-6 font-semibold text-accent outline-none hover:bg-accent/10 focus-visible:ring-4 focus-visible:ring-accent/30"
               >
                 Abrir visão Concierge
               </Link>
               <Link
                 href="/entrar/cliente"
-                className="inline-flex min-h-12 items-center justify-center rounded-xl px-4 font-semibold text-slate-600 outline-none hover:bg-slate-50 focus-visible:ring-4 focus-visible:ring-teal-100"
+                className="inline-flex min-h-12 items-center justify-center rounded-xl px-4 font-semibold text-slate-600 outline-none hover:bg-slate-50 focus-visible:ring-4 focus-visible:ring-accent/30"
               >
                 Acessar meus atendimentos
               </Link>
@@ -89,10 +89,10 @@ export default function DemoPage() {
           {benefits.map((benefit) => (
             <article
               key={benefit.title}
-              className="rounded-2xl bg-teal-800 p-6 text-white"
+              className="rounded-2xl bg-accent p-6 text-white"
             >
               <h2 className="text-xl font-semibold">{benefit.title}</h2>
-              <p className="mt-3 text-sm leading-6 text-teal-50">
+              <p className="mt-3 text-sm leading-6 text-white/90">
                 {benefit.text}
               </p>
             </article>

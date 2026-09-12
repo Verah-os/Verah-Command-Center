@@ -36,7 +36,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, width: "100%", backgroundColor: "#FFF9F8" },
   failClosed: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 },
   card: { width: "100%", maxWidth: 420 },
-  brand: { color: "#177F78", fontSize: 32, fontWeight: "800" },
+  brand: { color: "#814455", fontSize: 32, fontWeight: "800" },
   title: { color: "#263238", fontSize: 20, fontWeight: "600", marginTop: 8 },
   body: { color: "#667085", fontSize: 15, marginTop: 12 },
 });

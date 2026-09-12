@@ -50,7 +50,7 @@ const initial: Values = {
   perceivedUrgency: "media",
 };
 const fieldClass =
-  "mt-2 h-12 w-full rounded-xl border border-rose-100 bg-white px-4 text-base outline-none transition focus-visible:border-teal-600 focus-visible:ring-4 focus-visible:ring-teal-100 disabled:cursor-not-allowed disabled:bg-slate-100";
+  "mt-2 h-12 w-full rounded-xl border border-rose-100 bg-white px-4 text-base outline-none transition focus-visible:border-accent focus-visible:ring-4 focus-visible:ring-accent/30 disabled:cursor-not-allowed disabled:bg-slate-100";
 
 export function ServiceRequestForm({
   serverError,
@@ -369,7 +369,7 @@ export function ServiceRequestForm({
                   Conte com suas palavras <span aria-hidden="true">*</span>
                   <textarea
                     id="customer-report"
-                    className="mt-2 min-h-40 w-full resize-y rounded-xl border border-rose-100 bg-white p-4 text-base outline-none focus-visible:border-teal-600 focus-visible:ring-4 focus-visible:ring-teal-100"
+                    className="mt-2 min-h-40 w-full resize-y rounded-xl border border-rose-100 bg-white p-4 text-base outline-none focus-visible:border-accent focus-visible:ring-4 focus-visible:ring-accent/30"
                     value={values.customerReport}
                     onChange={(event) =>
                       update("customerReport", event.target.value)
@@ -426,10 +426,10 @@ export function ServiceRequestForm({
       ) : (
         analysis && (
           <div className="space-y-5">
-            <Card className="overflow-hidden border-teal-100 shadow-[0_18px_50px_rgba(40,91,85,0.09)]">
+            <Card className="overflow-hidden border-accent/25 shadow-[0_18px_50px_rgba(40,91,85,0.09)]">
               <CardContent className="space-y-6 p-5 sm:p-8">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-teal-700">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">
                     Análise inicial
                   </p>
                   <h2 className="mt-2 text-2xl font-semibold">
@@ -502,7 +502,7 @@ function Progress({ current }: { current: number }) {
       {["Informações", "Análise", "Confirmação"].map((label, index) => (
         <li
           key={label}
-          className={`rounded-xl border px-2 py-3 text-center text-xs font-semibold sm:text-sm ${index + 1 <= current ? "border-teal-200 bg-teal-50 text-teal-900" : "border-slate-200 bg-white text-slate-400"}`}
+          className={`rounded-xl border px-2 py-3 text-center text-xs font-semibold sm:text-sm ${index + 1 <= current ? "border-accent/40 bg-accent/10 text-accent" : "border-slate-200 bg-white text-slate-400"}`}
         >
           <span className="mr-1">{index + 1}.</span>
           {label}

@@ -13,7 +13,7 @@ export default async function CustomerLoginPage({
       <div className="w-full max-w-sm">
         <Link
           href="/demo"
-          className="mb-5 inline-flex min-h-11 items-center text-sm font-semibold text-teal-800 outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
+          className="mb-5 inline-flex min-h-11 items-center text-sm font-semibold text-accent outline-none focus-visible:ring-4 focus-visible:ring-accent/30"
         >
           ← Voltar para a VERAH
         </Link>
@@ -23,7 +23,7 @@ export default async function CustomerLoginPage({
           title="Que bom ter você aqui"
           description="Entre para iniciar ou acompanhar seus atendimentos com tranquilidade."
         />
-        <Link href={"/entrar/cliente/cadastro" as Route} className="mt-5 block text-center text-sm font-semibold text-teal-800">
+        <Link href={"/entrar/cliente/cadastro" as Route} className="mt-5 block text-center text-sm font-semibold text-accent">
           Criar minha conta VERAH
         </Link>
         <p className="mt-5 text-center text-xs leading-5 text-slate-500">

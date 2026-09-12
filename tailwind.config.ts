@@ -19,6 +19,12 @@ const config: Config = {
         "accent-foreground": "var(--accent-foreground)",
         success: "var(--success)",
         danger: "var(--danger)",
+        rose: "var(--verah-rose)",
+        nude: "var(--verah-nude)",
+        canvas: "var(--verah-canvas)",
+        ink: "var(--verah-ink)",
+        "muted-ink": "var(--verah-muted-ink)",
+        line: "var(--verah-line)",
       },
       borderRadius: {
         lg: "var(--verah-radius-card)",

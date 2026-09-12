@@ -65,7 +65,7 @@ export default async function CommercialSimulatorPage({
   return (
     <main className="mx-auto w-full max-w-6xl space-y-6 px-4 py-6 sm:px-6">
       <section className="rounded-3xl border border-rose-100 bg-white p-6 shadow-sm">
-        <p className="text-xs font-bold uppercase tracking-[0.18em] text-teal-700">Admin · hipótese de teste</p>
+        <p className="text-xs font-bold uppercase tracking-[0.18em] text-accent">Admin · hipótese de teste</p>
         <h1 className="mt-2 text-3xl font-bold text-slate-950">Motor Comercial VERAH</h1>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
           Simulador interno da jornada completa VERAH. Todo serviço core inclui retirada, acompanhamento e devolução; serviço e logística aparecem separados aqui apenas para unit economics e governança.
@@ -85,7 +85,7 @@ export default async function CommercialSimulatorPage({
         <Field name="paymentFee" label="Taxa pagamento estimada (R$)" value={input.paymentFee ?? 0} />
         <Field name="otherCosts" label="Outros custos variáveis (R$)" value={input.otherVariableCosts ?? 0} />
 
-        <div className="rounded-2xl border border-teal-100 bg-teal-50 p-4 text-sm text-teal-950 lg:col-span-3">
+        <div className="rounded-2xl border border-accent/25 bg-accent/10 p-4 text-sm text-accent lg:col-span-3">
           <strong>Leva & Traz VERAH faz parte do serviço core.</strong> Abaixo, os parâmetros existem somente para simular custo, repasse e margem da retirada + devolução. Não há opção padrão para removê-lo da jornada.
         </div>
 
@@ -103,7 +103,7 @@ export default async function CommercialSimulatorPage({
         <Field name="payoutBonus" label="Bônus operador (R$)" value={input.logistics.payoutRule.bonus ?? 0} />
 
         <div className="lg:col-span-3">
-          <button className="min-h-11 rounded-xl bg-teal-700 px-5 font-semibold text-white hover:bg-teal-800" type="submit">Recalcular teste</button>
+          <button className="min-h-11 rounded-xl bg-accent px-5 font-semibold text-white hover:bg-accent" type="submit">Recalcular teste</button>
         </div>
       </form>
 
@@ -130,7 +130,7 @@ function Field({ name, label, value }: { name: string; label: string; value: str
     <label className="text-sm font-semibold text-slate-700">
       {label}
       <input
-        className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 font-normal text-slate-950 outline-none focus:border-teal-500 focus:ring-4 focus:ring-teal-100"
+        className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 font-normal text-slate-950 outline-none focus:border-accent focus:ring-4 focus:ring-accent/30"
         type="number"
         min="0"
         step="0.01"
@@ -143,9 +143,9 @@ function Field({ name, label, value }: { name: string; label: string; value: str
 
 function Metric({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) {
   return (
-    <article className={`rounded-3xl border p-5 ${strong ? "border-teal-200 bg-teal-50" : "border-slate-100 bg-white"}`}>
+    <article className={`rounded-3xl border p-5 ${strong ? "border-accent/40 bg-accent/10" : "border-slate-100 bg-white"}`}>
       <p className="text-xs font-bold uppercase tracking-wide text-slate-500">{label}</p>
-      <p className={`mt-2 text-2xl font-bold ${strong ? "text-teal-900" : "text-slate-950"}`}>{value}</p>
+      <p className={`mt-2 text-2xl font-bold ${strong ? "text-accent" : "text-slate-950"}`}>{value}</p>
     </article>
   );
 }

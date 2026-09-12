@@ -3,8 +3,16 @@
 @tailwind utilities;
 
 :root {
-  /* VERAH official foundations */
+  /* VERAH official foundations (Design System V1) — institutional tokens */
   --verah-pink: #e8b6c0;
+  --verah-rose: #e8b6c0;
+  --verah-nude: #f2e6e1;
+  --verah-accent: #814455;
+  --verah-canvas: #fbf8f6;
+  --verah-ink: #232323;
+  --verah-muted-ink: #655b5d;
+  --verah-line: #dfd2cd;
+  --verah-card-light: #ffffff;
   --verah-background: #232323;
   --verah-card: #2e2e2e;
   --verah-secondary: #3a3a3a;
@@ -47,6 +55,42 @@ body {
 }
 
 ::selection { background: var(--verah-pink); color: var(--verah-background); }
+
+/* Light institutional surfaces (Design System V1): public site + demo customer app.
+   The app shell and authenticated command surfaces stay dark, this class is opt-in. */
+.design-system-light {
+  --background: var(--verah-canvas);
+  --foreground: var(--verah-ink);
+  --card: var(--verah-card-light);
+  --card-foreground: var(--verah-ink);
+  --border: var(--verah-line);
+  --muted: var(--verah-nude);
+  --muted-foreground: var(--verah-muted-ink);
+  --primary: var(--verah-accent);
+  --primary-foreground: var(--verah-white);
+  --accent: var(--verah-accent);
+  --accent-foreground: var(--verah-white);
+  --focus: rgba(129, 68, 85, 0.28);
+  color-scheme: light;
+  background: var(--background);
+  color: var(--foreground);
+}
+
+.design-system-light, .home {
+  --font-family: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+}
+.design-system-light input:is([type="email"], [type="password"], [type="text"]),
+.design-system-light :is(input, select, textarea) {
+  background: var(--verah-card-light);
+  border-color: var(--verah-line);
+  color: var(--verah-ink);
+  caret-color: var(--verah-accent);
+}
+.design-system-light :is(input, textarea)::placeholder { color: var(--verah-muted-ink); }
+.design-system-light :focus-visible {
+  outline: 2px solid var(--verah-accent);
+  outline-offset: 3px;
+}
 
 .verah-network-motif {
   height: auto;
