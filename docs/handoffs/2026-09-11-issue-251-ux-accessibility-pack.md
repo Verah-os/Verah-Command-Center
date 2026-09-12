@@ -1,6 +1,6 @@
 # Handoff — Issue #251 — Release 1.0 UX/accessibility pack (Draft PR)
 
-Data: 2026-09-11 (pack), 2026-09-12 (rebase sobre `main` `c71ec30`). Branch: `openhands/251-release-1.0-ux-accessibility-pack`. Base: `main` em `d391782` (`#232/#234`), rebase limpo sobre `c71ec30` (pós-merge #244/#246/#248). Refs: #164 (EPIC), #228/#229 (auditorias de aceite, merged), #233/#234 (mobile merged), #250 (merge-sequencing map, Draft), #151/#255/#258 (Draft PRs abertas na data do rebase).
+Data: 2026-09-11 (pack), 2026-09-12 (rebase sobre `main` `da1d5d0`). Branch: `openhands/251-release-1.0-ux-accessibility-pack`. Base: `main` em `d391782` (`#232/#234`), rebases limpos sobre `c71ec30` e sobre `da1d5d0` (pós-merge #244/#246/#248 e do mapa #250). Refs: #164 (EPIC), #228/#229 (auditorias de aceite, merged), #233/#234 (mobile merged), #250 (merge-sequencing map, agora **merged**), #151/#255/#258 (Draft PRs abertas revalidadas após o merge de #250).
 
 ## Deliverable
 
@@ -8,7 +8,7 @@ QA pack **repository-safe** para copy/legibilidade/acessibilidade customer-facin
 
 1. `docs/ship-verah/release-1.0-ux-accessibility-pack.md` — matriz por tela, princípios de copy, checklist de acessibilidade, follow-ups, evidência pós-gate;
 2. `tests/release-1.0-ux-accessibility-copy-references.test.mjs` — teste estático (sem rede/secrets/DB) que verifica:
-   - arquivos tocados não colidem com file sets das Draft PRs abertas #250/#151/#255/#258 (snapshot atualizado no rebase de 2026-09-12);
+   - arquivos tocados não colidem com file sets das Draft PRs abertas #151/#255/#258 (snapshot atualizado no rebase de 2026-09-12 após o merge de #250);
    - copy customer-facing não contém termos crus de backend/env-var( "Supabase não configurado", "EXPO_PUBLIC_SUPABASE_*", "Chave de idempotência", "backend da VERAH");
    - fallbacks aprovados presentes (`App.tsx`, `service-request-supabase.ts`, `fipe-catalog.ts`, `vehicle-documents.ts`);
    - contratos canônicos citados( `customer_id`, `created_by`, `confirm_customer_vehicle`, `replace_customer_vehicle`, `register_vehicle_mileage/fuel/charging/maintenance`, `vehicle_expense_summary`, `createMobileServiceRequest`, `service_request`, RLS);

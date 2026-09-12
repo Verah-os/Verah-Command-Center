@@ -1,6 +1,6 @@
 # Release 1.0 — Customer-facing UX copy/accessibility/readability QA pack (repository-safe)
 
-Data: 2026-09-11 (pack), 2026-09-12 (rebase sobre `main` `c71ec30`, pós-merge #244/#246/#248). Base: `main` em `d391782` (`#232/#234`), rebase limpo sobre `c71ec30`. Refs: #164, #228/#229, #233/#234, #250. PRs Draft abertas na data do rebase: **#250/#151/#255/#258** (verificados via GitHub API em 2026-09-12; #236/#239/#240/#242/#244/#246/#248 já **merged**) — **nenhum arquivo tocado por elas é alterado aqui** (ver `tests/release-1.0-ux-accessibility-copy-references.test.mjs` para o snapshot atualizado dos file sets). Escopo: **auditoria de copy/legibilidade/acessibilidade customer-facing somente**, com correções **bounded** de strings em arquivos **não-owners**, sem nenhuma ação externa.
+Data: 2026-09-11 (pack), 2026-09-12 (rebase sobre `main` `da1d5d0`, pós-merge #244/#246/#248 e do mapa #250). Base: `main` em `d391782` (`#232/#234`), rebases limpos sobre `c71ec30` e sobre `da1d5d0`. Refs: #164, #228/#229, #233/#234, #250 (merged). PRs Draft abertas revalidados via GitHub API em 2026-09-12 após o merge de #250: **#151/#255/#258** (+ este pack #254); #236/#239/#240/#242/#244/#246/#248/#250 já **merged** — **nenhum arquivo tocado por Draft aberta é alterado aqui** (ver `tests/release-1.0-ux-accessibility-copy-references.test.mjs` para o snapshot atualizado dos file sets). Escopo: **auditoria de copy/legibilidade/acessibilidade customer-facing somente**, com correções **bounded** de strings em arquivos **não-owners**, sem nenhuma ação externa.
 
 
 
@@ -141,7 +141,7 @@ Legenda: **PASS** = aprovado por evidência repo (strings/estilos/contratos); **
 
 ##  ​​4. Follow-ups repo-safe (não aplicados por colisão/escopo)
 
-Estes são candidatos a issues futuras**sem tocar arquivos donos das Draft PRs abertas** na data deste pack (#250/#151/#255/#258). Nenhum deles é executado por este pack.
+Estes são candidatos a issues futuras**sem tocar arquivos donos das Draft PRs abertas** revalidados após o merge de #250 (#151/#255/#258 + este pack #254). Nenhum deles é executado por este pack.
 
 
 
@@ -180,4 +180,4 @@ A captura abaixo é o **conjunto mínimo sem PII/secrets** a coletar após a exi
 
 ##​ 7. Conclusão
 
-O estoque atual da `main` `c71ec30` (+ os 4 copy-fixes bounded deste pack, todos em arquivos sem dono) já apresenta copy customer-safe, unidades L/kWh separadas, draft assistido de manutenção **draft-only até confirmação explícita**, fluxo "Preciso de ajuda" com revisão/privacy e estados vazios/erro em **PT-BR claro**, sem termos Supabase/PostgREST/schema/RLS/RPC/tabela/função/cache/env-var. Os itens restantes são **follow-ups repo-safe** (seção 4) e **validação física** (seção 6), esta última exigindo os Human Gates de build/distribuição (#228/#229/#248) — nenhum dos quais é executado por este pack. **Nenhum merge foi executado.**
+O estoque atual da `main` `da1d5d0` (+ os 4 copy-fixes bounded deste pack, todos em arquivos sem dono) já apresenta copy customer-safe, unidades L/kWh separadas, draft assistido de manutenção **draft-only até confirmação explícita**, fluxo "Preciso de ajuda" com revisão/privacy e estados vazios/erro em **PT-BR claro**, sem termos Supabase/PostgREST/schema/RLS/RPC/tabela/função/cache/env-var. Os itens restantes são **follow-ups repo-safe** (seção 4) e **validação física** (seção 6), esta última exigindo os Human Gates de build/distribuição (#228/#229/#248) — nenhum dos quais é executado por este pack. **Nenhum merge foi executado.**

@@ -31,16 +31,12 @@ const AUDITED_FILES = [
   "mobile/src/supabase.ts",
   "mobile/src/vehicle-documents.ts",
 ];
-// Snapshot refreshed 2026-09-12 after rebase onto main c71ec30 (post-merge
-// #244/#246/#248). Merged PRs #236/#239/#240/#242/#244/#246/#248 are no longer
-// open Draft PRs. Current open Draft PRs (verified via GitHub API): #250, #151,
-// #255, #258. Open non-draft #145 touches only GEMINI.md (no collision).
+// Snapshot refreshed 2026-09-12 after rebase onto main da1d5d0 (post-merge of
+// #250 merge-sequencing map, in addition to #244/#246/#248). Merged PRs
+// #236/#239/#240/#242/#244/#246/#248/#250 are no longer open Draft PRs. Current
+// open Draft PRs (verified via GitHub API): #254 (this pack), #255, #258, plus
+// non-draft #145 (GEMINI.md only) and draft #151 (.openhands/skills/repo.md only).
 const DRAFT_PRS = {
-  250: [
-    "docs/handoffs/2026-09-11-issue-249-merge-sequencing-map.md",
-    "docs/ship-verah/release-1.0-merge-sequencing.md",
-    "tests/release-1.0-merge-sequencing-references.test.mjs",
-  ],
   151: [
     ".openhands/skills/repo.md",
   ],
