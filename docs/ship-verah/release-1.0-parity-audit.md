@@ -33,7 +33,7 @@ capacidade oferecida ao cliente.
 | Mileage/odometer | `register_vehicle_mileage` | `/veiculo/[id]/mileage` | MileageScreen | mesmo RPC | mileage security + contract | PASS |
 | Fuel/refueling | `register_vehicle_fuel` | `/veiculo/[id]/fuel` | FuelScreen | mesmo RPC | fuel security + contract | PASS |
 | EV/charging | `register_vehicle_charging` | `/veiculo/[id]/fuel` | ChargingScreen | mesmo RPC, kWh | charging security + contract | PASS |
-| Expenses | `vehicle_expenses` + summary | `/veiculo/[id]/expenses` | dashboard leitura / write via maintenance | ESTRUTURA canônica (ver GAP) | expenses security | PASS com ressalva = GAP parcial |
+| Expenses | `vehicle_expenses` + summary | `/veiculo/[id]/expenses` | tela Despesas (leitura + registro manual) | mesma tabela + RLS | expenses security | PASS |
 | Maintenance | `register_vehicle_maintenance` | `/veiculo/[id]/maintenance` | MaintenanceScreen | mesmo RPC + idempotência | maintenance security + contract | PASS |
 | Maintenance assistance | manutenção + reminders | reminder na página | reminder cards | mesma derivação | maintenance-assist (mobile) | PASS |
 | Documents | `vehicle_documents` + storage privado | `/veiculo/[id]/documents` | VehicleDocumentsScreen | mesmos RPCs + bucket privado | documents security + contract | PASS |
@@ -48,7 +48,7 @@ capacidade oferecida ao cliente.
 
 ## GAPs identificados e tratados
 
-### GAP-1 (histórico): despesas manuais no Mobile
+### GAP-1 (fechado): despesas manuais no Mobile
 
 Antes desta auditoria, a Web não possuía telas de veiculo-log (M2). O ponto mais
 relevante: **Mobile escrevia despesas somente pelo caminho
@@ -56,38 +56,38 @@ relevante: **Mobile escrevia despesas somente pelo caminho
 navegação/forms para quilometragem, combustível, recarga, manutenção, despesas e
 documentos.
 
-**Tratamento aplicado (repository-safe):**
+**Tratamento aplicado (repository-safe, fechado nesta release):**
 
 - Web agora expõe navegação e páginas de registro/consulta para
   quilometragem, combustível/recarga, manutenção, despesas e documentos sob
   `/demo/cliente/veiculo/[id]/*`.
+- Mobile agora expõe despesas manuais na tela **Despesas**, que escreve na mesma
+  tabela canônica `vehicle_expenses` sob a mesma RLS que a Web (e que o caminho
+  de manutenção com `create_expense = true`). Nenhuma tabela paralela.
 - Web usa exatamente os mesmos RPCs canônicos que o Mobile
   (`register_vehicle_mileage|fuel|charging|maintenance`, `register_vehicle_document`,
   `remove_vehicle_document`, `vehicle_expense_summary`).
 - Web lê as mesmas tabelas canônicas sob a mesma RLS.
 - Validação de bounds compartilhada em `lib/customer-vehicle-log-contract.ts`,
   espelhando o controller mobile, com testes cross-channel em
-  `tests/customer-vehicle-log-contract.test.mjs`.
+  `tests/customer-vehicle-log-contract.test.mjs` e
+  `tests/web-mobile-parity.test.mjs`.
 - Idempotência de documento reusa a mesma chave determinística do Mobile
   (`vehicle-document:kind:date:filename:size`); manutenção reusa a mesma chave
   (`maintenance:vehicle:type:date:km`).
 
-**Ressalva de plataforma:** a Web pode criar despesa manual via INSERT em
-`vehicle_expenses` (autorizado pela RLS/venda do contrato em #215). O Mobile não
-tem um form de despesa manual — cria despesas apenas via manutenção. Isso NÃO é
-duplicação de domínio; é a mesma tabela/RLS. Fica documentado como melhoria
-opcional de UI Mobile (fora do escopo repository-safe atual).
+**Ressalva de plataforma:** Web e Mobile criam despesas manuais pelo mesmo
+caminho direto em `vehicle_expenses` (autorizado pela RLS/venda do contrato em
+#215). Isso não é duplicação de domínio; é a mesma tabela/RLS em ambos os canais.
 
 ## Validado nesta auditoria
 
-- `pnpm test` web 354/354 verde.
-- `pnpm typecheck` web verde.
-- `pnpm lint` web zero warnings.
-- `pnpm build` web verde; rotas de veiculo-log renderizam.
-- Mobile: `pnpm test` 87/87 verde; `pnpm typecheck` verde.
-- CI de aplicação (`pnpm ci:application`) verde.
-- CI de banco (Docker) indisponível no sandbox: rodada localmente apenas
-  depois do Human Gate de staging (não bloquear o código em si; ver master plan).
+- `pnpm test` web 359/359 verde (inclui `web-mobile-parity` e `customer-vehicle-log-contract`).
+- `pnpm lint`, `pnpm typecheck`, `pnpm build` web verdes.
+- Mobile: `pnpm test` 89/89, `pnpm typecheck` verde, `expo-doctor` 20/20.
+- CI `Required` (application + database-authorization + mobile) verde nos Pull
+  Requests #264 (Web vehicle-log) e #265 (manual expenses Mobile), rodando no
+  GitHub Actions (incluindo os testes de autorização/RLS de banco via Docker).
 
 ## Gate humano real
 
