@@ -28,6 +28,29 @@ com trabalho independente repository-safe.
    App IDs/packages irreversíveis e publicação bloqueados por Human Gate.
 5. Não promover backlog estratégico para Release 1.0 sem evidência de bloqueio real.
 
+## Invariante permanente — Web × Mobile parity
+
+Desde 2026-09-13, a paridade Web × Mobile é invariante permanente do produto
+(ADR `docs/architecture/decisions/010-web-mobile-parity.md`).
+
+- VERAH é UM produto multichannel: Web e Mobile são canais do mesmo backend,
+  domínio, identidade, ownership, dados e regras de negócio canônicas.
+- Toda funcionabilidade aplicável aos dois canais deve existir em ambos.
+  Divergência funcional, lógica de domínio duplicada, históricos separados e
+  modelos de dados incompatíveis NÃO são permitidos.
+- Uma feature não está DONE apenas porque funciona no Mobile ou na Web.
+  Definition of Done multichannel = Backend + Web + Mobile + testes +
+  consistência cross-channel.
+- Toda Issue/feature futura precisa classificar: Backend obrigatório?
+  Web obrigatório? Mobile obrigatório? Se Web ou Mobile for N/A, justificar.
+- Funcionalidade legítima apenas de plataforma (câmera, biometria,
+  notificações nativas, integrações de SO) é documentada como
+  `INTENTIONAL PLATFORM-SPECIFIC` em vez de gerar equivalente artificial.
+
+Matriz Release 1.0 Web × Mobile: ver ADR 010. Status atual: todas as
+capacidades Release 1.0 passaram na auditoria inicial de paridade ou são
+documentadas como platform-specific; ver `docs/ship-verah/release-1.0-parity-audit.md`.
+
 ## Invariantes obrigatórios
 
 - **Backend canônico:** Supabase e contratos versionados permanecem fonte da verdade.
