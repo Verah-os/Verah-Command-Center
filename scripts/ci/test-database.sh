@@ -272,6 +272,7 @@ run_sql supabase/tests/rls_catalog.sql
 run_sql supabase/tests/admin_authorization_matrix.sql
 run_sql supabase/tests/customer_identity_security.sql
 run_sql supabase/tests/staging_advisor_security_hardening.sql
+run_sql supabase/tests/canonical_backend_environment.sql
 run_sql supabase/tests/identity_onboarding_security.sql
 run_sql supabase/tests/vehicle_onboarding_security.sql
 run_sql supabase/tests/vehicle_expenses_security.sql
@@ -312,6 +313,7 @@ run_sql supabase/tests/admin_authorization_catalog.sql
 run_sql supabase/tests/rls_catalog.sql
 run_sql supabase/tests/customer_identity_security.sql
 run_sql supabase/tests/staging_advisor_security_hardening.sql
+run_sql supabase/tests/canonical_backend_environment.sql
 run_sql supabase/tests/identity_onboarding_security.sql
 run_sql supabase/tests/vehicle_onboarding_security.sql
 run_sql supabase/tests/vehicle_expenses_security.sql

@@ -4,11 +4,16 @@ Data: 2026-09-11. Base: `main` em `d391782` (2026-09-10).
 Escopo: documento repository-safe da sequência exata de migrations canônicas,
 dependências, invariantes e checklist de aplicação/validação para projeto
 Supabase **staging/Alpha separado**. Produção permanece intocada.
-Atualização (PR #262): `20260912131500_staging_advisor_security_hardening`
-(endurecimento #259) é a 54ª migration versionada, **repository-only pendente** —
-presente no repositório, **não** aplicada ao staging até o Human Gate
-(ver `release-1.0-staging-advisor-audit.md` e `PENDING_REPOSITORY_VERSIONS`
-em `tests/staging-migrations-sequence.test.mjs`).
+Atualizações:
+- (PR #262) `20260912131500_staging_advisor_security_hardening`
+  (endurecimento #259) é a 54ª migration versionada, **repository-only pendente**.
+- (#266) `20260913090000_canonical_backend_environment_guard`
+  (backend canônico único App/Web) é a 55ª migration versionada,
+  **repository-only pendente**.
+
+Ambas estão presentes no repositório, **não** aplicadas ao staging até o Human Gate
+(ver `release-1.0-staging-advisor-audit.md`, `release-1.0-alpha-cross-channel-smoke-266.md`
+e `PENDING_REPOSITORY_VERSIONS` em `tests/staging-migrations-sequence.test.mjs`).
 
 
 
@@ -106,9 +111,11 @@ avançar a sequência, atualizar o teste **e** este runbook explicitamente, uma 
 Nota: `20260910000000_vehicle_charging_logs` (charging) foi adicionada depois da última
 auditoria de readiness de 2026-09-09(que listava 52 migrations); o `main` atual
 tem **53** migrations **aplicadas no staging**. A PR #262 adiciona uma 54ª migration
-versionada, `20260912131500_staging_advisor_security_hardening` (endurecimento #259),
-classificada como **repository-only pendente** (ver `PENDING_REPOSITORY_VERSIONS` no
-teste de sequência): permanece no repositório mas **não integra a contagem aplicada**
+versionada, `20260912131500_staging_advisor_security_hardening` (endurecimento #259), e a
+#266 adiciona uma 55ª, `20260913090000_canonical_backend_environment_guard` (backend canônico
+único App/Web); ambas classificadas como **repository-only pendentes** (ver
+`PENDING_REPOSITORY_VERSIONS` no teste de sequência): permanecem no repositório mas
+**não integram a contagem aplicada**
 no staging até o Human Gate. A contagem esperada de migrations aplicadas no staging
 após este runbook é portanto **53** — conferida por
 `select count(*) from supabase_migrations.schema_migrations;`.
