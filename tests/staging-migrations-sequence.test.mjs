@@ -69,6 +69,7 @@ const EXPECTED_VERSIONS = [
 // while the non-production Supabase migration-application Human Gate is open.
 const PENDING_REPOSITORY_VERSIONS = [
   "20260912131500_staging_advisor_security_hardening.sql",
+  "20260913090000_canonical_backend_environment_guard.sql",
 ];
 
 const MILESTONE = {
