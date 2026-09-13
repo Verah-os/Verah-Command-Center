@@ -110,4 +110,5 @@ PLATFORM-SPECIFIC` (documented platform-only capability).
   RPC contracts, bounds and idempotency semantics.
 - Security tests under `supabase/tests/*` validate RLS boundaries for every
   vehicle-log table; they run in the `database-authorization` job of the CI
-  `Required` gate and are green on PRs #264 and #265.
+  `Required` gate and are green on PR #264; PR #265 (mobile manual expenses)
+  was merged into `main` as `2a1dc57`.

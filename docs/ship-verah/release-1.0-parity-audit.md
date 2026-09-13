@@ -88,6 +88,8 @@ caminho direto em `vehicle_expenses` (autorizado pela RLS/venda do contrato em
 - CI `Required` (application + database-authorization + mobile) verde nos Pull
   Requests #264 (Web vehicle-log) e #265 (manual expenses Mobile), rodando no
   GitHub Actions (incluindo os testes de autorização/RLS de banco via Docker).
+  A #265 já está integrada ao `main` (commit `2a1dc57`); a #264 foi rebaseada
+  sobre esse `main` e preserva o mesmo contrato canônico de `vehicle_expenses`/RLS.
 
 ## Gate humano real
 
