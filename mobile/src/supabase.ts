@@ -15,6 +15,7 @@ import {
 import {
   ONBOARDING_TERMS_VERSION,
   type ChargingInput,
+  type ExpenseInput,
   type ChargingLog,
   type ChargingType,
   type CustomerJourneyFacade,
@@ -268,6 +269,34 @@ export function getCustomerJourneyFacade(): CustomerJourneyFacade | null {
         p_odometer_km: input.odometer_km, p_amount_cents: input.amount_cents,
         p_next_due_on: input.next_due_on, p_next_due_km: input.next_due_km,
         p_create_expense: input.create_expense, p_idempotency_key: input.idempotency_key,
+      });
+      return { error: error ?? null };
+    },
+    registerExpense: async (vehicleId, input) => {
+      const {
+        data: { user },
+      } = await client.auth.getUser();
+      if (!user) return { error: { message: "Sessão expirada. Entre novamente para registrar despesas." } };
+      const { data: vehicle, error: vehicleError } = await client
+        .from("customer_vehicles")
+        .select("id,owner_id,customer_id,active")
+        .eq("id", vehicleId)
+        .eq("owner_id", user.id)
+        .eq("active", true)
+        .maybeSingle();
+      if (vehicleError || !vehicle) {
+        return { error: { message: "Veículo não encontrado." } };
+      }
+      const row = vehicle as Record<string, unknown>;
+      const { error } = await client.from("vehicle_expenses").insert({
+        owner_id: user.id,
+        customer_id: row.customer_id as string,
+        vehicle_id: vehicleId,
+        category: input.category,
+        description: input.description ?? null,
+        amount_cents: input.amountCents,
+        occurred_on: input.occurredOn,
+        odometer_km: input.odometerKm ?? null,
       });
       return { error: error ?? null };
     },

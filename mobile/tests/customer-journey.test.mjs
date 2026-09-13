@@ -17,13 +17,14 @@ import {
 // (restore/bootstrap, routing, basic profile, vehicle confirmation, garage)
 // through this minimal transport that mimics the canonical #139 RPCs.
 function createFakeFacade(overrides = {}) {
-  const calls = { refresh: 0, start: 0, complete: 0, confirm: 0, list: 0, registerMileage: 0, listMileage: 0 };
+  const calls = { refresh: 0, start: 0, complete: 0, confirm: 0, list: 0, registerMileage: 0, listMileage: 0, registerExpense: 0 };
   let onboarding = overrides.onboarding ?? {
     onboarding_status: "in_progress",
     basic_profile_completed: false,
     vehicle_status: "pending",
   };
   let vehicles = overrides.vehicles ?? [];
+  let expensesByVehicle = overrides.expensesByVehicle ?? {};
   const startedNames = [];
   const facade = {
     refreshOnboarding: async () => {
@@ -92,6 +93,26 @@ function createFakeFacade(overrides = {}) {
       calls.listMileage += 1;
       if (overrides.listMileageError) return { data: null, error: { message: overrides.listMileageError } };
       return { data: logs.filter((log) => log.vehicleId === vehicleId), error: null };
+    },
+    registerExpense: async (vehicleId, input) => {
+      calls.registerExpense += 1;
+      if (overrides.registerExpenseError) return { data: null, error: { message: overrides.registerExpenseError } };
+      const summary = expensesByVehicle[vehicleId] ?? {
+        total_cents: 0,
+        fuel_cents: 0,
+        maintenance_cents: 0,
+        other_cents: 0,
+        expense_count: 0,
+        distance_km: null,
+        cost_per_km_cents: null,
+      };
+      const updated = { ...summary, total_cents: summary.total_cents + input.amountCents, expense_count: summary.expense_count + 1 };
+      expensesByVehicle = { ...expensesByVehicle, [vehicleId]: updated };
+      return { data: null, error: null };
+    },
+    expenseForVehicle: async (vehicleId) => {
+      if (overrides.expenseSummaryError) return { data: null, error: { message: overrides.expenseSummaryError } };
+      return { data: expensesByVehicle[vehicleId] ?? null, error: null };
     },
   };
   let logs = [];
@@ -432,4 +453,54 @@ test("refreshExpenses reloads summaries for the selected period", async () => {
     { vehicleId: "v-1", periodDays: null },
     { vehicleId: "v-1", periodDays: 30 },
   ]);
+});
+test("registerExpense writes the canonical vehicle_expenses row and refreshes the summary", async () => {
+  const { facade, calls } = createFakeFacade({
+    onboarding: {
+      onboarding_status: "completed",
+      basic_profile_completed: true,
+      vehicle_status: "registered",
+    },
+    vehicles: [
+      { id: "v-1", brand: "Honda", model: "Civic", year: 2022, plate: "ABC1D23", nickname: null },
+    ],
+  });
+  const controller = createCustomerJourney(facade, user);
+  await controller.restore();
+  await controller.registerExpense("v-1", {
+    category: "manutencao",
+    amountCents: 50000,
+    occurredOn: new Date().toISOString().slice(0, 10),
+    odometerKm: 12000,
+    description: " Pastilha de freio ",
+  });
+  assert.equal(calls.registerExpense, 1);
+  const state = controller.getState();
+  assert.equal(state.status, "ready");
+  assert.equal(state.expensesByVehicle["v-1"].totalCents, 50000);
+  assert.equal(state.expensesByVehicle["v-1"].expenseCount, 1);
+});
+
+test("registerExpense rejects invalid input before touching the facade", async () => {
+  const { facade, calls } = createFakeFacade({
+    onboarding: {
+      onboarding_status: "completed",
+      basic_profile_completed: true,
+      vehicle_status: "registered",
+    },
+    vehicles: [
+      { id: "v-1", brand: "Honda", model: "Civic", year: 2022, plate: "ABC1D23", nickname: null },
+    ],
+  });
+  const controller = createCustomerJourney(facade, user);
+  await controller.restore();
+  const zero = await controller.registerExpense("v-1", { category: "outros", amountCents: 0, occurredOn: "2026-09-01" });
+  assert.equal(zero.ok, false);
+  const future = await controller.registerExpense("v-1", { category: "outros", amountCents: 100, occurredOn: "2999-01-01" });
+  assert.equal(future.ok, false);
+  const badOdo = await controller.registerExpense("v-1", { category: "outros", amountCents: 100, occurredOn: "2026-09-01", odometerKm: 3000000 });
+  assert.equal(badOdo.ok, false);
+  const badCategory = await controller.registerExpense("v-1", { category: "pedagio", amountCents: 100, occurredOn: "2026-09-01" });
+  assert.equal(badCategory.ok, false);
+  assert.equal(calls.registerExpense, 0);
 });

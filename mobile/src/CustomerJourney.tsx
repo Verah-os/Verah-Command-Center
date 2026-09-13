@@ -20,6 +20,7 @@ import {
 import { CustomerHome } from "./CustomerHome";
 import { MaintenanceScreen } from "./MaintenanceScreen";
 import { FuelHistoryScreen } from "./FuelHistoryScreen";
+import { ExpensesScreen } from "./ExpensesScreen";
 import { VehicleDocumentsScreen } from "./VehicleDocumentsScreen";
 import { VehicleOnboardingStep } from "./VehicleOnboardingStep";
 
@@ -37,6 +38,7 @@ export function CustomerJourneyGate({
   );
   const [addingVehicle, setAddingVehicle] = useState(false);
   const [fuelVehicle, setFuelVehicle] = useState<GarageVehicle | null>(null);
+  const [expensesVehicle, setExpensesVehicle] = useState<GarageVehicle | null>(null);
   const [documentsVehicle, setDocumentsVehicle] = useState<GarageVehicle | null>(null);
   const [maintenanceVehicle, setMaintenanceVehicle] = useState<GarageVehicle | null>(null);
   const [replacingVehicle, setReplacingVehicle] = useState<GarageVehicle | null>(null);
@@ -108,6 +110,18 @@ export function CustomerJourneyGate({
       </View>
     );
   }
+  if (expensesVehicle) {
+    return (
+      <View style={styles.additionalVehicleShell}>
+        <ExpensesScreen
+          controller={controller}
+          vehicle={expensesVehicle}
+          onExpensePeriodChange={(periodDays) => void controller.refreshExpenses?.(periodDays)}
+          onBack={() => { setExpensesVehicle(null); void controller.restore(); }}
+        />
+      </View>
+    );
+  }
   if (documentsVehicle) {
     return (
       <View style={styles.additionalVehicleShell}>
@@ -150,6 +164,7 @@ export function CustomerJourneyGate({
       onExpensePeriodChange={(periodDays) => void controller.refreshExpenses?.(periodDays)}
       onDeactivateVehicle={deactivateVehicle}
       onOpenFuel={setFuelVehicle}
+      onOpenExpenses={setExpensesVehicle}
       onOpenDocuments={setDocumentsVehicle}
       onSignOut={onSignOut}
     />
