@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
+
+const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
 // Cross-channel parity regression tests.
 //
@@ -65,4 +68,31 @@ test("web expense category set matches mobile expense category set", async () =>
     // Mirrors mobile/src/customer-journey.ts EXPENSE_CATEGORIES.
     "combustivel", "manutencao", "outros",
   ].sort());
+});
+
+test("web server-actions body limit allows the canonical 10 MiB document upload", async () => {
+  // P1 regression: the document form announces a 10 MB max, but Next 15 Server
+  // Actions default to a 1 MiB body limit and return 413 before our 10 MiB
+  // validation runs. `serverActions.bodySizeLimit` must be raised above the
+  // canonical bound (with multipart/form-data boundary overhead in mind) while
+  // the in-action validation keeps enforcing the canonical MAX bytes.
+  const config = read("next.config.ts");
+  const documentService = read("services/customer-vehicle-log/documents.ts");
+
+  const canonicalMaxMatch = documentService.match(/MAX_VEHICLE_DOCUMENT_BYTES\s*=\s*(\d+)\s*\*\s*1024\s*\*\s*1024/);
+  assert.ok(canonicalMaxMatch, "documents.ts must define MAX_VEHICLE_DOCUMENT_BYTES as MiB bytes");
+  const canonicalMaxBytes = Number(canonicalMaxMatch[1]) * 1024 * 1024;
+  assert.equal(canonicalMaxBytes, 10 * 1024 * 1024);
+
+  // The configured Server Actions body limit must exist and exceed the file
+  // bound (multipart overhead means the raw body is larger than the file).
+  const bodySizeMatch = config.match(/bodySizeLimit\s*:\s*"(\d+)(mb|MB|MiB)"/);
+  assert.ok(bodySizeMatch, "next.config.ts must configure serverActions.bodySizeLimit");
+  // Next's compiled `bytes` package parses `mb`/`MiB` as 1024^2.
+  const bodySizeBytes = Number(bodySizeMatch[1]) * 1024 * 1024;
+  assert.ok(bodySizeBytes > canonicalMaxBytes, "serverActions.bodySizeLimit must be > 10 MiB");
+
+  // And it must still be configured under the experimental.serverActions key
+  // Next 15 actually reads at runtime.
+  assert.match(config, /experimental:\s*\{[\s\S]*?serverActions:\s*\{[\s\S]*?bodySizeLimit/i);
 });
