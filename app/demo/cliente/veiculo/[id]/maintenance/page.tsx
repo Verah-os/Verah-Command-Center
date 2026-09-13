@@ -3,14 +3,9 @@ import { RegisterVehicleMaintenanceForm } from "@/components/customer/vehicle-lo
 import { VehicleLogPage } from "@/components/customer/vehicle-log-page";
 import { VehicleLogEmpty } from "@/components/customer/vehicle-log-nav";
 import { Card, CardContent } from "@/components/ui/card";
-import { formatBrzlCents, maintenanceTypeLabel } from "@/lib/customer-vehicle-log";
+import { formatBrzlCents, formatPlainDate, maintenanceTypeLabel } from "@/lib/customer-vehicle-log";
 import { requireRole } from "@/services/auth/profile";
 import { loadMaintenanceHome } from "@/services/customer-vehicle-log/read";
-
-const date = new Intl.DateTimeFormat("pt-BR", {
-  timeZone: "America/Sao_Paulo",
-  dateStyle: "short",
-});
 
 export default async function MaintenancePage({
   params,
@@ -52,13 +47,13 @@ export default async function MaintenancePage({
                     <li key={record.id} className="py-4">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <p className="font-semibold">{maintenanceTypeLabel(record.maintenance_type)}</p>
-                        <p className="text-sm text-slate-500">{date.format(new Date(record.occurred_on))}</p>
+                        <p className="text-sm text-slate-500">{formatPlainDate(record.occurred_on)}</p>
                       </div>
                       <p className="mt-1 text-sm text-slate-600">{record.description}</p>
                       <p className="mt-1 text-xs text-slate-500">
                         {record.odometer_km.toLocaleString("pt-BR")} km
                         {record.amount_cents !== null ? ` · ${formatBrzlCents(record.amount_cents)}` : ""}
-                        {record.next_due_on || record.next_due_km !== null ? ` · próximo: ${record.next_due_on ? date.format(new Date(record.next_due_on)) : ""}${record.next_due_km !== null ? `${record.next_due_on ? " ou " : ""}${record.next_due_km.toLocaleString("pt-BR")} km` : ""}` : ""}
+                        {record.next_due_on || record.next_due_km !== null ? ` · próximo: ${record.next_due_on ? formatPlainDate(record.next_due_on) : ""}${record.next_due_km !== null ? `${record.next_due_on ? " ou " : ""}${record.next_due_km.toLocaleString("pt-BR")} km` : ""}` : ""}
                       </p>
                     </li>
                   ))}

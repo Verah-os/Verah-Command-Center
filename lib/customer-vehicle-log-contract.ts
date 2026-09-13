@@ -171,3 +171,70 @@ export function parseMaintenance(raw: MaintenanceEntry): ParseResult<Maintenance
 export function parseDocumentDate(raw: string): ParseResult<string> {
   return isoDate(raw);
 }
+
+// Canonical vehicle-document upload bound shared by Web and Mobile. Mirrors
+// mobile/src/vehicle-documents.ts MAX_VEHICLE_DOCUMENT_BYTES = 10 MiB, the
+// `vehicle-documents` storage bucket limit and the DB check (23514) constraint.
+export const MAX_VEHICLE_DOCUMENT_BYTES = 10 * 1024 * 1024;
+
+export const VEHICLE_DOCUMENT_KINDS = [
+  "nota_fiscal",
+  "garantia",
+  "manual",
+  "laudo",
+  "seguro",
+  "licenciamento",
+  "outro",
+] as const;
+export type VehicleDocumentKind = (typeof VEHICLE_DOCUMENT_KINDS)[number];
+
+export const VEHICLE_DOCUMENT_MIME_TYPES = [
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+] as const;
+export type VehicleDocumentMimeType = (typeof VEHICLE_DOCUMENT_MIME_TYPES)[number];
+
+// Cross-channel filename normalization used by both clients. Mobile keeps the
+// full trimmed filename (up to the 255-char DB bound) without replacing
+// characters; Web previously shortened/replaced names, which changed the file
+// name and the deterministic idempotency key and allowed the same upload to be
+// registered twice across channels. Mirroring Mobile's contract keeps the
+// canonical reservation reusable from either channel.
+export function normalizeVehicleDocumentFileName(raw: string): string {
+  const fileName = raw.trim();
+  if (!fileName || fileName.length > 255) return "";
+  return fileName;
+}
+
+export function vehicleDocumentIdempotencyKey(input: {
+  documentKind: string;
+  documentDate: string;
+  fileName: string;
+  sizeBytes: number;
+}): string {
+  return [
+    "vehicle-document",
+    input.documentKind.trim().toLowerCase(),
+    input.documentDate,
+    input.fileName.trim(),
+    String(input.sizeBytes),
+  ].join(":");
+}
+
+// Latest energy activity for the vehicle summary: compare the last fuel and
+// last charging records by their recorded_at timestamps and return whichever
+// actually happened most recently (mixed-power vehicles must not always show
+// fuel, even when a newer charging record exists).
+export function pickLatestEnergy(
+  latestFuel: { recorded_at: string } | null,
+  latestCharging: { recorded_at: string } | null,
+): { kind: "fuel" } | { kind: "charging" } | null {
+  if (!latestFuel && !latestCharging) return null;
+  if (!latestFuel) return { kind: "charging" };
+  if (!latestCharging) return { kind: "fuel" };
+  return new Date(latestCharging.recorded_at).getTime() > new Date(latestFuel.recorded_at).getTime()
+    ? { kind: "charging" }
+    : { kind: "fuel" };
+}

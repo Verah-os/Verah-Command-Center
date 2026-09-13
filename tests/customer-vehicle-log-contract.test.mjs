@@ -43,6 +43,82 @@ test("regression: web parser rejects the same invalid inputs the mobile controll
   assert.equal(parseMileageNote("").ok, true);
 });
 
+test("regression: contract lib preserves filename (not 150-char) in normalization and idempotency key", async () => {
+  const { normalizeVehicleDocumentFileName, vehicleDocumentIdempotencyKey, MAX_VEHICLE_DOCUMENT_BYTES } =
+    await import("../lib/customer-vehicle-log-contract.ts");
+  assert.equal(MAX_VEHICLE_DOCUMENT_BYTES, 10 * 1024 * 1024);
+  // Trimmed but not rewritten: a colon stays a colon for both channels.
+  const fileName = "relatório:final-2026.pdf";
+  assert.equal(normalizeVehicleDocumentFileName(`  ${fileName}  `), fileName);
+  // Filenames beyond 150 chars (but within the 255-char DB bound) are preserved
+  // verbatim, exactly as Mobile does, so the idempotency key does not diverge.
+  const longFileName = "documento-".repeat(22).slice(0, 200) + ".pdf"; // 204 chars
+  assert.equal(normalizeVehicleDocumentFileName(longFileName), longFileName);
+  assert.equal(normalizeVehicleDocumentFileName("x".repeat(256)), ""); // over the 255-char DB bound
+  const key = vehicleDocumentIdempotencyKey({
+    documentKind: "nota_fiscal",
+    documentDate: "2026-08-01",
+    fileName,
+    sizeBytes: 4096,
+  });
+  assert.equal(key, `vehicle-document:nota_fiscal:2026-08-01:${fileName}:4096`);
+  // The DB/check allows filenames up to 255 chars; a 255-char name produces a
+  // key over the 200-char idempotency bound and is rejected by that check in
+  // BOTH channels (same as Mobile), not by a divergent Web-only truncation.
+  const fileName255 = `${"a".repeat(251)}.pdf`;
+  assert.equal(normalizeVehicleDocumentFileName(fileName255), fileName255);
+  const keyLong = vehicleDocumentIdempotencyKey({
+    documentKind: "nota_fiscal",
+    documentDate: "2026-08-01",
+    fileName: fileName255,
+    sizeBytes: 4096,
+  });
+  assert.ok(keyLong.length > 200, "255-char filenames still exceed the 200-char key bound");
+});
+
+test("regression: canonical document byte bound matches the mobile/storage/DB 10 MiB constant", async () => {
+  const { MAX_VEHICLE_DOCUMENT_BYTES } = await import("../lib/customer-vehicle-log-contract.ts");
+  // Mobile `MAX_VEHICLE_DOCUMENT_BYTES`, the storage bucket and the DB check all
+  // allow exactly 10 MiB; Web must not reject the top of that range.
+  const canonicalMax = 10 * 1024 * 1024;
+  assert.equal(MAX_VEHICLE_DOCUMENT_BYTES, canonicalMax);
+  assert.ok(10485760 <= canonicalMax, "10 MiB = 10485760 bytes must be accepted");
+  assert.ok(10485761 > canonicalMax, "10 MiB + 1 must be rejected by the shared bound");
+});
+
+test("regression: PostgreSQL date-only values render as calendar dates, not UTC instants", async () => {
+  const { formatPlainDate } = await import("../lib/customer-vehicle-log.ts");
+  // `new Date("2026-09-13")` is midnight UTC; the São Paulo formatter would
+  // render 12/09/2026. The plain-date formatter must keep the calendar date.
+  assert.equal(formatPlainDate("2026-09-13"), "13/09/2026");
+  assert.equal(formatPlainDate("2026-02-05"), "05/02/2026");
+  assert.equal(formatPlainDate("2025-12-31"), "31/12/2025");
+  assert.equal(formatPlainDate("2026-01-01"), "01/01/2026");
+  assert.equal(formatPlainDate("not-a-date"), "not-a-date");
+});
+
+test("regression: latest energy event compares recorded_at across fuel and charging", async () => {
+  const { pickLatestEnergy } = await import("../lib/customer-vehicle-log-contract.ts");
+  assert.equal(pickLatestEnergy(null, null), null);
+  assert.deepEqual(pickLatestEnergy({ recorded_at: "2026-08-01T10:00:00Z" }, null), { kind: "fuel" });
+  assert.deepEqual(pickLatestEnergy(null, { recorded_at: "2026-08-01T10:00:00Z" }), { kind: "charging" });
+  // Newer charging must win over an older fuel record...
+  assert.deepEqual(
+    pickLatestEnergy({ recorded_at: "2026-08-01T10:00:00Z" }, { recorded_at: "2026-08-02T10:00:00Z" }),
+    { kind: "charging" },
+  );
+  // ...and a newer fuel record must win over an older charging record.
+  assert.deepEqual(
+    pickLatestEnergy({ recorded_at: "2026-08-02T10:00:00Z" }, { recorded_at: "2026-08-01T10:00:00Z" }),
+    { kind: "fuel" },
+  );
+  // Equal timestamps keep fuel as the tie-break (fuel checked first).
+  assert.deepEqual(
+    pickLatestEnergy({ recorded_at: "2026-08-01T10:00:00Z" }, { recorded_at: "2026-08-01T10:00:00Z" }),
+    { kind: "fuel" },
+  );
+});
+
 test("regression: web parser never rejects valid high-mileage entries the RPC accepts", async () => {
   const { parseCharging, parseFuel } = await import("../lib/customer-vehicle-log-contract.ts");
   const result = parseCharging({ odometerValue: 1_999_999, kwh: 10000, totalAmount: 0, batteryPercent: 0, chargingType: "outro" });

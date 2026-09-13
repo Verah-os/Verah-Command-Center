@@ -15,6 +15,7 @@ import { listCustomerServiceRequests } from "@/services/service-requests";
 import { listCustomerQuoteSummaries } from "@/services/service-quotes";
 import { loadVehicleLogHome } from "@/services/customer-vehicle-log/read";
 import { formatBrzlCents, formatEnergyQuantity } from "@/lib/customer-vehicle-log";
+import { pickLatestEnergy } from "@/lib/customer-vehicle-log-contract";
 
 const date = new Intl.DateTimeFormat("pt-BR", {
   timeZone: "America/Sao_Paulo",
@@ -44,6 +45,7 @@ export default async function CustomerVehiclePage({
   const logHome = await loadVehicleLogHome(id);
   const latestFuel = logHome.latestFuel ?? null;
   const latestCharging = logHome.latestCharging ?? null;
+  const latestEnergy = pickLatestEnergy(latestFuel, latestCharging);
 
   return (
     <CustomerShell>
@@ -73,10 +75,14 @@ export default async function CustomerVehiclePage({
               <p className="text-sm text-slate-500">Ainda sem registros. Adicione a quilometragem para acompanhar o uso.</p>
             )}
           </LogPanel>
-          {latestFuel || latestCharging ? (
-            <LogPanel title={latestFuel ? "Último abastecimento" : "Última recarga"} href={`/demo/cliente/veiculo/${vehicle.id}/fuel`}>
+          {latestEnergy ? (
+            <LogPanel title={latestEnergy.kind === "fuel" ? "Último abastecimento" : "Última recarga"} href={`/demo/cliente/veiculo/${vehicle.id}/fuel`}>
               <p className="text-sm font-medium text-slate-800">
-                {latestFuel ? `${formatEnergyQuantity(latestFuel.liters, "L")} · ${formatBrzlCents(latestFuel.total_amount)}` : `${latestCharging ? formatEnergyQuantity(latestCharging.kwh, "kWh") : ""} · ${latestCharging ? formatBrzlCents(latestCharging.total_amount) : ""}`}
+                {latestEnergy.kind === "fuel" && latestFuel
+                  ? `${formatEnergyQuantity(latestFuel.liters, "L")} · ${formatBrzlCents(latestFuel.total_amount)}`
+                  : latestCharging
+                    ? `${formatEnergyQuantity(latestCharging.kwh, "kWh")} · ${formatBrzlCents(latestCharging.total_amount)}`
+                    : null}
               </p>
             </LogPanel>
           ) : (

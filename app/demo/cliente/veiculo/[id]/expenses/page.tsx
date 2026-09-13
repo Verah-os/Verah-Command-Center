@@ -3,14 +3,9 @@ import { RegisterVehicleExpenseForm } from "@/components/customer/vehicle-log-fo
 import { VehicleLogPage } from "@/components/customer/vehicle-log-page";
 import { VehicleLogEmpty } from "@/components/customer/vehicle-log-nav";
 import { Card, CardContent } from "@/components/ui/card";
-import { formatBrzlCents } from "@/lib/customer-vehicle-log";
+import { formatBrzlCents, formatPlainDate } from "@/lib/customer-vehicle-log";
 import { requireRole } from "@/services/auth/profile";
 import { loadExpensesHome } from "@/services/customer-vehicle-log/read";
-
-const date = new Intl.DateTimeFormat("pt-BR", {
-  timeZone: "America/Sao_Paulo",
-  dateStyle: "short",
-});
 
 const categoryLabels: Record<string, string> = {
   combustivel: "Combustível",
@@ -79,7 +74,7 @@ export default async function ExpensesPage({
                       <p className="mt-1 text-sm text-slate-500">
                         {expense.description ? `${expense.description} · ` : ""}
                         {expense.odometer_km !== null ? `${expense.odometer_km.toLocaleString("pt-BR")} km · ` : ""}
-                        {date.format(new Date(expense.occurred_on))}
+                        {formatPlainDate(expense.occurred_on)}
                       </p>
                     </div>
                     <p className="font-semibold text-slate-800">{formatBrzlCents(expense.amount_cents)}</p>

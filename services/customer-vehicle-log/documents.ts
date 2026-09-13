@@ -1,24 +1,19 @@
 import { createSupabaseServerClient } from "@/services/supabase/server";
 import { createSupabaseServerStorageClient } from "@/services/supabase/storage";
+import {
+  MAX_VEHICLE_DOCUMENT_BYTES,
+  normalizeVehicleDocumentFileName,
+  VEHICLE_DOCUMENT_KINDS,
+  VEHICLE_DOCUMENT_MIME_TYPES,
+  vehicleDocumentIdempotencyKey,
+} from "@/lib/customer-vehicle-log-contract";
 
-export const VEHICLE_DOCUMENT_KINDS = [
-  "nota_fiscal",
-  "garantia",
-  "manual",
-  "laudo",
-  "seguro",
-  "licenciamento",
-  "outro",
-] as const;
-
-const VEHICLE_DOCUMENT_MIME_TYPES = [
-  "application/pdf",
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-] as const;
-
-export const MAX_VEHICLE_DOCUMENT_BYTES = 10 * 1024 * 1024;
+export {
+  MAX_VEHICLE_DOCUMENT_BYTES,
+  VEHICLE_DOCUMENT_KINDS,
+  VEHICLE_DOCUMENT_MIME_TYPES,
+} from "@/lib/customer-vehicle-log-contract";
+export type { VehicleDocumentKind, VehicleDocumentMimeType } from "@/lib/customer-vehicle-log-contract";
 
 export type RegisterVehicleDocumentParams = {
   vehicleId: string;
@@ -33,10 +28,6 @@ export type RegisterVehicleDocumentParams = {
 export type VehicleDocumentRegisterResult =
   | { ok: true }
   | { ok: false; message: string };
-
-function fileNameSafe(name: string): string {
-  return name.trim().replace(/[\\/:*?"<>|]/g, "_").slice(0, 150);
-}
 
 // Mirrors mobile registerVehicleDocumentSafely: register metadata via the
 // canonical security-definer RPC, then upload the private storage object to the
@@ -63,17 +54,20 @@ export async function registerVehicleDocumentSafely(
   if (reference && reference.length > 80) {
     return { ok: false, message: "Referência muito longa (limite de 80 caracteres." };
   }
-  const fileBase = fileNameSafe(input.file.name);
+  // Shared Mobile contract (mobile/src/vehicle-documents.ts): keep the full
+  // trimmed filename (up to the 255-char DB bound) and derive the same
+  // deterministic idempotency key, so the canonical reservation is reused when
+  // the same upload is retried from the other channel.
+  const fileBase = normalizeVehicleDocumentFileName(input.file.name);
   if (!fileBase) {
     return { ok: false, message: "Informe o nome do arquivo (até 255 caracteres." };
   }
-  const idempotencyKey = [
-    "vehicle-document",
-    kind,
-    input.documentDate,
-    fileBase,
-    String(input.file.size),
-  ].join(":");
+  const idempotencyKey = vehicleDocumentIdempotencyKey({
+    documentKind: kind,
+    documentDate: input.documentDate,
+    fileName: fileBase,
+    sizeBytes: input.file.size,
+  });
   if (idempotencyKey.length > 200) {
     return { ok: false, message: "O nome do arquivo é muito longo. Renomeie o arquivo com um nome mais curto e tente novamente." };
   }

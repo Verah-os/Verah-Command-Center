@@ -3,14 +3,9 @@ import { RegisterVehicleDocumentForm, RemoveVehicleDocumentForm } from "@/compon
 import { VehicleLogPage } from "@/components/customer/vehicle-log-page";
 import { VehicleLogEmpty } from "@/components/customer/vehicle-log-nav";
 import { Card, CardContent } from "@/components/ui/card";
-import { documentKindLabel } from "@/lib/customer-vehicle-log";
+import { documentKindLabel, formatPlainDate } from "@/lib/customer-vehicle-log";
 import { requireRole } from "@/services/auth/profile";
 import { loadDocumentsHome } from "@/services/customer-vehicle-log/read";
-
-const date = new Intl.DateTimeFormat("pt-BR", {
-  timeZone: "America/Sao_Paulo",
-  dateStyle: "short",
-});
 
 function fileSize(bytes: number) {
   if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} MB`;
@@ -52,7 +47,7 @@ export default async function DocumentsPage({
                     <div className="min-w-0">
                       <p className="font-semibold">{documentKindLabel(document.document_kind) ?? document.document_kind}</p>
                       <p className="mt-1 text-sm text-slate-500">
-                        {document.file_name} · {fileSize(document.size_bytes)} · {date.format(new Date(document.document_date))}
+                        {document.file_name} · {fileSize(document.size_bytes)} · {formatPlainDate(document.document_date)}
                       </p>
                       {document.reference || document.note ? (
                         <p className="mt-1 text-xs text-slate-500">{[document.reference, document.note].filter(Boolean).join(" · ")}</p>

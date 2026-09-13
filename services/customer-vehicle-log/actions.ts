@@ -6,6 +6,7 @@ import type { Route } from "next";
 import { createSupabaseServerClient } from "@/services/supabase/server";
 import {
   isExpenseCategory,
+  MAX_VEHICLE_DOCUMENT_BYTES,
   parseCharging,
   parseDocumentDate,
   parseFuel,
@@ -220,8 +221,8 @@ export async function registerVehicleDocumentStep(formData: FormData) {
   if (reference && reference.length > 200) redirect(logPath(vehicleId, "documents", "Referência muito longa.", false));
   if (note && note.length > 200) redirect(logPath(vehicleId, "documents", "Observação muito longa.", false));
   if (!(file instanceof File)) redirect(logPath(vehicleId, "documents", "Selecione um arquivo.", false));
-  if (file.size <= 0 || file.size > 10000000) {
-    redirect(logPath(vehicleId, "documents", "O arquivo deve ter até 10 MB.", false));
+  if (file.size <= 0 || file.size > MAX_VEHICLE_DOCUMENT_BYTES) {
+    redirect(logPath(vehicleId, "documents", "O arquivo deve ter até 10 MiB.", false));
   }
   const { data: { user } } = await (async () => {
     const supabase = await createSupabaseServerClient();

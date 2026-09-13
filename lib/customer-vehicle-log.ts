@@ -102,6 +102,20 @@ export const VEHICLE_LOG_DATETIME = new Intl.DateTimeFormat("pt-BR", {
   timeStyle: "short",
 });
 
+// PostgreSQL `date`-only values ("YYYY-MM-DD") must render as calendar dates,
+// never as UTC instants. `new Date("2026-09-13")` is midnight UTC, and the
+// São Paulo formatter would print 12/09/2026; even `T00:00:00Z` shifts by the
+// offset. Formatting the value in UTC keeps the calendar date intact.
+const VEHICLE_LOG_PLAIN_DATE = new Intl.DateTimeFormat("pt-BR", {
+  timeZone: "UTC",
+  dateStyle: "short",
+});
+
+export function formatPlainDate(value: string) {
+  const date = new Date(`${value}T00:00:00Z`);
+  return Number.isNaN(date.getTime()) ? value : VEHICLE_LOG_PLAIN_DATE.format(date);
+}
+
 export const FUEL_TYPES = ["gasolina", "etanol", "diesel", "gnv"] as const;
 export type FuelType = (typeof FUEL_TYPES)[number];
 
