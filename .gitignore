@@ -16,3 +16,7 @@ pnpm-debug.log*
 pocs/omniroute/out/combo-matrix.log
 !pocs/agency-agents/out/
 !pocs/omniroute/out/
+
+# Supabase CLI local runtime artifacts
+supabase/.branches/
+supabase/.temp/
