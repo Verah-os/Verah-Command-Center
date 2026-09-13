@@ -84,7 +84,7 @@ PLATFORM-SPECIFIC` (documented platform-only capability).
 | Mileage/odometer | `register_vehicle_mileage` RPC | `/veiculo/[id]/mileage` (Web) | MileageHistoryScreen + register | same RPC, no odometer regression | `vehicle_mileage_logs_security` + contract tests | PASS |
 | Fuel/refueling | `register_vehicle_fuel` RPC | `/veiculo/[id]/fuel` (Web) | FuelHistoryScreen + register | same RPC, liters semantics | `vehicle_fuel_logs_security` + contract tests | PASS |
 | EV/hybrid charging/energy | `register_vehicle_charging` RPC | `/veiculo/[id]/fuel` (Web) | ChargingHistoryScreen + register | same RPC, kWh semantics | `vehicle_charging_logs_security` + contract tests | PASS |
-| Expenses | `vehicle_expenses` table + `vehicle_expense_summary` RPC + RLS INSERT | `/veiculo/[id]/expenses` (Web) | expense dashboard read (write via maintenance `create_expense`) | same canonical table | `vehicle_expenses_security` + contract tests | PASS |
+| Expenses | `vehicle_expenses` table + `vehicle_expense_summary` RPC + RLS INSERT | `/veiculo/[id]/expenses` (Web) | Despesas screen (read + manual write) | same canonical table + RLS | `vehicle_expenses_security` + contract tests + `web-mobile-parity` | PASS |
 | Maintenance | `register_vehicle_maintenance` RPC | `/veiculo/[id]/maintenance` (Web) | MaintenanceScreen | same RPC + idempotency key shape | `vehicle_maintenance_security` + contract tests | PASS |
 | Maintenance assistance | maintenance records + reminders derivation | maintenance page reminder (Web) | maintenance reminder cards | same records + same reminder derivation | maintenance-assist tests (mobile) + web reminder tests | PASS |
 | Documents | `vehicle_documents` + `register_vehicle_document` / `remove_vehicle_document` + private storage | `/veiculo/[id]/documents` (Web) | VehicleDocumentsScreen | same RPCs; private owner-scoped bucket | `vehicle_documents_security` + contract tests | PASS |
@@ -103,8 +103,11 @@ PLATFORM-SPECIFIC` (documented platform-only capability).
   that the exact payload shapes built by the Web server actions are accepted
   by the same bounds the Mobile controller enforces, and that both reject the
   same invalid inputs.
+- `tests/web-mobile-parity.test.mjs` (web workspace): pins the identical
+  idempotency keys and canonical expense category/read-column contracts shared
+  by both channels.
 - `mobile/tests/*.test.mjs`: mobile-side tests validating the same canonical
   RPC contracts, bounds and idempotency semantics.
-- Security tests under `supabase/tests/*` (run by the database CI gate,
-  currently blocked in sandbox because Docker is unavailable) validate RLS
-  boundaries for every vehicle-log table.
+- Security tests under `supabase/tests/*` validate RLS boundaries for every
+  vehicle-log table; they run in the `database-authorization` job of the CI
+  `Required` gate and are green on PRs #264 and #265.
