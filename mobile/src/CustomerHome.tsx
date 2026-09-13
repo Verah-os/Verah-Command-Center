@@ -30,6 +30,7 @@ export function CustomerHome({
   onExpensePeriodChange,
   onDeactivateVehicle,
   onOpenFuel,
+  onOpenExpenses,
   onOpenDocuments,
   onSignOut,
 }: {
@@ -44,6 +45,7 @@ export function CustomerHome({
   onExpensePeriodChange?: (periodDays: number | null) => void;
   onDeactivateVehicle: (vehicle: GarageVehicle) => Promise<void>;
   onOpenFuel: (vehicle: GarageVehicle) => void;
+  onOpenExpenses: (vehicle: GarageVehicle) => void;
   onOpenDocuments: (vehicle: GarageVehicle) => void;
   onSignOut: () => void;
 }) {
@@ -120,6 +122,7 @@ export function CustomerHome({
                       : `${primaryVehicle.currentMileage.toLocaleString("pt-BR")} km`}
                   </Text>
                   <TextButton label="Abastecimentos e recargas" onPress={() => onOpenFuel(primaryVehicle)} />
+                  <TextButton label="Despesas" onPress={() => onOpenExpenses(primaryVehicle)} />
                   <TextButton label="Ver veículos" onPress={() => setTab("vehicles")} />
                 </>
               ) : (
@@ -228,6 +231,9 @@ export function CustomerHome({
                     <View style={styles.vehicleActions}>
                   <Pressable style={styles.smallAction} onPress={() => onOpenFuel(vehicle)}>
                     <Text style={styles.smallActionText}>Energia</Text>
+                  </Pressable>
+                  <Pressable style={styles.smallAction} onPress={() => onOpenExpenses(vehicle)}>
+                    <Text style={styles.smallActionText}>Despesas</Text>
                   </Pressable>
                   <Pressable style={styles.smallAction} onPress={() => onOpenDocuments(vehicle)}>
                     <Text style={styles.smallActionText}>Documentos</Text>

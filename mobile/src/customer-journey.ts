@@ -18,6 +18,30 @@ export type VehicleExpenseSummary = {
   distanceKm: number | null;
   costPerKmCents: number | null;
 };
+export const EXPENSE_CATEGORIES = ["combustivel", "manutencao", "outros"] as const;
+export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number];
+export const EXPENSE_CATEGORY_LABELS: Record<ExpenseCategory, string> = {
+  combustivel: "Combustível",
+  manutencao: "Manutenção",
+  outros: "Outros",
+};
+export type ExpenseInput = {
+  category: ExpenseCategory;
+  amountCents: number;
+  occurredOn: string;
+  odometerKm?: number | null;
+  description?: string | null;
+};
+export function expenseCategoryLabel(category: string): string {
+  return category in EXPENSE_CATEGORY_LABELS
+    ? EXPENSE_CATEGORY_LABELS[category as ExpenseCategory]
+    : category.charAt(0).toUpperCase() + category.slice(1);
+}
+export function mapExpenseCategory(value: string): ExpenseCategory | null {
+  return (EXPENSE_CATEGORIES as readonly string[]).includes(value)
+    ? value as ExpenseCategory
+    : null;
+}
 export type CustomerServiceRequest = {
   id: string;
   referenceCode: string;
@@ -192,6 +216,7 @@ export type EnergyLoadResult = {
 export interface CustomerJourneyFacade {
   listMaintenance?(vehicleId: string): Promise<{ data: MaintenanceRecord[] | null; error: RpcError }>;
   registerMaintenance?(vehicleId: string, input: MaintenanceInput): Promise<{ error: RpcError }>;
+  registerExpense?(vehicleId: string, input: ExpenseInput): Promise<{ error: RpcError }>;
   refreshOnboarding(): Promise<{ data: unknown; error: RpcError }>;
   startOnboarding(displayName: string): Promise<{ error: RpcError }>;
   completeBasicProfile(displayName: string): Promise<{ error: RpcError }>;
@@ -225,6 +250,7 @@ export type JourneyState =
 
 export interface CustomerJourneyController {
   registerMaintenance(vehicleId: string, input: MaintenanceInput): Promise<JourneyResult>;
+  registerExpense(vehicleId: string, input: ExpenseInput): Promise<JourneyResult>;
   getState(): JourneyState;
 
   subscribe(listener: () => void): () => void;
@@ -435,6 +461,47 @@ export function createCustomerJourney(facade: CustomerJourneyFacade, user: Journ
         if (result.error) return { ok: false, message: result.error.message };
         return { ok: true };
       } catch { return { ok: false, message: "Falha de conexão. Tente novamente com os mesmos dados." }; }
+    },
+    async registerExpense(vehicleId, input) {
+      if (!facade.registerExpense) return { ok: false, message: "Despesas indisponíveis." };
+      if (!mapExpenseCategory(input.category)) return { ok: false, message: "Selecione uma categoria válida." };
+      const amount = Number(input.amountCents);
+      if (!Number.isSafeInteger(amount) || amount <= 0 || amount > 2_147_483_647) {
+        return { ok: false, message: "Informe um valor acima de zero." };
+      }
+      const date = String(input.occurredOn);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(Date.parse(`${date}T00:00:00Z`))) {
+        return { ok: false, message: "Informe uma data válida." };
+      }
+      if (date > new Date().toISOString().slice(0, 10)) {
+        return { ok: false, message: "Informe uma data até hoje." };
+      }
+      const odometer = input.odometerKm === undefined || input.odometerKm === null || input.odometerKm === 0
+        ? null
+        : Number(input.odometerKm);
+      if (odometer !== null && (!Number.isInteger(odometer) || odometer < 0 || odometer > 2000000)) {
+        return { ok: false, message: "Informe uma quilometragem válida." };
+      }
+      const description = input.description?.trim() || null;
+      if (description && description.length > 160) {
+        return { ok: false, message: "Descrição muito longa (limite de 160 caracteres)." };
+      }
+      const result = await facade.registerExpense(vehicleId, {
+        category: input.category,
+        amountCents: amount,
+        occurredOn: date,
+        odometerKm: odometer,
+        description,
+      });
+      if (result.error) return { ok: false, message: result.error.message };
+      if (state.status === "ready" && facade.expenseForVehicle) {
+        const summaryResult = await facade.expenseForVehicle(vehicleId, null);
+        if (!summaryResult.error && summaryResult.data) {
+          state = { ...state, expensesByVehicle: { ...state.expensesByVehicle, [vehicleId]: mapVehicleExpenseSummary(summaryResult.data) ?? state.expensesByVehicle[vehicleId] } };
+          emit();
+        }
+      }
+      return { ok: true };
     },
     async registerMileage(vehicleId, input) {
       const value = Number(input.mileageValue);
