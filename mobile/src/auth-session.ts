@@ -14,7 +14,9 @@ export type AuthState =
   | { status: "password-recovery"; user: AuthUser | null }
   | { status: "signed-in"; user: AuthUser };
 
-export type AuthResult = { ok: true } | { ok: false; message: string };
+export type AuthResult =
+  | { ok: true; message?: string }
+  | { ok: false; message: string };
 
 export type AuthResponse = { error: { message: string } | null };
 
@@ -124,10 +126,10 @@ export function createAuthSession(facade: AuthFacade): AuthSessionController {
         try {
           await facade.resetPasswordForEmail(normalized);
         } catch {
-          // Keep the response intentionally neutral to avoid account enumeration.
+          // Deliberately ignore transport/backend detail to avoid account enumeration.
         }
       }
-      return { ok: false, message: RECOVERY_NOTICE };
+      return { ok: true, message: RECOVERY_NOTICE };
     },
     async handleAuthUrl(url) {
       if (!facade.handleAuthUrl) return { ok: true };
