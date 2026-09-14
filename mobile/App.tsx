@@ -11,9 +11,13 @@ export default function App() {
     EXPO_PUBLIC_SUPABASE_ANON_KEY: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
     EXPO_PUBLIC_SUPABASE_ENVIRONMENT: process.env.EXPO_PUBLIC_SUPABASE_ENVIRONMENT,
   });
+  // Packaged Alpha/preview builds must use the canonical hosted project.
+  // Explicit localhost remains available only in React Native development bundles.
+  const localDevelopment = __DEV__ && descriptor?.projectRef === null;
   const canonicalAlpha = descriptor?.projectRef === CANONICAL_ALPHA_PROJECT_REF;
-  const facade = canonicalAlpha ? getAuthFacade() : null;
-  const journeyFacade = canonicalAlpha ? getCustomerJourneyFacade() : null;
+  const backendAllowed = Boolean(descriptor && (canonicalAlpha || localDevelopment));
+  const facade = backendAllowed ? getAuthFacade() : null;
+  const journeyFacade = backendAllowed ? getCustomerJourneyFacade() : null;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -22,7 +26,9 @@ export default function App() {
         <View style={styles.appShell}>
           <View style={styles.environmentBanner}>
             <Text style={styles.environmentText}>
-              Alpha · {descriptor.projectRef}
+              {localDevelopment
+                ? "Desenvolvimento local"
+                : `Alpha · ${descriptor.projectRef}`}
             </Text>
           </View>
           <View style={styles.appContent}>
