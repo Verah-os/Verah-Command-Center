@@ -21,9 +21,8 @@ export function AuthGate({
   );
 
   useEffect(() => {
-    if (!facade.handleAuthUrl) return () => controller.dispose();
     const consume = (url: string | null) => {
-      if (url) void facade.handleAuthUrl?.(url);
+      if (url) void controller.handleAuthUrl(url);
     };
     const subscription = Linking.addEventListener("url", ({ url }) => consume(url));
     void Linking.getInitialURL().then(consume);
@@ -31,7 +30,7 @@ export function AuthGate({
       subscription.remove();
       controller.dispose();
     };
-  }, [controller, facade]);
+  }, [controller]);
 
   const state = useSyncExternalStore(controller.subscribe, controller.getState);
 
@@ -43,8 +42,13 @@ export function AuthGate({
       </View>
     );
   }
-  if (state.status === "signed-out") {
-    return <AuthScreen controller={controller} />;
+  if (state.status === "signed-out" || state.status === "password-recovery") {
+    return (
+      <AuthScreen
+        controller={controller}
+        recoveryMode={state.status === "password-recovery"}
+      />
+    );
   }
   return (
     <CustomerJourneyGate
