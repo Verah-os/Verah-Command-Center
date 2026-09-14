@@ -159,7 +159,10 @@ test("audited copy files do not expose raw backend wording in customer strings",
   }
 });
 test("approved customer-safe fallback patterns are present in the audited paths", () => {
-  assert.ok(read("mobile/App.tsx").includes("VERAH ainda não está conectada neste ambiente."));
+  const mobileApp = read("mobile/App.tsx");
+  assert.ok(mobileApp.includes("Build Alpha bloqueada"));
+  assert.ok(mobileApp.includes("Este APK não está conectado ao backend Alpha canônico da VERAH."));
+  assert.ok(mobileApp.includes("Nenhuma informação é enviada ou recebida até a configuração ser corrigida."));
   assert.ok(read("mobile/src/service-request-supabase.ts").includes("A conexão com a VERAH não está configurada neste build."));
   assert.ok(read("mobile/src/fipe-catalog.ts").includes("configurado na VERAH"));
   assert.ok(read("mobile/src/vehicle-documents.ts").includes("Houve um erro ao preparar o arquivo."));
