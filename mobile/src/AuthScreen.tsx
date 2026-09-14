@@ -10,10 +10,17 @@ import {
 } from "react-native";
 import type { AuthSessionController } from "./auth-session";
 
-export function AuthScreen({ controller }: { controller: AuthSessionController }) {
+export function AuthScreen({
+  controller,
+  recoveryMode = false,
+}: {
+  controller: AuthSessionController;
+  recoveryMode?: boolean;
+}) {
   const [mode, setMode] = useState<"sign-in" | "sign-up">("sign-in");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -36,6 +43,36 @@ export function AuthScreen({ controller }: { controller: AuthSessionController }
     }
   };
 
+  const requestRecovery = async () => {
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    const result = await controller.requestPasswordReset(email.trim());
+    setBusy(false);
+    if (!result.ok) {
+      setError(result.message);
+      return;
+    }
+    setNotice(result.message ?? "Se este e-mail estiver cadastrado, enviaremos as instruções.");
+  };
+
+  const savePassword = async () => {
+    setError(null);
+    setNotice(null);
+    if (password !== confirmPassword) {
+      setError("As senhas precisam ser iguais.");
+      return;
+    }
+    setBusy(true);
+    const result = await controller.updatePassword(password);
+    setBusy(false);
+    if (!result.ok) {
+      setError(result.message);
+      return;
+    }
+    setNotice("Senha atualizada com segurança.");
+  };
+
   const google = async () => {
     setBusy(true);
     setError(null);
@@ -44,6 +81,48 @@ export function AuthScreen({ controller }: { controller: AuthSessionController }
     setBusy(false);
     if (!result.ok) setError(result.message);
   };
+
+  if (recoveryMode) {
+    return (
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        style={styles.container}
+      >
+        <View style={styles.card}>
+          <Text style={styles.brand}>VERAH</Text>
+          <Text style={styles.kicker}>Confiança para cuidar do que é seu</Text>
+          <Text style={styles.title}>Criar nova senha</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Nova senha"
+            placeholderTextColor="#8A9199"
+            secureTextEntry
+            textContentType="newPassword"
+            value={password}
+            onChangeText={setPassword}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Confirmar nova senha"
+            placeholderTextColor="#8A9199"
+            secureTextEntry
+            textContentType="newPassword"
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+          />
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+          {notice ? <Text style={styles.notice}>{notice}</Text> : null}
+          <Pressable
+            style={[styles.submit, busy && styles.disabled]}
+            disabled={busy}
+            onPress={() => void savePassword()}
+          >
+            <Text style={styles.submitLabel}>Salvar nova senha</Text>
+          </Pressable>
+        </View>
+      </KeyboardAvoidingView>
+    );
+  }
 
   return (
     <KeyboardAvoidingView
@@ -92,6 +171,11 @@ export function AuthScreen({ controller }: { controller: AuthSessionController }
           value={password}
           onChangeText={setPassword}
         />
+        {mode === "sign-in" ? (
+          <Pressable disabled={busy} onPress={() => void requestRecovery()}>
+            <Text style={styles.forgotPassword}>Esqueci minha senha</Text>
+          </Pressable>
+        ) : null}
         {error ? <Text style={styles.error}>{error}</Text> : null}
         {notice ? <Text style={styles.notice}>{notice}</Text> : null}
         <Pressable
@@ -134,6 +218,7 @@ const styles = StyleSheet.create({
   divider: { flex: 1, height: 1, backgroundColor: "#ECE7E8" },
   dividerText: { color: "#8A9199", fontSize: 12 },
   input: { backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#DED9DA", borderRadius: 12, color: "#263238", fontSize: 16, marginBottom: 12, paddingHorizontal: 14, paddingVertical: 12 },
+  forgotPassword: { color: "#814455", fontSize: 14, fontWeight: "600", textAlign: "right", marginTop: -2, marginBottom: 4 },
   error: { color: "#C84E59", fontSize: 14, marginTop: 4 },
   notice: { color: "#814455", fontSize: 14, marginTop: 4 },
   submit: { backgroundColor: "#814455", borderRadius: 12, marginTop: 16, paddingVertical: 13, alignItems: "center" },
