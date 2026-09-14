@@ -1,5 +1,6 @@
 import { SafeAreaView, StatusBar, StyleSheet, Text, View } from "react-native";
 import { getAuthFacade, getCustomerJourneyFacade } from "./src/supabase";
+import { withPasswordRecovery } from "./src/auth-recovery-supabase";
 import { resolveVerahEnvironmentDescriptor } from "./src/config";
 import { AuthGate } from "./src/AuthGate";
 
@@ -11,12 +12,11 @@ export default function App() {
     EXPO_PUBLIC_SUPABASE_ANON_KEY: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
     EXPO_PUBLIC_SUPABASE_ENVIRONMENT: process.env.EXPO_PUBLIC_SUPABASE_ENVIRONMENT,
   });
-  // Packaged Alpha/preview builds must use the canonical hosted project.
-  // Explicit localhost remains available only in React Native development bundles.
   const localDevelopment = __DEV__ && descriptor?.projectRef === null;
   const canonicalAlpha = descriptor?.projectRef === CANONICAL_ALPHA_PROJECT_REF;
   const backendAllowed = Boolean(descriptor && (canonicalAlpha || localDevelopment));
-  const facade = backendAllowed ? getAuthFacade() : null;
+  const baseFacade = backendAllowed ? getAuthFacade() : null;
+  const facade = baseFacade ? withPasswordRecovery(baseFacade) : null;
   const journeyFacade = backendAllowed ? getCustomerJourneyFacade() : null;
 
   return (
