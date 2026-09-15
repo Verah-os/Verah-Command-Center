@@ -12,7 +12,7 @@ import {
   type FipeCatalogOption,
 } from "./fipe-catalog";
 
-type EntryMode = "plate" | "catalog" | null;
+type EntryMode = "plate" | "catalog" | "manual" | null;
 
 export function VehicleOnboardingStep({
   controller,
@@ -90,6 +90,9 @@ export function VehicleOnboardingStep({
       setPlate("");
       await loadBrands();
     }
+    if (nextMode === "manual") {
+      setPlate("");
+    }
   };
 
   const lookupPlate = async () => {
@@ -107,6 +110,17 @@ export function VehicleOnboardingStep({
     setLookupMessage(
       "Placa validada. No modo gratuito, a FIPE não identifica o veículo pela placa; complete marca, modelo e ano para vincular esta placa ao carro correto.",
     );
+  };
+
+  // FIPE-unavailable fallback: keep the plate the customer already informed
+  // and switch to the direct manual form. No cache/fixture/parallel state.
+  const manualWithPlate = () => {
+    const normalized = normalizeBrazilianPlate(plate);
+    resetSelection();
+    setPlate(normalized ?? "");
+    setMode("manual");
+    setError(null);
+    setLookupMessage(null);
   };
 
   const chooseBrand = async (item: FipeCatalogOption) => {
@@ -239,6 +253,11 @@ export function VehicleOnboardingStep({
           description="Navegue pelo catálogo FIPE e informe a placa antes de salvar."
           onPress={() => void chooseMode("catalog")}
         />
+        <ChoiceCard
+          title="Cadastrar manualmente"
+          description="Informe placa, fabricante, modelo e ano-modelo sem depender do catálogo FIPE."
+          onPress={() => void chooseMode("manual")}
+        />
         {additional && onCancel ? <OutlineButton label="Cancelar" onPress={onCancel} /> : null}
       </ScrollView>
     );
@@ -248,9 +267,11 @@ export function VehicleOnboardingStep({
     <ScrollView {...scrollProps}>
       <Text style={styles.brandName}>VERAH</Text>
       <Text style={styles.eyebrow}>{additional ? (replacing ? "Substituir veículo" : "Adicionar veículo") : "Seu primeiro veículo"}</Text>
-      <Text style={styles.title}>{mode === "plate" ? "Comece pela placa" : "Confirme seu veículo"}</Text>
+      <Text style={styles.title}>{mode === "plate" ? "Comece pela placa" : mode === "manual" ? "Cadastre manualmente" : "Confirme seu veículo"}</Text>
       <Text style={styles.body}>
-        O catálogo usa a tabela FIPE real. A consulta gratuita não faz identificação automática pela placa.
+        {mode === "manual"
+          ? "Preencha os dados do veículo. O cadastro vai direto para a VERAH sem depender do catálogo FIPE."
+          : "O catálogo usa a tabela FIPE real. A consulta gratuita não faz identificação automática pela placa."}
       </Text>
 
       <TextInput
@@ -269,6 +290,80 @@ export function VehicleOnboardingStep({
 
       {mode === "plate" ? <OutlineButton label={catalogBusy ? "Carregando…" : "Validar placa e continuar"} onPress={() => void lookupPlate()} disabled={catalogBusy} /> : null}
       {lookupMessage ? <Text style={styles.message}>{lookupMessage}</Text> : null}
+
+      {mode === "manual" ? (
+        <>
+          <Text style={styles.sectionLabel}>Fabricante</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Ex.: Toyota"
+            placeholderTextColor="#777777"
+            onChangeText={(value) => {
+              setBrand(value);
+              setConfirmed(false);
+            }}
+            value={brand}
+          />
+          <Text style={styles.sectionLabel}>Modelo</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Ex.: Corolla"
+            placeholderTextColor="#777777"
+            onChangeText={(value) => {
+              setModel(value);
+              setConfirmed(false);
+            }}
+            value={model}
+          />
+          <Text style={styles.sectionLabel}>Ano/modelo</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Ex.: 2022"
+            placeholderTextColor="#777777"
+            keyboardType="number-pad"
+            onChangeText={(value) => {
+              setModelYear(value);
+              setConfirmed(false);
+            }}
+            value={modelYear}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Versão (opcional)"
+            placeholderTextColor="#777777"
+            onChangeText={setVersion}
+            value={version}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Combustível (opcional)"
+            placeholderTextColor="#777777"
+            onChangeText={setEngine}
+            value={engine}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Câmbio (opcional)"
+            placeholderTextColor="#777777"
+            onChangeText={setTransmission}
+            value={transmission}
+          />
+          <Pressable
+            style={styles.checkRow}
+            onPress={() => setConfirmed((value) => !value)}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: confirmed }}
+          >
+            <View style={[styles.check, confirmed && styles.checkSelected]}>
+              {confirmed ? <Text style={styles.checkMark}>✓</Text> : null}
+            </View>
+            <Text style={styles.checkLabel}>Confirmo que estes dados correspondem ao meu veículo.</Text>
+          </Pressable>
+          <Pressable style={[styles.primary, busy && styles.disabled]} disabled={busy} onPress={() => void submit()}>
+            <Text style={styles.primaryText}>{busy ? "Salvando…" : additional ? (replacing ? "Substituir veículo" : "Adicionar veículo") : "Salvar e continuar"}</Text>
+          </Pressable>
+        </>
+      ) : null}
 
       {mode === "catalog" ? (
         <>
@@ -338,6 +433,9 @@ export function VehicleOnboardingStep({
       {catalogBusy && brands.length ? <Text style={styles.message}>Consultando FIPE…</Text> : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {mode === "catalog" && !brands.length && !catalogBusy ? <OutlineButton label="Tentar carregar FIPE novamente" onPress={() => void loadBrands()} /> : null}
+      {mode !== "manual" && error
+        ? <OutlineButton label="Cadastrar manualmente" onPress={() => manualWithPlate()} />
+        : null}
       <OutlineButton label="Voltar às opções" onPress={() => setMode(null)} />
       {additional && onCancel ? <OutlineButton label="Cancelar cadastro" onPress={onCancel} /> : null}
     </ScrollView>

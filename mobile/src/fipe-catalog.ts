@@ -1,3 +1,4 @@
+import { FIPE_CATALOG_TIMEOUT_MS } from "./fipe-catalog-timeout";
 import { getSupabaseClient } from "./supabase";
 
 export type FipeCatalogOption = {
@@ -60,8 +61,11 @@ async function invokeCatalog(args: CatalogArgs) {
   const client = getSupabaseClient();
   if (!client) throw new Error("A conexão com a VERAH não está configurada neste build.");
 
+  // The SDK surfaces fetch/abort failures as a FunctionsFetchError on `error`,
+  // so an abort/timeout lands here exactly like any other network failure.
   const { data, error } = await client.functions.invoke<FunctionEnvelope>("vehicle-fipe-catalog", {
     body: args,
+    timeout: FIPE_CATALOG_TIMEOUT_MS,
   });
 
   if (error) throw new Error("Não foi possível consultar o catálogo FIPE agora.");
