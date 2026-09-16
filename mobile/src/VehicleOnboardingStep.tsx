@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import {
   normalizeBrazilianPlate,
@@ -47,6 +47,9 @@ export function VehicleOnboardingStep({
   const [modelId, setModelId] = useState("");
   const [yearId, setYearId] = useState("");
   const [fipeInfo, setFipeInfo] = useState<string | null>(null);
+  // Re-entrancy guard: manual and FIPE summary render a single submit action,
+  // so a double tap must never produce a second confirm_customer_vehicle call.
+  const submittingRef = useRef(false);
 
   const resetSelection = () => {
     setBrand("");
@@ -196,6 +199,7 @@ export function VehicleOnboardingStep({
   };
 
   const submit = async () => {
+    if (submittingRef.current) return;
     if (!plate.trim()) {
       setError("Informe a placa para vincular este veículo ao seu cadastro.");
       return;
@@ -204,6 +208,7 @@ export function VehicleOnboardingStep({
       setError("Confirme que estes dados correspondem ao seu veículo.");
       return;
     }
+    submittingRef.current = true;
     setBusy(true);
     setError(null);
     const result = await controller.confirmVehicle({
@@ -215,6 +220,7 @@ export function VehicleOnboardingStep({
       engine,
       transmission,
     });
+    submittingRef.current = false;
     setBusy(false);
     if (!result.ok) {
       setError(result.message);
@@ -399,7 +405,7 @@ export function VehicleOnboardingStep({
         </>
       ) : null}
 
-      {brand && model && modelYear ? (
+      {mode !== "manual" && brand && model && modelYear ? (
         <View style={styles.summary}>
           <Text style={styles.summaryTitle}>{brand} {model}</Text>
           <Text style={styles.summaryText}>Ano/modelo: {modelYear}</Text>

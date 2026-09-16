@@ -54,6 +54,23 @@ test("manual entry exposes the canonical minimums and leaves the rest optional",
   }
 });
 
+test("manual mode renders a single confirmation/submission entry point", async () => {
+  const step = await read("mobile/src/VehicleOnboardingStep.tsx");
+  // The manual form owns exactly one confirmation checkbox and one submit
+  // action; the FIPE summary — which renders its own checkbox + save — must
+  // be excluded while mode === "manual" (#266/P2 duplicate controls).
+  const manual = step.slice(step.indexOf('mode === "manual" ? ('), step.indexOf(') : null}'));
+  const count = (pattern) => (manual.match(pattern) ?? []).length;
+  assert.equal(count(/Confirmo que estes dados correspondem ao meu veículo\./g), 1);
+  assert.equal(count(/accessibilityRole="checkbox"/g), 1);
+  assert.equal(count(/\bsubmit\(\)/g), 1);
+  assert.match(step, /mode !== "manual" && brand && model && modelYear/);
+  // The submit handler is guarded against re-entrant double submission.
+  assert.match(step, /submittingRef\.current\) return;/);
+  assert.match(step, /submittingRef\.current = true;/);
+  assert.match(step, /submittingRef\.current = false;/);
+});
+
 test("manual path reuses the canonical confirm flow without parallel state", async () => {
   const step = await read("mobile/src/VehicleOnboardingStep.tsx");
   // Saving goes through the exact same journey controller/handler used by the
