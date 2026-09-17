@@ -37,7 +37,9 @@ test("manual onboarding is a first-class entry option", async () => {
   assert.match(step, /Cadastrar manualmente/);
   assert.match(step, /sem depender do catálogo FIPE/);
   // Same fallback surfaces after a FIPE error/timeout, keeping the plate.
-  assert.match(step, /mode !== "manual" && error/);
+  assert.match(step, /mode !== "manual"/);
+  assert.doesNotMatch(step, /lookupPlate|Sei minha placa|Validar placa e continuar/);
+  assert.match(step, /não identifica marca e modelo pela placa/);
   assert.match(step, /manualWithPlate/);
 });
 

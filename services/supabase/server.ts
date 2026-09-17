@@ -1,9 +1,11 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { env } from "@/lib/env";
+import { requireCanonicalWebEnvironment } from "@/lib/verah-environment";
 
 export async function createSupabaseServerClient() {
   const cookieStore = await cookies();
+  requireCanonicalWebEnvironment({ supabaseUrl: env.supabaseUrl, anonKey: env.supabaseAnonKey, environment: env.supabaseEnvironment });
   type CookieToSet = {
     name: string;
     value: string;

@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { env } from "@/lib/env";
+import { requireCanonicalWebEnvironment } from "@/lib/verah-environment";
 import { isUserRole, roleHome as homes } from "@/services/auth/access";
 import type { UserRole } from "@/types/user-profile";
 
@@ -23,6 +24,11 @@ export async function middleware(request: NextRequest) {
     options?: Parameters<typeof response.cookies.set>[2];
   };
 
+  try {
+    requireCanonicalWebEnvironment({ supabaseUrl: env.supabaseUrl, anonKey: env.supabaseAnonKey, environment: env.supabaseEnvironment });
+  } catch {
+    return new NextResponse("Conexão Alpha indisponível: configure o backend canônico wxnklnbntgpcncajzpsj.", { status: 503 });
+  }
   const supabase = createServerClient(env.supabaseUrl, env.supabaseAnonKey, {
     cookies: {
       getAll() {

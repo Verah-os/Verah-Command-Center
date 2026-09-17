@@ -9,6 +9,19 @@
 export type VerahRuntimeEnvironment = "alpha" | "staging" | "qa";
 export type VerahChannel = "web" | "mobile";
 
+export const CANONICAL_ALPHA_PROJECT_REF = "wxnklnbntgpcncajzpsj";
+
+// Enforced at client construction, including web-only deployments where the
+// cross-channel CI comparison cannot see the EAS environment.
+export function requireCanonicalWebEnvironment(source: VerahEnvironmentSource) {
+  const result = resolveVerahEnvironment({ ...source, environment: source.environment || "staging" }, "web");
+  if (!result.ok) throw new Error(result.message);
+  if (result.descriptor.projectRef && result.descriptor.projectRef !== CANONICAL_ALPHA_PROJECT_REF) {
+    throw new Error(`Backend Alpha incorreto: ${result.descriptor.projectRef}. Esperado: ${CANONICAL_ALPHA_PROJECT_REF}.`);
+  }
+  return result.descriptor;
+}
+
 export const ALPHA_ENVIRONMENTS: readonly VerahRuntimeEnvironment[] = [
   "alpha",
   "staging",

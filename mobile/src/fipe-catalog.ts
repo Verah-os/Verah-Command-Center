@@ -68,17 +68,21 @@ async function invokeCatalog(args: CatalogArgs) {
     timeout: FIPE_CATALOG_TIMEOUT_MS,
   });
 
-  if (error) throw new Error("Não foi possível consultar o catálogo FIPE agora.");
-  if (!data?.ok) {
-    if (data?.error === "provider_not_configured") {
+  // Non-2xx function responses arrive in FunctionsHttpError.context, not data.
+  let envelope = data;
+  if (error && error.context instanceof Response) {
+    try { envelope = await error.context.clone().json() as FunctionEnvelope; } catch { /* generic network/error fallback below */ }
+  }
+  if (error || !envelope?.ok) {
+    if (envelope?.error === "provider_not_configured") {
       throw new Error("O catálogo FIPE ainda não está configurado na VERAH.");
     }
-    if (data?.error === "provider_error") {
+    if (envelope?.error === "provider_error") {
       throw new Error("A FIPE API recusou a consulta. Tente novamente em instantes.");
     }
     throw new Error("Não foi possível consultar o catálogo FIPE agora.");
   }
-  return data.data;
+  return envelope.data;
 }
 
 export async function listFipeBrands() {
@@ -101,9 +105,9 @@ export async function getFipeVehicleDetail(
   const value = await invokeCatalog({ action: "detail", brandId, modelId, yearId });
   if (!value || typeof value !== "object") throw new Error("A FIPE API retornou dados inválidos.");
   const row = value as Record<string, unknown>;
-  const brand = firstString(row, ["brand", "marca"]);
-  const model = firstString(row, ["model", "modelo"]);
-  const modelYearRaw = row.modelYear ?? row.model_year ?? row.anoModelo ?? row.ano_modelo;
+  const brand = firstString(row, ["brand", "marca", "Marca"]);
+  const model = firstString(row, ["model", "modelo", "Modelo"]);
+  const modelYearRaw = row.modelYear ?? row.model_year ?? row.anoModelo ?? row.ano_modelo ?? row.AnoModelo;
   const modelYear = Number(modelYearRaw);
   if (!brand || !model || !Number.isInteger(modelYear)) {
     throw new Error("A FIPE API retornou dados incompletos para este veículo.");
@@ -112,9 +116,9 @@ export async function getFipeVehicleDetail(
     brand,
     model,
     modelYear,
-    fuel: firstString(row, ["fuel", "combustivel"]),
-    codeFipe: firstString(row, ["codeFipe", "code_fipe", "codigoFipe"]),
-    price: firstString(row, ["price", "preco", "valor"]),
-    referenceMonth: firstString(row, ["referenceMonth", "reference_month", "mesReferencia"]),
+    fuel: firstString(row, ["fuel", "combustivel", "Combustivel"]),
+    codeFipe: firstString(row, ["codeFipe", "code_fipe", "codigoFipe", "CodigoFipe"]),
+    price: firstString(row, ["price", "preco", "valor", "Valor"]),
+    referenceMonth: firstString(row, ["referenceMonth", "reference_month", "mesReferencia", "MesReferencia"]),
   };
 }

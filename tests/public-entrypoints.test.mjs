@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import ts from "typescript";
+import { requireCanonicalWebEnvironment } from "../lib/verah-environment.ts";
 
 // Execute the actual middleware with in-memory auth. No network or credentials.
 const compiled = ts.transpileModule(
@@ -14,14 +15,15 @@ const compiled = ts.transpileModule(
   },
 ).outputText;
 
-function harness() {
+function harness(supabaseUrl = "https://wxnklnbntgpcncajzpsj.supabase.co") {
   let authCalls = 0;
   const next = () => ({ status: 200, cookies: { set() {} } });
   const modules = {
     "next/server": {
-      NextResponse: {
-        next,
-        redirect: (url) => ({ status: 307, location: url.pathname }),
+      NextResponse: class {
+        constructor(body, options) { this.status = options.status; this.body = body; }
+        static next = next;
+        static redirect = (url) => ({ status: 307, location: url.pathname });
       },
     },
     "@supabase/ssr": {
@@ -30,7 +32,8 @@ function harness() {
         return { auth: { getUser: async () => ({ data: { user: null } }) } };
       },
     },
-    "@/lib/env": { env: { supabaseUrl: "", supabaseAnonKey: "" } },
+    "@/lib/env": { env: { supabaseUrl, supabaseAnonKey: "test" } },
+    "@/lib/verah-environment": { requireCanonicalWebEnvironment },
     "@/services/auth/access": { isUserRole: () => false, roleHome: {} },
   };
   const exports = {};
@@ -66,6 +69,14 @@ test("institutional home and demo entry load without auth or database initializa
     assert.equal((await app.run(path)).status, 200, path);
   }
   assert.equal(app.authCalls, 0);
+});
+
+test("wrong hosted backend is blocked before auth and never looks like an empty queue", async () => {
+  const app = harness("https://other.supabase.co");
+  assert.equal((await app.run("/concierge")).status, 503);
+  assert.equal((await app.run("/demo/cliente")).status, 503);
+  assert.equal(app.authCalls, 0);
+  assert.equal((await app.run("/")).status, 200);
 });
 
 test("public entry points do not make command or customer/provider routes public", async () => {

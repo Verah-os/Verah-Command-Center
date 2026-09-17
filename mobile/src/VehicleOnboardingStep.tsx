@@ -12,7 +12,7 @@ import {
   type FipeCatalogOption,
 } from "./fipe-catalog";
 
-type EntryMode = "plate" | "catalog" | "manual" | null;
+type EntryMode = "catalog" | "manual" | null;
 
 export function VehicleOnboardingStep({
   controller,
@@ -39,7 +39,6 @@ export function VehicleOnboardingStep({
   const [busy, setBusy] = useState(false);
   const [catalogBusy, setCatalogBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [lookupMessage, setLookupMessage] = useState<string | null>(null);
   const [brands, setBrands] = useState<FipeCatalogOption[]>([]);
   const [models, setModels] = useState<FipeCatalogOption[]>([]);
   const [years, setYears] = useState<FipeCatalogOption[]>([]);
@@ -87,43 +86,20 @@ export function VehicleOnboardingStep({
   const chooseMode = async (nextMode: Exclude<EntryMode, null>) => {
     setMode(nextMode);
     setError(null);
-    setLookupMessage(null);
     resetSelection();
     if (nextMode === "catalog") {
-      setPlate("");
       await loadBrands();
     }
-    if (nextMode === "manual") {
-      setPlate("");
-    }
-  };
-
-  const lookupPlate = async () => {
-    const normalized = normalizeBrazilianPlate(plate);
-    if (!normalized) {
-      setError("Placa inválida. Use o formato ABC1234 ou ABC1D23.");
-      return;
-    }
-    setPlate(normalized);
-    setError(null);
-    resetSelection();
-    const loaded = await loadBrands();
-    if (!loaded) return;
-    setMode("catalog");
-    setLookupMessage(
-      "Placa validada. No modo gratuito, a FIPE não identifica o veículo pela placa; complete marca, modelo e ano para vincular esta placa ao carro correto.",
-    );
   };
 
   // FIPE-unavailable fallback: keep the plate the customer already informed
   // and switch to the direct manual form. No cache/fixture/parallel state.
   const manualWithPlate = () => {
     const normalized = normalizeBrazilianPlate(plate);
-    resetSelection();
-    setPlate(normalized ?? "");
+    setConfirmed(false);
+    setPlate(normalized ?? plate);
     setMode("manual");
     setError(null);
-    setLookupMessage(null);
   };
 
   const chooseBrand = async (item: FipeCatalogOption) => {
@@ -177,6 +153,9 @@ export function VehicleOnboardingStep({
 
   const chooseYear = async (item: FipeCatalogOption) => {
     setYearId(item.id);
+    setModelYear("");
+    setVersion("");
+    setEngine("");
     setConfirmed(false);
     setCatalogBusy(true);
     setError(null);
@@ -247,16 +226,11 @@ export function VehicleOnboardingStep({
         <Text style={styles.eyebrow}>{additional ? (replacing ? "Substituir veículo" : "Adicionar veículo") : "Seu primeiro veículo"}</Text>
         <Text style={styles.title}>{additional ? (replacing ? "Cadastre o veículo substituto" : "Cadastre outro carro") : "Vamos encontrar seu carro"}</Text>
         <Text style={styles.body}>
-          Use a placa como identificação e confirme o veículo pelo catálogo FIPE gratuito.
+          A fonte FIPE disponível não identifica marca e modelo pela placa. Escolha o veículo no catálogo ou preencha os dados manualmente. A placa será usada para identificar seu cadastro.
         </Text>
         <ChoiceCard
-          title="Sei minha placa"
-          description="Informe a placa e depois confirme marca, modelo e ano com dados FIPE."
-          onPress={() => void chooseMode("plate")}
-        />
-        <ChoiceCard
-          title="Quero escolher o veículo"
-          description="Navegue pelo catálogo FIPE e informe a placa antes de salvar."
+          title="Escolher no catálogo FIPE"
+          description="Selecione marca, modelo e ano para preencher os dados disponíveis. Não é uma busca por placa."
           onPress={() => void chooseMode("catalog")}
         />
         <ChoiceCard
@@ -273,7 +247,7 @@ export function VehicleOnboardingStep({
     <ScrollView {...scrollProps}>
       <Text style={styles.brandName}>VERAH</Text>
       <Text style={styles.eyebrow}>{additional ? (replacing ? "Substituir veículo" : "Adicionar veículo") : "Seu primeiro veículo"}</Text>
-      <Text style={styles.title}>{mode === "plate" ? "Comece pela placa" : mode === "manual" ? "Cadastre manualmente" : "Confirme seu veículo"}</Text>
+      <Text style={styles.title}>{mode === "manual" ? "Cadastre manualmente" : "Confirme seu veículo"}</Text>
       <Text style={styles.body}>
         {mode === "manual"
           ? "Preencha os dados do veículo. O cadastro vai direto para a VERAH sem depender do catálogo FIPE."
@@ -290,12 +264,8 @@ export function VehicleOnboardingStep({
         onChangeText={(value) => {
           setPlate(value);
           setConfirmed(false);
-          if (mode === "plate") setLookupMessage(null);
         }}
       />
-
-      {mode === "plate" ? <OutlineButton label={catalogBusy ? "Carregando…" : "Validar placa e continuar"} onPress={() => void lookupPlate()} disabled={catalogBusy} /> : null}
-      {lookupMessage ? <Text style={styles.message}>{lookupMessage}</Text> : null}
 
       {mode === "manual" ? (
         <>
@@ -377,7 +347,7 @@ export function VehicleOnboardingStep({
           {catalogBusy && !brands.length ? <Text style={styles.message}>Carregando catálogo FIPE…</Text> : null}
           <View style={styles.chips}>
             {brands.map((item) => (
-              <Chip key={item.id} label={item.name} selected={brandId === item.id} onPress={() => void chooseBrand(item)} />
+              <Chip key={item.id} disabled={catalogBusy} label={item.name} selected={brandId === item.id} onPress={() => void chooseBrand(item)} />
             ))}
           </View>
 
@@ -386,7 +356,7 @@ export function VehicleOnboardingStep({
               <Text style={styles.sectionLabel}>Modelo / versão</Text>
               <View style={styles.chips}>
                 {models.map((item) => (
-                  <Chip key={item.id} label={item.name} selected={modelId === item.id} onPress={() => void chooseModel(item)} />
+                  <Chip key={item.id} disabled={catalogBusy} label={item.name} selected={modelId === item.id} onPress={() => void chooseModel(item)} />
                 ))}
               </View>
             </>
@@ -397,7 +367,7 @@ export function VehicleOnboardingStep({
               <Text style={styles.sectionLabel}>Ano</Text>
               <View style={styles.chips}>
                 {years.map((item) => (
-                  <Chip key={item.id} label={item.name} selected={yearId === item.id} onPress={() => void chooseYear(item)} />
+                  <Chip key={item.id} disabled={catalogBusy} label={item.name} selected={yearId === item.id} onPress={() => void chooseYear(item)} />
                 ))}
               </View>
             </>
@@ -439,10 +409,10 @@ export function VehicleOnboardingStep({
       {catalogBusy && brands.length ? <Text style={styles.message}>Consultando FIPE…</Text> : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {mode === "catalog" && !brands.length && !catalogBusy ? <OutlineButton label="Tentar carregar FIPE novamente" onPress={() => void loadBrands()} /> : null}
-      {mode !== "manual" && error
-        ? <OutlineButton label="Cadastrar manualmente" onPress={() => manualWithPlate()} />
+      {mode !== "manual"
+        ? <OutlineButton label="Cadastrar manualmente" onPress={() => manualWithPlate()} disabled={catalogBusy} />
         : null}
-      <OutlineButton label="Voltar às opções" onPress={() => setMode(null)} />
+      <OutlineButton label="Voltar às opções" onPress={() => setMode(null)} disabled={catalogBusy || busy} />
       {additional && onCancel ? <OutlineButton label="Cancelar cadastro" onPress={onCancel} /> : null}
     </ScrollView>
   );
@@ -457,9 +427,9 @@ function ChoiceCard({ title, description, onPress }: { title: string; descriptio
   );
 }
 
-function Chip({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
+function Chip({ label, selected, onPress, disabled }: { label: string; selected: boolean; onPress: () => void; disabled: boolean }) {
   return (
-    <Pressable style={[styles.chip, selected && styles.chipSelected]} onPress={onPress}>
+    <Pressable disabled={disabled} style={[styles.chip, selected && styles.chipSelected, disabled && styles.disabled]} onPress={onPress}>
       <Text numberOfLines={2} style={[styles.chipText, selected && styles.chipTextSelected]}>{label}</Text>
     </Pressable>
   );
