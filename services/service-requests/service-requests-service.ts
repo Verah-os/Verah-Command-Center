@@ -184,13 +184,12 @@ export async function listCustomerServiceRequests() {
 }
 
 export async function listConciergeServiceRequests() {
-  if (!env.supabaseUrl || !env.supabaseAnonKey) return [];
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("service_requests")
     .select(columns)
     .order("created_at", { ascending: false });
-  if (error) return [];
+  if (error) throw new Error("Não foi possível consultar os atendimentos. A fila não foi carregada.");
   const urgencyOrder = { critica: 0, alta: 1, media: 2, baixa: 3 };
   const lifecycle = await getConciergeLifecycleMetadata();
   return (data ?? [])

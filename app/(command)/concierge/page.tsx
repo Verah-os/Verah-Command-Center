@@ -29,6 +29,8 @@ import { requireRole } from "@/services/auth/profile";
 import { listActiveProviders } from "@/services/service-providers";
 import { listConciergeServiceRequests } from "@/services/service-requests";
 import { listQuoteTimingsForRequests } from "@/services/service-quotes/service-quotes-service";
+import { env } from "@/lib/env";
+import { requireCanonicalWebEnvironment } from "@/lib/verah-environment";
 
 const primaryFilters: Array<[ConciergeFilter, string]> = [
   ["todos", "Todos"],
@@ -87,7 +89,20 @@ export default async function ConciergePage({
   const query = await searchParams;
   const filter = validFilter(query.filter);
   const period = validPeriod(query.period);
-  const requests = await listConciergeServiceRequests();
+  const backend = requireCanonicalWebEnvironment({ supabaseUrl: env.supabaseUrl, anonKey: env.supabaseAnonKey, environment: env.supabaseEnvironment });
+  let requests: Awaited<ReturnType<typeof listConciergeServiceRequests>>;
+  try {
+    requests = await listConciergeServiceRequests();
+  } catch {
+    return (
+      <section role="alert" className="space-y-4 rounded-xl border p-6">
+        <h1 className="text-xl font-semibold">Não foi possível carregar a fila</h1>
+        <p>Não foi possível consultar os atendimentos. Isso não significa que a fila está vazia.</p>
+        <p className="text-sm">Alpha · {backend.projectRef ?? "local"}</p>
+        <form action="/concierge" method="get"><button className="underline">Tentar novamente</button></form>
+      </section>
+    );
+  }
   const [providers, quoteTimings] = await Promise.all([
     listActiveProviders(),
     listQuoteTimingsForRequests(requests.map((request) => request.id)),
@@ -125,6 +140,7 @@ export default async function ConciergePage({
 
   return (
     <div className="space-y-7">
+      <div className="flex gap-2 text-xs text-muted-foreground"><span>Alpha · {backend.projectRef ?? "local"}</span><form action="/concierge" method="get"><button className="underline">Atualizar fila</button></form></div>
       <header className="flex flex-col gap-5 rounded-[1.5rem] border border-rose-100 bg-white/90 p-5 shadow-[0_18px_45px_rgba(64,83,80,0.06)] sm:p-7 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="flex items-center gap-2 text-sm font-semibold text-accent">
