@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { JourneyLiveUpdates } from "@/components/journey/journey-live-updates";
 import type { Metadata } from "next";
 import { Poppins } from "next/font/google";
@@ -18,7 +19,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="pt-BR" className={poppins.variable}>
-      <body>{children}<JourneyLiveUpdates /></body>
+      <body>{children}<Suspense fallback={null}><JourneyLiveUpdates /></Suspense></body>
     </html>
   );
 }

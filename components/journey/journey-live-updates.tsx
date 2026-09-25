@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { getJourneyRevision } from "@/services/journey/live-actions";
 import { createJourneyPoller, isJourneyPath } from "@/lib/journey-poller";
 
 export function JourneyLiveUpdates() {
   const pathname = usePathname();
   const router = useRouter();
+  const search = useSearchParams().toString();
   const [status, setStatus] = useState("current");
   const [refreshing, startTransition] = useTransition();
   const refreshingRef = useRef(false);
@@ -24,7 +25,7 @@ export function JourneyLiveUpdates() {
     // Navigation or an explicit form reset starts a fresh editing lifecycle.
     const reset = () => { dirty = false; };
     const poller = createJourneyPoller({
-      read: getJourneyRevision,
+      read: () => getJourneyRevision(pathname.match(/([0-9a-f-]{36})$/i)?.[1]),
       active: () => !document.hidden && navigator.onLine && !refreshingRef.current,
       editing,
       refresh: () => startTransition(() => router.refresh()),
@@ -54,7 +55,7 @@ export function JourneyLiveUpdates() {
       window.removeEventListener("offline", offline);
       window.removeEventListener("focus", tick);
     };
-  }, [pathname, router]);
+  }, [pathname, search, router]);
 
   if (!isJourneyPath(pathname) || status === "current") return null;
   return <div role="status" className="fixed bottom-3 left-1/2 z-50 w-[min(90vw,36rem)] -translate-x-1/2 rounded-xl border bg-background p-3 text-sm text-foreground shadow-lg">

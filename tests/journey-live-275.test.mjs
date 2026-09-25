@@ -66,10 +66,12 @@ function server(profile, database, fail = false) {
     "@/services/auth/profile": { getCurrentProfileState: async () => profile ? { status: "authenticated", profile } : { status: "unauthenticated" } },
     "@/services/supabase/server": { createSupabaseServerClient: async () => ({ from: table => ({ select: columns => {
       assert.equal(columns, "id,updated_at");
-      return { order: column => { assert.equal(column, "id"); return { range: async (start, end) => {
+      let filter;
+      const query = { eq: (column, value) => { filter = row => row[column] === value; return query; }, order: column => { assert.equal(column, "id"); return { range: async (start, end) => {
         if (fail) return { error: { message: "private failure" } };
-        return { data: database[table].filter(row => row.audience.includes(profile.role)).slice(start, end + 1).map(({ id, updated_at }) => ({ id, updated_at })) };
+        return { data: database[table].filter(row => row.audience.includes(profile.role) && (!filter || filter(row))).slice(start, end + 1).map(({ id, updated_at }) => ({ id, updated_at })) };
       } }; } };
+      return query;
     } }) }) },
   };
   const exports = {};
@@ -96,4 +98,49 @@ test("#275 distinct sessions observe the same canonical request changes through 
 test("#275 query failures reject instead of producing an empty/successful revision", async () => {
   await assert.rejects(server({ role: "customer" }, {}, true)(), /unavailable/);
   assert.deepEqual(await server(null, {})(), { session: null, revision: null });
+});
+
+test("#275 detail revisions exclude unrelated requests and quotes while lists still update", async () => {
+  const id = "00000000-0000-4000-8000-000000000001";
+  const other = "00000000-0000-4000-8000-000000000002";
+  const db = { service_requests: [{ id, updated_at: "1", audience: ["concierge"] }, { id: other, updated_at: "1", audience: ["concierge"] }], service_quotes: [{ id: "q1", service_request_id: id, updated_at: "1", audience: ["concierge"] }, { id: "q2", service_request_id: other, updated_at: "1", audience: ["concierge"] }] };
+  const read = server({ role: "concierge" }, db);
+  const detail = await read(id), list = await read();
+  db.service_requests[1].updated_at = "2"; db.service_quotes[1].updated_at = "2";
+  assert.deepEqual(await read(id), detail);
+  assert.notEqual((await read()).revision, list.revision);
+  db.service_quotes[0].updated_at = "2";
+  assert.notEqual((await read(id)).revision, detail.revision);
+  await assert.rejects(read("invalid"), /Invalid journey scope/);
+});
+
+test("#275 query-only navigation resets the editing lifecycle and refreshes the new view", async () => {
+  const source = ts.transpileModule(readFileSync(new URL("../components/journey/journey-live-updates.tsx", import.meta.url), "utf8"), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } }).outputText;
+  let effect, dependencies, search = "stage=new", revision = "1", refreshes = 0;
+  const statuses = [], listeners = new Map();
+  const router = { refresh: () => refreshes++ };
+  const modules = {
+    "react": { useEffect: (callback, deps) => { effect = callback; dependencies = deps; }, useState: () => ["current", value => statuses.push(value)], useRef: value => ({ current: value }), useTransition: () => [false, callback => callback()] },
+    "react/jsx-runtime": { jsx: () => null, jsxs: () => null },
+    "next/navigation": { usePathname: () => "/concierge", useSearchParams: () => ({ toString: () => search }), useRouter: () => router },
+    "@/services/journey/live-actions": { getJourneyRevision: async () => ({ session: "one", revision }) },
+    "@/lib/journey-poller": { createJourneyPoller, isJourneyPath },
+  };
+  const target = { addEventListener: (name, callback) => listeners.set(name, callback), removeEventListener: name => listeners.delete(name) };
+  const document = { ...target, hidden: false, activeElement: null };
+  const window = { ...target, setInterval: callback => { listeners.set("timer", callback); return 1; }, clearInterval: () => listeners.delete("timer"), location: { reload() {} } };
+  class Element { closest() { return true; } }
+  const exports = {};
+  new Function("require", "exports", "document", "window", "navigator", "Element", source)(name => modules[name], exports, document, window, { onLine: true }, Element);
+  exports.JourneyLiveUpdates(); const firstDeps = dependencies; const cleanup = effect();
+  await new Promise(resolve => setImmediate(resolve));
+  listeners.get("input")({ target: new Element() }); revision = "2"; listeners.get("timer")();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(statuses.at(-1), "pending"); const before = refreshes;
+  search = "stage=approved"; exports.JourneyLiveUpdates();
+  assert.notDeepEqual(dependencies, firstDeps);
+  cleanup(); const cleanupNew = effect();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(refreshes, before + 1); assert.equal(statuses.at(-1), "current");
+  cleanupNew(); assert.equal(listeners.size, 0);
 });

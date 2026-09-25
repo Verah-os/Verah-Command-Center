@@ -5,7 +5,7 @@ journey lists and UUID detail paths. It checks every eight seconds while visible
 online, and on focus/reconnection. Hidden/offline/pending-render work is paused.
 
 A Server Action validates the current profile, uses only the session-bound Supabase
-client, and hashes paginated id/updated_at projections from service_requests and
+client, scopes detail revisions to the current request (lists retain the full visible projection), and hashes paginated id/updated_at projections from service_requests and
 service_quotes under existing RLS. No rows, fields, service keys or internal details
 are returned to the browser. Errors reject rather than returning an empty revision.
 No remote publication/subscription/schema setup is required.
@@ -14,7 +14,7 @@ Changed revisions merge a fresh server render with router.refresh. Identical rev
 avoid refreshes. One request is in flight per mounted controller, and cleanup ignores
 late results. Changed/expired sessions reload the page to re-run route authorization.
 
-Input/change events pause automatic rendering until form reset or navigation; focus in
+Input/change events pause automatic rendering until form reset or navigation (including query-only navigation); focus in
 a form also defers rendering. This intentionally prioritizes unsaved edits over the
 10-second target. The pending message explains that the user should save and reopen
 if their form does not reset after saving. Network/read errors show stale-data status
