@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/services/supabase/server";
 import { requireRole } from "@/services/auth/profile";
+import { providerAssignmentErrorMessage, providerAssignmentErrorCode } from "./assignment-errors";
+import { randomUUID } from "node:crypto";
 export async function assignProvider(formData: FormData) {
   await requireRole(["concierge", "admin"]);
   const serviceRequestId = formData.get("serviceRequestId");
@@ -20,9 +22,7 @@ export async function assignProvider(formData: FormData) {
     p_provider_id: providerId,
   });
   if (error) {
-    const message = error.message.includes("já possui")
-      ? "Este atendimento já possui um prestador indicado."
-      : "Não foi possível indicar o prestador.";
+    const message = assignmentFailure("assign", error);
     redirect(
       `/concierge/${serviceRequestId}?error=${encodeURIComponent(message)}` as Route,
     );
@@ -32,6 +32,8 @@ export async function assignProvider(formData: FormData) {
   revalidatePath("/dashboard");
   revalidatePath("/demo/cliente");
   revalidatePath(`/demo/cliente/atendimento/${serviceRequestId}`);
+  revalidatePath("/prestador");
+  revalidatePath(`/prestador/atendimento/${serviceRequestId}`);
   revalidatePath("/demo/prestador");
   redirect(`/concierge/${serviceRequestId}?providerAssigned=1` as Route);
 }
@@ -56,11 +58,23 @@ export async function reassignProvider(formData: FormData) {
   });
   if (error)
     redirect(
-      `/concierge/${serviceRequestId}?error=${encodeURIComponent(error.message)}` as Route,
+      `/concierge/${serviceRequestId}?error=${encodeURIComponent(assignmentFailure("reassign", error))}` as Route,
     );
   revalidatePath("/concierge");
   revalidatePath(`/concierge/${serviceRequestId}`);
+  revalidatePath("/prestador");
+  revalidatePath(`/prestador/atendimento/${serviceRequestId}`);
   revalidatePath("/demo/prestador");
   revalidatePath(`/demo/cliente/atendimento/${serviceRequestId}`);
   redirect(`/concierge/${serviceRequestId}?providerReassigned=1` as Route);
+}
+
+function assignmentFailure(operation: "assign" | "reassign", error: { code?: string; message?: string }) {
+  const reference = randomUUID();
+  console.error("service-providers:assignment-failed", {
+    operation,
+    reference,
+    code: providerAssignmentErrorCode(error),
+  });
+  return `${providerAssignmentErrorMessage(error)} Referência: ${reference}.`;
 }
