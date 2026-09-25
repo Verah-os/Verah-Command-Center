@@ -27,7 +27,11 @@ export function ProviderLoginForm({ error }: { error?: string }) {
         </label>
         {error && (
           <p role="alert" className="rounded-md border border-danger/40 bg-danger/10 p-4 text-sm text-red-200">
-            {error === "profile_missing"
+            {error === "access_denied"
+              ? "Esta conta não tem acesso ao Portal do prestador. Entre com sua conta de prestador."
+              : error === "signout_failed"
+                ? "Não foi possível encerrar a sessão anterior. Tente novamente."
+                : error === "profile_missing"
               ? "Esta conta ainda não possui acesso ao Portal do prestador. Fale com o administrador."
               : "Não foi possível entrar. Confira o e-mail e a senha."}
           </p>

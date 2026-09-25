@@ -17,6 +17,11 @@ export async function signInWithEmail(formData: FormData) {
       : "/login";
   const supabase = await createSupabaseServerClient();
 
+  // End only this browser session before attempting an account switch.
+  const { error: signOutError } = await supabase.auth.signOut({ scope: "local" });
+  revalidatePath("/", "layout");
+  if (signOutError) redirect(`${loginPath}?error=signout_failed` as Route);
+
   const { data: auth, error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
@@ -28,7 +33,7 @@ export async function signInWithEmail(formData: FormData) {
     .eq("user_id", auth.user.id)
     .maybeSingle();
   if (profileError) {
-    await supabase.auth.signOut();
+    await supabase.auth.signOut({ scope: "local" });
     redirect(`${loginPath}?error=profile_error` as Route);
   }
   if (!profile && audience === "customer") {
@@ -46,7 +51,7 @@ export async function signInWithEmail(formData: FormData) {
     redirect("/entrar/prestador/cadastro?resume=1" as Route);
   }
   if (profileError || !profile || !isUserRole(profile.role)) {
-    await supabase.auth.signOut();
+    await supabase.auth.signOut({ scope: "local" });
     redirect(`${loginPath}?error=${profile ? "profile_invalid" : "profile_missing"}` as Route);
   }
   if (profile.role === "customer") {
@@ -127,7 +132,8 @@ export async function completeCustomerOnboarding(formData: FormData) {
 
 export async function signOut() {
   const supabase = await createSupabaseServerClient();
-  await supabase.auth.signOut();
+  const { error } = await supabase.auth.signOut({ scope: "local" });
   revalidatePath("/", "layout");
+  if (error) redirect("/login?error=signout_failed");
   redirect("/login");
 }
