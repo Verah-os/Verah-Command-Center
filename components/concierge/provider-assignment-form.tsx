@@ -32,6 +32,9 @@ export function ProviderAssignmentForm({
   return (
     <form action={action} className="space-y-5">
       <input type="hidden" name="serviceRequestId" value={requestId} />
+      <p className="text-sm text-muted-foreground">
+        Portal ativo indica acesso à conta. A indicação também depende da habilitação do prestador para este serviço.
+      </p>
       <fieldset className="space-y-3">
         <legend className="text-sm font-semibold">
           {mode === "reassign" ? "Novo prestador" : "Prestador"}
