@@ -1,4 +1,3 @@
-import type { Route } from "next";
 import { redirect } from "next/navigation";
 import {
   decideAuthorization,
@@ -82,7 +81,8 @@ export async function requireRole(allowed: readonly UserRole[]) {
   });
 
   if (decision !== "authorized") {
-    redirect(`${roleHome[state.profile.role]}?error=access_denied` as Route);
+    // A denied role must terminate at a public login, never another guarded home.
+    redirect("/login?error=access_denied");
   }
 
   return state.profile;

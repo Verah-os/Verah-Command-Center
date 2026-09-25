@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { env } from "@/lib/env";
 import { requireCanonicalWebEnvironment } from "@/lib/verah-environment";
-import { isUserRole, roleHome as homes } from "@/services/auth/access";
+import { isUserRole } from "@/services/auth/access";
 import type { UserRole } from "@/types/user-profile";
 
 export async function middleware(request: NextRequest) {
@@ -35,81 +35,59 @@ export async function middleware(request: NextRequest) {
         return request.cookies.getAll();
       },
       setAll(cookiesToSet: CookieToSet[]) {
-        cookiesToSet.forEach(({ name, value }) =>
-          request.cookies.set(name, value),
-        );
+        cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
         response = NextResponse.next({ request });
-        cookiesToSet.forEach(({ name, value, options }) =>
-          response.cookies.set(name, value, options),
-        );
+        cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
       },
     },
   });
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const isLogin = path.startsWith("/login") || path.startsWith("/entrar/");
-  const isPublicDemo = path === "/demo" || path === "/demo/concierge";
-  if (!user && !isLogin && !isPublicDemo) {
-    const url = request.nextUrl.clone();
-    url.pathname = path.startsWith("/demo/cliente")
-      ? "/entrar/cliente"
-      : path.startsWith("/concierge")
-        ? "/entrar/concierge"
-        : path.startsWith("/demo/prestador")
-          ? "/entrar/prestador"
-          : "/login";
-    return NextResponse.redirect(url);
+  // Redirects must carry refreshed/cleared auth cookies back to the browser.
+  function loginRedirect(destination: string, error: string) {
+    const url = new URL(destination, request.url);
+    url.searchParams.set("error", error);
+    const redirected = NextResponse.redirect(url);
+    response.cookies.getAll().forEach((cookie) => redirected.cookies.set(cookie));
+    redirected.headers.set("Cache-Control", "private, no-store");
+    return redirected;
   }
 
-  if (!user) return response;
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  const within = (base: string) => path === base || path.startsWith(`${base}/`);
+  const isLogin = path === "/login" || within("/entrar");
+  const isPublicDemo = path === "/demo/concierge";
+  // Login is a terminal recovery surface even with an existing session.
+  // In particular, POST Server Actions must be able to switch accounts.
+  if (isLogin) return response;
+
+  const routeRole: UserRole | null = within("/demo/cliente") || within("/onboarding/cliente")
+    ? "customer"
+    : within("/concierge")
+      ? "concierge"
+      : within("/prestador") || within("/demo/prestador") || within("/onboarding/prestador")
+        ? "provider"
+        : null;
+  const loginPath = routeRole === "customer" ? "/entrar/cliente"
+    : routeRole === "provider" ? "/entrar/prestador"
+      : routeRole === "concierge" ? "/entrar/concierge" : "/login";
+
+  if (userError || !user) {
+    return isPublicDemo ? response : loginRedirect(loginPath, "session_required");
+  }
   const { data: profile, error: profileError } = await supabase
     .from("user_profiles")
     .select("role")
     .eq("user_id", user.id)
     .maybeSingle();
-  if (profileError) {
-    if (isLogin) return response;
-    const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    url.search = "?error=profile_error";
-    return NextResponse.redirect(url);
-  }
+  if (profileError) return loginRedirect(loginPath, "profile_error");
   if (!profile || !isUserRole(profile.role)) {
-    if (isLogin) return response;
-    const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    url.search = `?error=${profile ? "profile_invalid" : "profile_missing"}`;
-    return NextResponse.redirect(url);
+    return loginRedirect(loginPath, profile ? "profile_invalid" : "profile_missing");
   }
   const role = profile.role;
-  if (isLogin) return NextResponse.redirect(new URL(homes[role], request.url));
-
-  const routeRole: UserRole | null = path.startsWith("/demo/cliente")
-    ? "customer"
-    : path.startsWith("/concierge")
-      ? "concierge"
-      : path.startsWith("/demo/prestador")
-        ? "provider"
-        : null;
-
-  if (routeRole && role !== routeRole) {
-    const url = new URL(homes[role], request.url);
-    url.searchParams.set("error", "access_denied");
-    return NextResponse.redirect(url);
-  }
-
-  const allowed =
-    isPublicDemo ||
-    routeRole === role ||
-    role === "admin";
-  if (!allowed) {
-    const url = new URL(homes[role], request.url);
-    url.searchParams.set("error", "access_denied");
-    return NextResponse.redirect(url);
-  }
+  // Customer pages require customer; provider/concierge also admit admin.
+  const allowed = isPublicDemo || routeRole === role ||
+    (role === "admin" && routeRole !== "customer");
+  if (!allowed) return loginRedirect(loginPath, "access_denied");
 
   return response;
 }

@@ -17,13 +17,13 @@ const compiled = ts.transpileModule(
 
 function harness(supabaseUrl = "https://wxnklnbntgpcncajzpsj.supabase.co") {
   let authCalls = 0;
-  const next = () => ({ status: 200, cookies: { set() {} } });
+  const next = () => ({ status: 200, cookies: { set() {}, getAll: () => [] } });
   const modules = {
     "next/server": {
       NextResponse: class {
         constructor(body, options) { this.status = options.status; this.body = body; }
         static next = next;
-        static redirect = (url) => ({ status: 307, location: url.pathname });
+        static redirect = (url) => ({ status: 307, location: url.pathname, cookies: { set() {} }, headers: { set() {} } });
       },
     },
     "@supabase/ssr": {

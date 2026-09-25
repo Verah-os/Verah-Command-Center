@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/primitives";
 
 const errorMessages: Record<string, string> = {
+  access_denied: "Esta conta não tem acesso a esta área. Entre com outra conta.",
+  signout_failed: "Não foi possível encerrar a sessão. Tente novamente antes de trocar de conta.",
   invalid_credentials: "E-mail ou senha inválidos.",
   profile_missing:
     "Esta conta ainda não possui um perfil de acesso. Fale com o administrador.",
