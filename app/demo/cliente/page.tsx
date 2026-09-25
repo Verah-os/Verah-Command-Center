@@ -30,9 +30,10 @@ export default async function CustomerPage() {
     requests.map((request) => request.id),
   );
   const vehicle = vehicles[0] ?? null;
-  const openRequest = requests.find(
+  const openRequests = requests.filter(
     (request) => !["concluido", "cancelado"].includes(request.serviceStage),
   );
+  const openRequest = openRequests[0];
   const completed = requests.filter(
     (request) => request.serviceStage === "concluido",
   );
@@ -57,19 +58,34 @@ export default async function CustomerPage() {
                 Sua jornada VERAH · Olá, {firstName}
               </p>
               <h1 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight sm:text-4xl">
-                Cuidado para o seu veículo. Clareza para você.
+                {openRequest ? `${openRequest.vehicleBrand} ${openRequest.vehicleModel}` : "Cuidado para o seu veículo. Clareza para você."}
               </h1>
               <p className="mt-3 max-w-2xl leading-7 text-slate-600">
-                Do primeiro relato ao cuidado concluído, a VERAH conecta cada próximo passo.
+                {openRequest ? `${openRequest.referenceCode} · ${customerStageLabels[openRequest.serviceStage]}` : "Do primeiro relato ao cuidado concluído, a VERAH conecta cada próximo passo."}
               </p>
             </div>
+            <div className="flex shrink-0 flex-col gap-3">
             <Link
-              href="/demo/cliente/novo-atendimento"
+              href={openRequest ? `/demo/cliente/atendimento/${openRequest.id}` as Route : "/demo/cliente/novo-atendimento"}
               className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-accent px-5 font-semibold text-white outline-none transition hover:bg-accent focus-visible:ring-4 focus-visible:ring-accent/30"
             >
-              Solicitar atendimento <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              {openRequest ? "Acompanhar atendimento" : "Solicitar atendimento"} <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
+            {openRequest && <Link href="/demo/cliente/novo-atendimento" className="inline-flex min-h-11 items-center justify-center font-semibold text-accent underline underline-offset-4">Solicitar atendimento</Link>}
+            </div>
           </div>
+          {openRequests.length > 1 && (
+            <nav aria-label="Outros atendimentos em andamento" className="relative mt-6 border-t border-rose-100 pt-4">
+              <h2 className="text-sm font-semibold">Outros atendimentos em andamento</h2>
+              <ul className="mt-2 space-y-2">
+                {openRequests.slice(1).map((request) => (
+                  <li key={request.id}><Link href={`/demo/cliente/atendimento/${request.id}` as Route} className="inline-flex min-h-11 items-center text-sm font-semibold text-accent underline underline-offset-4">
+                    {request.referenceCode} · {request.vehicleBrand} {request.vehicleModel} · {customerStageLabels[request.serviceStage]}
+                  </Link></li>
+                ))}
+              </ul>
+            </nav>
+          )}
         </div>
 
         <div className="mt-6 grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
