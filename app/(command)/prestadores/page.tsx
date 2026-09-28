@@ -170,10 +170,11 @@ function ProviderDetail({ detail }: { detail: Detail }) {
               obrigatórios são preservados.
             </p>
             {!checklist.length && (
-              <p role="alert">
-                Checklist ausente. Aprovação indisponível; encaminhe para
-                revisão do cadastro canônico.
-              </p>
+              <form action={submitHomologation} className="space-y-3">
+                <Context id={provider.id} operation="initialize_checklist" />
+                <p role="alert">Checklist ausente. Inicialize os requisitos canônicos preservando o perfil operacional existente.</p>
+                <button className={buttonClass}>Inicializar checklist</button>
+              </form>
             )}
             {checklist.map((item) => (
               <details

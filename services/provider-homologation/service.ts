@@ -203,8 +203,12 @@ export async function operateHomologation(form: FormData): Promise<void> {
   } else {
     if (!detail.profile)
       throw new Error("Inicie o perfil antes de revisar a homologação.");
-    const reason = value(form, "reason", true);
-    if (operation === "checklist") {
+    const reason = value(form, "reason", operation !== "initialize_checklist");
+    if (operation === "initialize_checklist") {
+      if (detail.checklist.length) throw new Error("O checklist já existe. Recarregue a página.");
+      rpc = "initialize_provider_homologation_checklist";
+      args = { p_provider_id: id };
+    } else if (operation === "checklist") {
       const item = detail.checklist.find(
         (item) => item.item_code === value(form, "item_code", true),
       );

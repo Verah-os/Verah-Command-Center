@@ -153,6 +153,7 @@ for (const role of ["provider", "customer", "concierge", null]) {
     );
     await assert.rejects(db.service.getHomologationDetail(id), /access_denied/);
     for (const operation of [
+      "initialize_checklist",
       "initialize",
       "checklist",
       "category",
@@ -302,4 +303,13 @@ test("RPC failures and stale review dates fail closed", async () => {
     db.service.operateHomologation(form("status", { status: "approved" })),
     /não confirmada/,
   );
+});
+
+test("existing profile without checklist can initialize without posting operational fields", async () => {
+  const db = setup();
+  db.tables.provider_homologation_checklist_items = [];
+  const before = structuredClone(db.tables.provider_homologation_profiles);
+  await db.service.operateHomologation(form("initialize_checklist", { legal_name: "tampered", operational_hours: "tampered" }));
+  assert.deepEqual(db.calls, [{ name: "initialize_provider_homologation_checklist", args: { p_provider_id: id } }]);
+  assert.deepEqual(db.tables.provider_homologation_profiles, before);
 });

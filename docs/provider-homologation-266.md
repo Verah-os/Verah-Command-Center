@@ -23,6 +23,11 @@ SQL NULL for a session without a canonical profile. The new repository-only migr
 uses `IS DISTINCT FROM`. No remote migration was applied. Deploying this security
 fix through the approved migration process is a prerequisite for treating all direct
 RPC callers as hardened; the new web entry itself requires a canonical admin profile.
+The same pending migration adds an admin-only `initialize_provider_homologation_checklist`
+wrapper for profiles already created by operational onboarding. It locks the profile
+and calls the existing canonical initializer with unchanged values, seeding missing
+requirements idempotently without overwriting operational fields. This action requires
+that migration to be released by the authorized process; until then RPC failure is explicit.
 
 ## Minimum physical check after the authorized release
 
@@ -32,6 +37,8 @@ RPC callers as hardened; the new web entry itself requires a canonical admin pro
 2. If the profile is absent, use **Iniciar análise** with confirmed real registration,
    address, responsible person and contact. This seeds the canonical requirements.
    Never fabricate evidence or mark requirements optional to advance a smoke test.
+   For an existing profile with no checklist, use **Inicializar checklist** instead;
+   its operational fields are preserved atomically.
 3. Review the required checklist with existing available private evidence IDs linked
    to this provider. Missing evidence remains a blocking operational prerequisite;
    this delivery does not introduce an attachment uploader or public evidence URLs.
