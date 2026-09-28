@@ -2,6 +2,15 @@ import type { CommandModule } from "@/types/module";
 
 export const modules: CommandModule[] = [
   {
+    slug: "prestadores",
+    title: "Prestadores / Homologação",
+    description: "Revisão administrativa da rede de prestadores.",
+    owner: "VERAH",
+    status: "ready",
+    primaryAction: "Revisar homologação",
+    metrics: []
+  },
+  {
     slug: "dashboard",
     title: "Dashboard",
     description: "Executive operating view across VERAH OS.",

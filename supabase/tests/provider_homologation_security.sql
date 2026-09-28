@@ -89,6 +89,30 @@ values
   );
 
 -- Operationally active is not enough for a real Pilot Alpha assignment.
+insert into auth.users (id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
+values ('e7777777-7777-4777-8777-777777777777', 'authenticated', 'authenticated',
+  'homologation.unprofiled@example.invalid', '{}', '{}', now(), now());
+-- Explicitly no canonical profile: SQL NULL must not bypass the admin guard.
+delete from public.user_profiles where user_id = 'e7777777-7777-4777-8777-777777777777';
+set local role authenticated;
+select pg_catalog.set_config('request.jwt.claim.role', 'authenticated', true);
+select pg_catalog.set_config('request.jwt.claim.sub', 'e7777777-7777-4777-8777-777777777777', true);
+select pg_catalog.set_config('request.jwt.claims', '{"role":"authenticated","sub":"e7777777-7777-4777-8777-777777777777"}', true);
+select provider_homologation_test.expect_error(
+  $$select public.set_provider_homologation_status('e4444444-4444-4444-8444-444444444441','under_review','No profile')$$
+);
+select pg_catalog.set_config('request.jwt.claim.sub', 'e3333333-3333-4333-8333-333333333333', true);
+select pg_catalog.set_config('request.jwt.claims', '{"role":"authenticated","sub":"e3333333-3333-4333-8333-333333333333"}', true);
+select provider_homologation_test.expect_error(
+  $$select public.set_provider_homologation_status('e4444444-4444-4444-8444-444444444441','under_review','Concierge denied')$$
+);
+select provider_homologation_test.expect_error(
+  $$select public.set_provider_category_authorization('e4444444-4444-4444-8444-444444444441','freios','approved',null,'Concierge denied')$$
+);
+select provider_homologation_test.expect_error(
+  $$select public.set_provider_operational_block('e4444444-4444-4444-8444-444444444441',true,'Concierge denied')$$
+);
+reset role;
 do $$ begin
   if public.provider_is_eligible_for_service(
     'e4444444-4444-4444-8444-444444444441', 'freios', 'pilot_alpha'
@@ -122,6 +146,12 @@ select public.upsert_provider_homologation_profile(
   'SYNTHETIC-REG-A', '{"city":"Test City"}', '{"name":"Responsible A"}',
   '{"channel":"internal-test"}', array['freios'], array['Test City'],
   '{"weekdays":"08:00-18:00"}', 3, '90 dias', 90, true, 'Synthetic test profile'
+);
+select provider_homologation_test.expect_error(
+  $$select public.set_provider_homologation_status('e4444444-4444-4444-8444-444444444441','pilot_approved','Pending mandatory checklist')$$
+);
+select provider_homologation_test.expect_error(
+  $$select public.set_provider_homologation_status('e4444444-4444-4444-8444-444444444441','approved','Pending mandatory checklist')$$
 );
 do $$ begin
   if public.provider_is_eligible_for_service(
