@@ -89,6 +89,30 @@ values
   );
 
 -- Operationally active is not enough for a real Pilot Alpha assignment.
+insert into auth.users (id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
+values ('e7777777-7777-4777-8777-777777777777', 'authenticated', 'authenticated',
+  'homologation.unprofiled@example.invalid', '{}', '{}', now(), now());
+-- Explicitly no canonical profile: SQL NULL must not bypass the admin guard.
+delete from public.user_profiles where user_id = 'e7777777-7777-4777-8777-777777777777';
+set local role authenticated;
+select pg_catalog.set_config('request.jwt.claim.role', 'authenticated', true);
+select pg_catalog.set_config('request.jwt.claim.sub', 'e7777777-7777-4777-8777-777777777777', true);
+select pg_catalog.set_config('request.jwt.claims', '{"role":"authenticated","sub":"e7777777-7777-4777-8777-777777777777"}', true);
+select provider_homologation_test.expect_error(
+  $$select public.set_provider_homologation_status('e4444444-4444-4444-8444-444444444441','under_review','No profile')$$
+);
+select pg_catalog.set_config('request.jwt.claim.sub', 'e3333333-3333-4333-8333-333333333333', true);
+select pg_catalog.set_config('request.jwt.claims', '{"role":"authenticated","sub":"e3333333-3333-4333-8333-333333333333"}', true);
+select provider_homologation_test.expect_error(
+  $$select public.set_provider_homologation_status('e4444444-4444-4444-8444-444444444441','under_review','Concierge denied')$$
+);
+select provider_homologation_test.expect_error(
+  $$select public.set_provider_category_authorization('e4444444-4444-4444-8444-444444444441','freios','approved',null,'Concierge denied')$$
+);
+select provider_homologation_test.expect_error(
+  $$select public.set_provider_operational_block('e4444444-4444-4444-8444-444444444441',true,'Concierge denied')$$
+);
+reset role;
 do $$ begin
   if public.provider_is_eligible_for_service(
     'e4444444-4444-4444-8444-444444444441', 'freios', 'pilot_alpha'
@@ -117,11 +141,44 @@ end $$;
 select pg_catalog.set_config('request.jwt.claim.sub', 'e2222222-2222-4222-8222-222222222222', true);
 select pg_catalog.set_config('request.jwt.claims', '{"role":"authenticated","sub":"e2222222-2222-4222-8222-222222222222"}', true);
 
+reset role;
+insert into public.provider_homologation_profiles (
+  provider_id, legal_name, operational_hours, approximate_capacity,
+  warranty_policy, warranty_days, receives_vehicles, internal_notes
+) values (
+  'e4444444-4444-4444-8444-444444444442', 'Existing Profile B',
+  '{"weekdays":"09:00-17:00"}', 7, 'Preserved warranty', 120, true, 'Preserved notes'
+);
+set local role authenticated;
+select public.initialize_provider_homologation_checklist('e4444444-4444-4444-8444-444444444442');
+select public.initialize_provider_homologation_checklist('e4444444-4444-4444-8444-444444444442');
+do $$ begin
+  if (select count(*) from public.provider_homologation_checklist_items
+      where provider_id = 'e4444444-4444-4444-8444-444444444442') <> 12 then
+    raise exception 'Canonical checklist was not initialized idempotently';
+  end if;
+  if not exists (
+    select 1 from public.provider_homologation_profiles
+    where provider_id = 'e4444444-4444-4444-8444-444444444442'
+      and legal_name = 'Existing Profile B' and approximate_capacity = 7
+      and operational_hours = '{"weekdays":"09:00-17:00"}'::jsonb
+      and warranty_policy = 'Preserved warranty' and warranty_days = 120
+      and receives_vehicles and internal_notes = 'Preserved notes'
+      and homologation_status = 'candidate'
+  ) then raise exception 'Checklist initialization overwrote the existing profile'; end if;
+end $$;
+
 select public.upsert_provider_homologation_profile(
   'e4444444-4444-4444-8444-444444444441', 'Alpha Provider A Ltda', 'Alpha A',
   'SYNTHETIC-REG-A', '{"city":"Test City"}', '{"name":"Responsible A"}',
   '{"channel":"internal-test"}', array['freios'], array['Test City'],
   '{"weekdays":"08:00-18:00"}', 3, '90 dias', 90, true, 'Synthetic test profile'
+);
+select provider_homologation_test.expect_error(
+  $$select public.set_provider_homologation_status('e4444444-4444-4444-8444-444444444441','pilot_approved','Pending mandatory checklist')$$
+);
+select provider_homologation_test.expect_error(
+  $$select public.set_provider_homologation_status('e4444444-4444-4444-8444-444444444441','approved','Pending mandatory checklist')$$
 );
 do $$ begin
   if public.provider_is_eligible_for_service(
