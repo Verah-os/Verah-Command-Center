@@ -46,7 +46,17 @@ export async function middleware(request: NextRequest) {
   function loginRedirect(destination: string, error: string) {
     const url = new URL(destination, request.url);
     url.searchParams.set("error", error);
-    const redirected = NextResponse.redirect(url);
+    // A fetch-based Server Action must receive the action redirect protocol.
+    // An ordinary 307 makes fetch replay its POST at /login and then hands HTML
+    // to the React action decoder, producing a client-side application error.
+    // Terminate here: neither the protected action nor the login action runs.
+    const isAction = request.method === "POST" && request.headers.has("next-action");
+    const redirected = isAction
+      ? new NextResponse(null, {
+          status: 303,
+          headers: { "x-action-redirect": `${url.pathname}${url.search};replace` },
+        })
+      : NextResponse.redirect(url, request.method === "POST" ? 303 : 307);
     response.cookies.getAll().forEach((cookie) => redirected.cookies.set(cookie));
     redirected.headers.set("Cache-Control", "private, no-store");
     return redirected;

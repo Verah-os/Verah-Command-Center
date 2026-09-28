@@ -58,3 +58,20 @@ that migration to be released by the authorized process; until then RPC failure 
 No identity, customer, vehicle, service request, remote database, production, payment,
 real message, secret, signing, publishing or manual deployment action is part of this PR.
 Issue #266 stays open pending that same-row physical smoke.
+
+## Session recovery after submitting an old Admin tab
+
+Browser tabs in the same profile share the login session. Signing in as Provider or
+Customer can invalidate the Admin role of an already-open homologation form. Use
+separate browser profiles for simultaneous role testing, or switch sequentially and
+sign in as Admin again before reviewing providers.
+
+A denied Server Action now terminates at middleware with an action-protocol redirect;
+it must never be replayed as a POST to `/login` or reach the homologation RPC. Plain
+HTML POSTs use a 303 redirect so the login page receives GET. Regression tests run the
+installed Next response decoder against the middleware result and preserve the old
+HTML-response failure as a reproduction case.
+
+After any ambiguous browser error, sign in again and read the same provider before
+resubmitting. Synthetic registration data is not evidence for a real homologation;
+required checklist evidence and human authorization remain unchanged.
