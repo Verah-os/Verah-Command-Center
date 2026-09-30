@@ -244,8 +244,9 @@ begin
   end if;
   update storage.objects set name = name || '-tampered' where name = reservation->>'storage_path';
   if found then raise exception 'Evidence object was mutable'; end if;
-  delete from storage.objects where name = reservation->>'storage_path';
-  if found then raise exception 'Evidence object was deletable'; end if;
+  -- Current Storage rejects direct SQL DELETE before row-level policy evaluation.
+  perform provider_homologation_test.expect_error(format(
+    'delete from storage.objects where name = %L', reservation->>'storage_path'));
   reservation := public.reserve_provider_homologation_evidence(
     'e4444444-4444-4444-8444-444444444441','application/pdf',12,repeat('b',64),'Failure fixture');
   perform public.finish_provider_homologation_evidence('e4444444-4444-4444-8444-444444444441',(reservation->>'id')::uuid,false);
