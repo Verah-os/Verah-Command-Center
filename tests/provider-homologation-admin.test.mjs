@@ -16,7 +16,7 @@ test("page exposes canonical controls and read errors never render an empty dire
     "next/link": { default: ({ children, href, ...props }) => jsx.jsx("a", { ...props, href, children }) },
     "@/services/auth/profile": { requireRole: async () => ({ role: "admin" }) },
     "@/services/provider-homologation/service": service,
-    "./actions": { submitHomologation: async () => {} },
+    "./actions": { submitHomologation: async () => {}, submitEvidence: async () => {} },
   }).default;
   const html = renderToStaticMarkup(await page({ searchParams: Promise.resolve({ provider: id }) }));
   assert.match(html, /Checklist e evidências/);
@@ -36,12 +36,14 @@ test("server action authorization rejects before mutation and redirects", async 
     "next/navigation": { redirect: () => { throw new Error("unexpected redirect"); } },
     "@/services/auth/profile": { requireRole: async () => { throw new Error("access_denied"); } },
     "@/services/provider-homologation/service": { operateHomologation: async () => { mutations++; } },
+    "@/services/provider-homologation/evidence": { uploadHomologationEvidence: async () => { mutations++; } },
   }).submitHomologation;
   await assert.rejects(action(form("status", { status: "approved" })), /access_denied/);
   assert.equal(mutations, 0);
 });
 function setup(role = "admin") {
   const tables = {
+    service_attachments: [],
     service_providers: {
       id,
       name: "Synthetic provider",
@@ -111,6 +113,7 @@ function setup(role = "admin") {
     },
   };
   const service = loadTs("services/provider-homologation/service.ts", {
+    "./evidence": { readHomologationEvidence: async () => new Blob(["test"]) },
     "@/services/auth/profile": {
       requireRole: async (roles) => {
         if (!roles.includes(role)) throw new Error("access_denied");

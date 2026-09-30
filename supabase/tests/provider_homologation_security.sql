@@ -88,6 +88,11 @@ values
     'e2222222-2222-4222-8222-222222222222'
   );
 
+-- Local storage catalog fixtures only; no remote/fabricated Alpha evidence.
+insert into storage.objects (bucket_id, name)
+select storage_bucket, storage_path from public.service_attachments
+where id in ('e6666666-6666-4666-8666-666666666661', 'e6666666-6666-4666-8666-666666666662');
+
 -- Operationally active is not enough for a real Pilot Alpha assignment.
 insert into auth.users (id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
 values ('e7777777-7777-4777-8777-777777777777', 'authenticated', 'authenticated',
@@ -174,6 +179,74 @@ select public.upsert_provider_homologation_profile(
   '{"channel":"internal-test"}', array['freios'], array['Test City'],
   '{"weekdays":"08:00-18:00"}', 3, '90 dias', 90, true, 'Synthetic test profile'
 );
+-- Exercise the actual reservation/finalization RPCs and storage RLS locally.
+do $$
+declare reservation jsonb; attachment_id uuid; before_events bigint; denied_user text;
+begin
+  foreach denied_user in array array[
+    'e1111111-1111-4111-8111-111111111111', -- provider, no self approval
+    'e3333333-3333-4333-8333-333333333333', -- concierge
+    'e7777777-7777-4777-8777-777777777777'  -- no profile (SQL NULL)
+  ] loop
+    perform set_config('request.jwt.claim.sub', denied_user, true);
+    perform set_config('request.jwt.claims', jsonb_build_object('role','authenticated','sub',denied_user)::text, true);
+    perform provider_homologation_test.expect_error($q$select public.reserve_provider_homologation_evidence(
+      'e4444444-4444-4444-8444-444444444441','application/pdf',12,repeat('a',64),'Denied')$q$);
+    if exists (select 1 from public.service_attachments where homologation_provider_id is not null) then
+      raise exception 'Non-admin can read homologation evidence';
+    end if;
+  end loop;
+  perform set_config('request.jwt.claim.sub', 'e2222222-2222-4222-8222-222222222222', true);
+  perform set_config('request.jwt.claims', '{"role":"authenticated","sub":"e2222222-2222-4222-8222-222222222222"}', true);
+  select count(*) into before_events from public.provider_homologation_events;
+  reservation := public.reserve_provider_homologation_evidence(
+    'e4444444-4444-4444-8444-444444444441','application/pdf',12,repeat('a',64),'Local fixture provenance');
+  attachment_id := (reservation->>'id')::uuid;
+  perform provider_homologation_test.expect_error(format(
+    'select public.finish_provider_homologation_evidence(%L,%L,true)',
+    'e4444444-4444-4444-8444-444444444441',attachment_id)); -- absent object
+  perform provider_homologation_test.expect_error(format(
+    'select public.review_provider_checklist_item(%L,%L,%L,%L)',
+    'e4444444-4444-4444-8444-444444444441','company_registration','verified',attachment_id)); -- pending
+  perform provider_homologation_test.expect_error($q$insert into storage.objects(bucket_id,name)
+    values ('service-attachments','provider-homologation/unreserved')$q$);
+  insert into storage.objects(bucket_id,name,owner_id,metadata)
+  values ('service-attachments',reservation->>'storage_path','e2222222-2222-4222-8222-222222222222',
+    '{"size":12,"mimetype":"application/pdf"}');
+  perform provider_homologation_test.expect_error(format(
+    'select public.finish_provider_homologation_evidence(%L,%L,true)',
+    'e4444444-4444-4444-8444-444444444442',attachment_id)); -- wrong provider
+  perform set_config('request.jwt.claim.sub', 'e1111111-1111-4111-8111-111111111111', true);
+  perform set_config('request.jwt.claims', '{"role":"authenticated","sub":"e1111111-1111-4111-8111-111111111111"}', true);
+  perform provider_homologation_test.expect_error(format(
+    'select public.finish_provider_homologation_evidence(%L,%L,true)',
+    'e4444444-4444-4444-8444-444444444441',attachment_id));
+  if exists (select 1 from storage.objects where name = reservation->>'storage_path') then
+    raise exception 'Provider can read private evidence object';
+  end if;
+  perform provider_homologation_test.expect_error(format(
+    'insert into storage.objects(bucket_id,name) values (%L,%L)', 'service-attachments', reservation->>'storage_path'));
+  perform set_config('request.jwt.claim.sub', 'e2222222-2222-4222-8222-222222222222', true);
+  perform set_config('request.jwt.claims', '{"role":"authenticated","sub":"e2222222-2222-4222-8222-222222222222"}', true);
+  perform public.finish_provider_homologation_evidence('e4444444-4444-4444-8444-444444444441',attachment_id,true);
+  if (select review_status from public.provider_homologation_checklist_items
+      where provider_id = 'e4444444-4444-4444-8444-444444444441' and item_code = 'company_registration') <> 'pending' then
+    raise exception 'Upload silently verified the checklist';
+  end if;
+  if (select count(*) from public.provider_homologation_events) <> before_events + 2 then
+    raise exception 'Reservation/completion audit missing';
+  end if;
+  update storage.objects set name = name || '-tampered' where name = reservation->>'storage_path';
+  if found then raise exception 'Evidence object was mutable'; end if;
+  delete from storage.objects where name = reservation->>'storage_path';
+  if found then raise exception 'Evidence object was deletable'; end if;
+  reservation := public.reserve_provider_homologation_evidence(
+    'e4444444-4444-4444-8444-444444444441','application/pdf',12,repeat('b',64),'Failure fixture');
+  perform public.finish_provider_homologation_evidence('e4444444-4444-4444-8444-444444444441',(reservation->>'id')::uuid,false);
+  perform provider_homologation_test.expect_error(format(
+    'select public.review_provider_checklist_item(%L,%L,%L,%L)',
+    'e4444444-4444-4444-8444-444444444441','company_registration','verified',reservation->>'id'));
+end $$;
 select provider_homologation_test.expect_error(
   $$select public.set_provider_homologation_status('e4444444-4444-4444-8444-444444444441','pilot_approved','Pending mandatory checklist')$$
 );

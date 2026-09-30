@@ -8,7 +8,7 @@ import {
   statuses,
   type Detail,
 } from "@/services/provider-homologation/service";
-import { submitHomologation } from "./actions";
+import { submitHomologation, submitEvidence } from "./actions";
 
 export const dynamic = "force-dynamic";
 const inputClass =
@@ -165,10 +165,29 @@ function ProviderDetail({ detail }: { detail: Detail }) {
           <section className="space-y-3">
             <h3 className="text-lg font-semibold">Checklist e evidências</h3>
             <p className="text-sm">
-              Use o identificador de uma evidência privada já disponível e
-              vinculada a este prestador. Não use URL pública. Os requisitos
-              obrigatórios são preservados.
+              Anexe somente evidências legítimas deste prestador. O envio não
+              verifica requisitos nem aprova a oficina. Abra o arquivo e revise
+              seu conteúdo antes de registrar a decisão humana.
             </p>
+            <form action={submitEvidence} className="space-y-3 rounded-md border border-border p-3">
+              <Context id={provider.id} operation="upload" />
+              <label className="block text-sm">Arquivo privado (PDF, JPEG, PNG ou WebP; até 10 MiB)
+                <input className={inputClass} type="file" name="file" required accept="application/pdf,image/jpeg,image/png,image/webp" />
+              </label>
+              <Field name="reason" title="Origem e descrição da evidência legítima" required />
+              <button className={buttonClass}>Anexar evidência privada</button>
+            </form>
+            <ul className="space-y-2" aria-label="Evidências do prestador">
+              {detail.evidence.map((evidence) => (
+                <li key={evidence.id} className="break-all text-sm">
+                  {evidence.created_at} · {evidence.declared_mime_type} · {evidence.size_bytes} bytes · {evidence.id} ·{" "}
+                  {evidence.status === "available" ? (
+                    <a className="underline" href={`/prestadores/evidencias/${evidence.id}?provider=${provider.id}`} target="_blank" rel="noopener noreferrer">Abrir evidência privada</a>
+                  ) : evidence.status === "pending" ? "Pendente — envio não confirmado" : "Rejeitada — envio não confirmado"}
+                </li>
+              ))}
+            </ul>
+            {!detail.evidence.length && <p>Nenhuma evidência registrada nesta leitura concluída.</p>}
             {!checklist.length && (
               <form action={submitHomologation} className="space-y-3">
                 <Context id={provider.id} operation="initialize_checklist" />
@@ -205,11 +224,13 @@ function ProviderDetail({ detail }: { detail: Detail }) {
                   </p>
                   <p>Nota: {item.note ?? "Não registrada"}</p>
                   <State values={reviews} selected={item.review_status} />
-                  <Field
-                    name="evidence_ref"
-                    title="Identificador da evidência privada"
-                    defaultValue={item.evidence_ref}
-                  />
+                  <label className="block text-sm">Evidência privada deste prestador
+                    <select className={inputClass} name="evidence_ref" defaultValue={item.evidence_ref ?? ""}>
+                      <option value="">Sem evidência selecionada</option>
+                      {item.evidence_ref && !detail.evidence.some((e) => e.id === item.evidence_ref && e.status === "available") && <option value={item.evidence_ref}>Evidência anterior indisponível — substitua após revisão</option>}
+                      {detail.evidence.filter((e) => e.status === "available").map((e) => <option key={e.id} value={e.id}>{e.created_at} · {e.declared_mime_type} · {e.id}</option>)}
+                    </select>
+                  </label>
                   <Field
                     name="valid_until"
                     title="Validade (UTC; vazio remove vencimento)"
@@ -354,6 +375,8 @@ export default async function ProvidersPage({
       {params.feedback === "saved" && (
         <p role="status">Operação confirmada. Dados recarregados.</p>
       )}
+      {params.feedback === "uploaded" && <p role="status">Arquivo privado confirmado. Abra a evidência e registre a revisão humana do requisito; a homologação não foi aprovada.</p>}
+      {params.feedback === "upload_failed" && <p role="alert">Envio não confirmado. Nenhum requisito foi verificado. Confira as evidências pendentes ou rejeitadas e tente novamente com um arquivo válido.</p>}
       {params.feedback === "failed" && (
         <p role="alert">
           Operação não confirmada. Confira requisitos, categoria, bloqueios,
