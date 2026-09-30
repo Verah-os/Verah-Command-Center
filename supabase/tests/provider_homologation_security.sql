@@ -210,6 +210,12 @@ begin
     'e4444444-4444-4444-8444-444444444441','company_registration','verified',attachment_id)); -- pending
   perform provider_homologation_test.expect_error($q$insert into storage.objects(bucket_id,name)
     values ('service-attachments','provider-homologation/unreserved')$q$);
+  perform set_config('request.jwt.claim.sub', 'e1111111-1111-4111-8111-111111111111', true);
+  perform set_config('request.jwt.claims', '{"role":"authenticated","sub":"e1111111-1111-4111-8111-111111111111"}', true);
+  perform provider_homologation_test.expect_error(format(
+    'insert into storage.objects(bucket_id,name) values (%L,%L)', 'service-attachments', reservation->>'storage_path'));
+  perform set_config('request.jwt.claim.sub', 'e2222222-2222-4222-8222-222222222222', true);
+  perform set_config('request.jwt.claims', '{"role":"authenticated","sub":"e2222222-2222-4222-8222-222222222222"}', true);
   insert into storage.objects(bucket_id,name,owner_id,metadata)
   values ('service-attachments',reservation->>'storage_path','e2222222-2222-4222-8222-222222222222',
     '{"size":12,"mimetype":"application/pdf"}');
@@ -246,6 +252,14 @@ begin
   perform provider_homologation_test.expect_error(format(
     'select public.review_provider_checklist_item(%L,%L,%L,%L)',
     'e4444444-4444-4444-8444-444444444441','company_registration','verified',reservation->>'id'));
+  reservation := public.reserve_provider_homologation_evidence(
+    'e4444444-4444-4444-8444-444444444441','application/pdf',12,repeat('c',64),'Mismatched metadata');
+  insert into storage.objects(bucket_id,name,owner_id,metadata)
+  values ('service-attachments',reservation->>'storage_path','e2222222-2222-4222-8222-222222222222',
+    '{"size":11,"mimetype":"application/pdf"}');
+  perform provider_homologation_test.expect_error(format(
+    'select public.finish_provider_homologation_evidence(%L,%L,true)',
+    'e4444444-4444-4444-8444-444444444441',reservation->>'id'));
 end $$;
 select provider_homologation_test.expect_error(
   $$select public.set_provider_homologation_status('e4444444-4444-4444-8444-444444444441','pilot_approved','Pending mandatory checklist')$$
@@ -322,6 +336,26 @@ do $$ begin
   end if;
 end $$;
 
+-- A previously verified row cannot approve/qualify after its object disappears.
+reset role;
+update storage.objects set name = name || '-unavailable'
+where bucket_id = 'service-attachments' and name = 'provider-homologation/provider-a/valid-document.pdf';
+set local role authenticated;
+do $$ begin
+  if public.provider_is_eligible_for_service('e4444444-4444-4444-8444-444444444441','freios','pilot_alpha') then
+    raise exception 'Missing physical evidence did not block eligibility';
+  end if;
+end $$;
+select provider_homologation_test.expect_error(
+  $$select public.set_provider_homologation_status('e4444444-4444-4444-8444-444444444441','approved','Missing object')$$
+);
+select provider_homologation_test.expect_error(
+  $$select public.review_provider_checklist_item('e4444444-4444-4444-8444-444444444441','company_registration','verified','e6666666-6666-4666-8666-666666666661')$$
+);
+reset role;
+update storage.objects set name = 'provider-homologation/provider-a/valid-document.pdf'
+where bucket_id = 'service-attachments' and name = 'provider-homologation/provider-a/valid-document.pdf-unavailable';
+set local role authenticated;
 select public.review_provider_checklist_item(
   'e4444444-4444-4444-8444-444444444441', 'company_registration', 'verified',
   'e6666666-6666-4666-8666-666666666661', pg_catalog.now() - interval '1 minute', 'Expired mandatory document'
