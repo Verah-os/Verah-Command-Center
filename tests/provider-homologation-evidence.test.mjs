@@ -101,3 +101,16 @@ test("download route fails with explicit non-success and no-store", async () => 
   assert.equal(response.headers.get("Cache-Control"), "private, no-store");
   assert.match(await response.text(), /Não foi possível ler/);
 });
+test("private review preserves allowlisted MIME/extension but never renders arbitrary active content", async () => {
+  for (const type of ["application/pdf", "image/jpeg", "image/png", "image/webp", "text/html"]) {
+    const route = loadTs("app/(command)/prestadores/evidencias/[id]/route.ts", {
+      "@/services/auth/profile": { requireRole: async () => {} },
+      "@/services/provider-homologation/evidence": { readHomologationEvidence: async () => new Blob(["fixture"], { type }) },
+    });
+    const response = await route.GET(new Request(`https://example.invalid/prestadores/evidencias/${id}?provider=${provider}`), { params: Promise.resolve({ id }) });
+    assert.equal(response.headers.get("Cache-Control"), "private, no-store");
+    assert.equal(response.headers.get("X-Content-Type-Options"), "nosniff");
+    assert.equal(response.headers.get("Content-Type"), type === "text/html" ? "application/octet-stream" : type);
+    assert.match(response.headers.get("Content-Disposition"), type === "text/html" ? /^attachment;.*\.bin"$/ : /^inline;.*\.(pdf|jpg|png|webp)"$/);
+  }
+});
