@@ -1,5 +1,6 @@
 import { requireRole } from "@/services/auth/profile";
 import { createSupabaseServerClient } from "@/services/supabase/server";
+import { readHomologationEvidence, type Evidence } from "./evidence";
 
 export const statuses = [
   "candidate",
@@ -52,6 +53,7 @@ export type Detail = {
   profile: Profile | null;
   checklist: ChecklistItem[];
   categories: Category[];
+  evidence: Evidence[];
 };
 
 function read<T>({ data, error }: { data: T | null; error: unknown }): T {
@@ -100,12 +102,17 @@ export async function getHomologationDetail(id: string): Promise<Detail> {
       .select("category_code,authorization_status,valid_until,reason")
       .eq("provider_id", id)
       .order("category_code"),
+    client.from("service_attachments")
+      .select("id,status,created_at,declared_mime_type,size_bytes")
+      .eq("homologation_provider_id", id)
+      .order("created_at", { ascending: false }),
   ]);
   return {
     provider: read(results[0]) as Provider,
     profile: (read(results[1]) as Profile[])[0] ?? null,
     checklist: read(results[2]) as ChecklistItem[],
     categories: read(results[3]) as Category[],
+    evidence: read(results[4]) as Evidence[],
   };
 }
 
@@ -215,6 +222,8 @@ export async function operateHomologation(form: FormData): Promise<void> {
       const status = value(form, "status", true);
       if (!item || !reviews.includes(status as (typeof reviews)[number]))
         throw new Error("Revisão inválida.");
+      const evidence = value(form, "evidence_ref");
+      if (evidence) await readHomologationEvidence(id, evidence);
       rpc = "review_provider_checklist_item";
       args = {
         p_provider_id: id,
