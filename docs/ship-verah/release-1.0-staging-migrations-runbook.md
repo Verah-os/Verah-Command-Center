@@ -333,4 +333,3 @@ sem pagamentos/mensagens reais, sem signing/publicação e sem merge automático
 ## #266 upload de evidências — pendente
 
 Migration 20260929235916_provider_homologation_evidence_upload.sql: repository-only PENDING, sem aplicação remota nesta entrega. Requer o guard Admin anterior; habilita reserva/finalização auditada e Storage privado para homologação. Seguir o processo autorizado e docs/provider-homologation-266.md antes do Human Gate na UI. Merge não comprova disponibilidade no Alpha.
-
